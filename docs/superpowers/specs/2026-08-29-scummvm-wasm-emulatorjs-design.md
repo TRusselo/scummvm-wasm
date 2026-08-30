@@ -156,6 +156,48 @@ zip-mount rather than testing content-less boot), and then observe whether
 audio/threading behaves once the core actually reaches steady-state
 execution with a real game loaded.
 
+5. **Follow-up test, same session: pointed `EJS_gameUrl` directly at
+   `zak.scm`** (a real, valid zip — no custom zip-mount code written yet).
+   Result, concrete and informative:
+   - **The `ErrnoError` is gone.** Confirms it was specifically about
+     missing/empty content, not a deeper systemic problem with the core or
+     the emscripten platform.
+   - **Video and mouse input both work**: the core rendered RetroArch's own
+     menu (crisp, correct, multiple submenus navigable), and clicking
+     genuinely moved menu focus, confirming pointer input is at least
+     partially wired. (Confirming a *click* as a "select" action needed
+     keyboard Enter, not a second click — worth investigating exactly what
+     RetroArch's default input mapping expects from a libretro
+     `RETRO_DEVICE_POINTER` press vs its "confirm" bind, but this is a
+     mapping/config detail, not a fundamental gap.)
+   - **The game did not auto-launch**, despite `EJS_startOnLoaded = true` —
+     it landed on RetroArch's normal contentless main menu rather than
+     going straight into Zak McKracken. The theory that EmulatorJS's
+     generic zip-extraction (writing every entry to `/<filename>` at the FS
+     root) would combine with `retro_load_game`'s existing
+     parent-directory-autodetect fallback to "just work" was **not
+     confirmed** — something in that chain didn't fire as traced. Not yet
+     root-caused.
+   - **RetroArch's own "Load Content" file browser shows `/` as empty**,
+     despite files having been written there by EmulatorJS's extraction
+     step. Most likely explanation: RetroArch's content browser filters by
+     the core's registered `valid_extensions` (from `retro_get_system_info`),
+     and this wrapper hasn't been told `.LFL`/`.EXE`/`.scm` are valid
+     extensions for it — so the browser hides files it doesn't recognize
+     even though they're present on disk. Not yet confirmed by reading the
+     wrapper's `retro_get_system_info` implementation.
+
+**Revised next-step priority:** the single highest-value remaining
+investigation is tracing why `retro_load_game`'s directory-autodetect branch
+didn't fire (or fired but failed) when EmulatorJS handed it a path. Two
+concrete hypotheses to check first, in order: (1) what literal `game->path`
+string EmulatorJS actually passes for a zip-sourced ROM (may not point where
+assumed — needs a console.log/breakpoint check in `emulator.js` around
+`startGame()`), and (2) whether `testGame()`'s auto-detect scan requires
+`.scummvm`-style companion metadata this raw file layout doesn't provide.
+This is real implementation-plan work, not something to guess at further
+here.
+
 ## Repo Structure
 
 ```
