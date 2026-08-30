@@ -1,2 +1,3 @@
 *.scm
 toolchain/emsdk/
+test-page/ejs/data/cores/*.data
