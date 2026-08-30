@@ -162,7 +162,8 @@ execution with a real game loaded.
 scummvm-wasm/
 ├── scummvm-core/              # git submodule -> libretro/scummvm (pinned to a release tag)
 │   └── backends/platform/libretro/   # the existing wrapper + emscripten platform target (used as-is)
-├── zip-mount/                 # core-side zip -> virtual Common::Archive layer (new code, to be written)
+├── zip-mount/                 # JS: unzip .scm client-side, write into the module's virtual FS
+│                               # before calling into the core (no C++ wrapper changes needed)
 ├── retroarch/                 # git submodule -> EmulatorJS/RetroArch (branch "next"), for the link step
 ├── build/                     # build scripts: emsdk setup, lite_engines.list override, the two-stage
 │                               # build (core .bc, then RetroArch link with LD=em++), .data packaging
@@ -172,11 +173,32 @@ scummvm-wasm/
 
 ## Components & Data Flow
 
-1. **Zip-backed virtual archive** (`zip-mount/`): implements ScummVM's
-   `Common::Archive` interface over an in-memory view of the `.scm` file's zip
-   central directory (via a small vendored library — `miniz` is the likely
-   choice: single-header, WASM-friendly). Files decompress into memory on
-   read, on demand — no physical extraction step.
+1. **Zip-mount — corrected after reading the actual wrapper source
+   (`backends/platform/libretro/src/libretro-core.cpp`'s `retro_load_game`)**:
+   no C++ changes to the wrapper are needed for this at all. Two relevant
+   facts changed the design:
+   - `retro_load_game` already handles directory-based auto-detection as
+     existing, already-tested code: if `game->path` is a directory, it calls
+     `LIBRETRO_G_SYSTEM->testGame(parent_dir, true)`, and on
+     `TEST_GAME_OK_ID_AUTODETECTED` builds the string `-p "<dir>"
+     --auto-detect` and feeds it to `parse_command_params()` — i.e. it
+     already does the "call the internal function `--auto-detect` wraps"
+     behavior this spec originally called for writing.
+   - The compiled module already exports Emscripten's `FS` object (confirmed
+     in the working link command's `EXPORTED_RUNTIME_METHODS`), so JS can
+     write arbitrary files into the module's virtual filesystem before
+     calling into the core.
+   - **Design: unzip the `.scm` file client-side in JS** (a small JS zip
+     library, not a C++ one) and write its contents into the module's
+     virtual FS at a real directory path (e.g. `/home/game/`), then invoke
+     the core's content loading pointed at that directory. The existing,
+     unmodified `retro_load_game` directory-autodetect branch handles
+     everything from there. (ScummVM also has its own built-in zip reader,
+     `Common::makeZipArchive()` in `common/compression/unzip.h` — used
+     internally for engine data packs and DLC, proving the "no zip" FAQ
+     answer is a Launcher-GUI product policy, not a technical limitation —
+     but it's not needed here since the JS-side approach is simpler and
+     requires zero wrapper changes.)
 2. **Boot sequence** in `retro_load_game()`: receive content path → open as a
    zip-backed archive → register it as a search path → call ScummVM's
    internal detect-and-launch path directly (the same function `--auto-detect`
