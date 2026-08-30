@@ -161,3 +161,61 @@ does this genuinely indicate a deeper concurrency bug in the wrapper's own
 code — at that point, and not before, the spec's named "pivot to a
 clean-room wrapper" option would be earned. That conclusion is not yet
 earned as of this writing.
+
+## Follow-up (2026-08-30): diagnostic step 1 run — real stack overflow found and fixed
+
+Step 1 above was run, in two passes:
+
+**Pass A — `EMCC_CFLAGS="-sASSERTIONS=1"` alone.** Rebuilt and reloaded
+against a real game (`zak.scm`). Result: inconclusive as originally
+worried — the crash was still a generic `RuntimeError: memory access out
+of bounds`, not a specific Asyncify message. Plain `ASSERTIONS=1` does not
+add the specific stack-instrumentation needed to distinguish an Asyncify
+stack overflow from other memory errors; it needed to be paired with the
+same flags `Makefile.emulatorjs`'s own `DEBUG=1` block uses.
+
+**Pass B — `EMCC_CFLAGS="-sASSERTIONS=1 -sSAFE_HEAP=2 -sSTACK_OVERFLOW_CHECK=2"`.**
+This surfaced a precise, actionable error:
+
+```
+RuntimeError: Aborted(stack overflow (Attempt to set SP to 0x0027ddd0,
+with stack limits [0x0027e2d0 - 0x0067e2d0]). If you require more stack
+space build with -sSTACK_SIZE=<bytes>)
+```
+
+The stack limits shown are exactly 4,194,304 bytes (4MB) apart — matching
+this build's `STACK_SIZE=4194304` setting precisely. **This is a genuine,
+ordinary stack overflow, not an Asyncify-specific one and not a data
+race.** ScummVM's own call depth on this thread simply exceeds a 4MB
+stack under this build configuration.
+
+**Fix applied and verified**: rebuilt with `STACK_SIZE=16777216` (16MB,
+still passed as a normal `Makefile.emulatorjs` variable, not a new
+mechanism). Reloaded against the same real game: **no crash**. The
+`RuntimeError: memory access out of bounds` (and the more specific stack
+overflow message from Pass B) is gone entirely at 16MB.
+
+**This resolves the open question from above.** The crash was the cheap
+configuration problem, not a wrapper-level concurrency bug. The spec's
+"pivot to a clean-room wrapper" option is **not warranted** by this
+evidence — a simple `STACK_SIZE` increase in
+`build/build-retroarch-core.sh` is the actual fix (not yet committed as of
+this writing; confirmed working via a manual rebuild, not yet folded into
+the build scripts).
+
+**New, separate, not-yet-diagnosed symptom**: with the crash gone, the
+ScummVM splash screen renders and then **the page stalls indefinitely**
+(20+ seconds observed, no further progress, no new crash) rather than
+proceeding into the game or ScummVM's own Launcher. A `worker.onerror`
+`ErrorEvent` appears in the console on every threaded run so far,
+including this successful-past-the-crash one, but its actual message
+content was never captured (the console tooling used only surfaced the
+event's type, not its `.message`/`.filename`/`.lineno` properties) — it
+has not been established whether this error is the cause of the stall or
+an unrelated, non-fatal side effect. This is genuinely new territory, not
+covered by this doc's earlier diagnosis, and is the next thing to
+investigate — likely by extracting the actual `ErrorEvent` properties
+(e.g. via `javascript_tool` reading `event.message`/`event.error` at the
+moment it fires, which requires attaching a listener before reload rather
+than reading console output after the fact) rather than by guessing
+further from output already captured.
