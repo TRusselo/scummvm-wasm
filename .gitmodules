@@ -1,6 +1,12 @@
 [submodule "scummvm-core"]
 	path = scummvm-core
-	url = https://github.com/libretro/scummvm.git
+	# Fork of libretro/scummvm carrying one local commit (WebMIDI plugin
+	# exclusion, see docs/GOTCHAS.md) that upstream doesn't have. The
+	# actual checked-out commit is whatever's recorded in this repo's
+	# tree for this path -- this URL just needs to be somewhere that
+	# commit is actually fetchable from, which upstream is not.
+	url = https://github.com/TRusselo/scummvm.git
+	branch = emulatorjs-wasm-fixes
 [submodule "retroarch"]
 	path = retroarch
 	url = https://github.com/EmulatorJS/RetroArch.git
