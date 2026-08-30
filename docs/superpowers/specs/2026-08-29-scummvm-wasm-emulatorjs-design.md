@@ -16,16 +16,22 @@ Target games (all SCUMM engine, no other engines needed):
 - Day of the Tentacle (SCUMM v6, CD speech variant exists — single disc, not affected
   by RetroArch's flaky multi-disc handling)
 
-## Prior Art (research summary)
+## Prior Art (research summary, corrected after live verification)
 
 - ScummVM has an official, working standalone Emscripten port
   (`scummvm/scummvm` repo, `dists/emscripten/`), plus a polished unofficial demo
   (`chkuendig/scummvm-demo`, live at scummvm.kuendig.io). This proves the ScummVM
   C++ codebase — engines, codecs, detection tables — compiles to WASM cleanly.
-- The separate `libretro/scummvm` core (used by desktop RetroArch) has **zero
-  emscripten platform support** in its Makefile, confirmed by direct inspection.
-  This is the actual gap: "ScummVM compiles to WASM" and "ScummVM as a libretro
-  core" have never been combined.
+- **Correction (found by actually building it — see "Spike Results" below):**
+  the separate `libretro/scummvm` core (used by desktop RetroArch) **already
+  has a working `emscripten` platform target**, in
+  `backends/platform/libretro/Makefile`. An earlier pass at this research
+  checked the wrong Makefile (the repo root one) and wrongly concluded there
+  was no support at all. The real gap is narrower than originally scoped: the
+  existing target isn't covered by any CI (the GitHub Actions `emscripten` job
+  builds the separate standalone `dists/emscripten` port, not this core), so
+  it had never been exercised against RetroArch's actual EmulatorJS build
+  pipeline before this project did it. That gap is now closed — see below.
 - EmulatorJS support for ScummVM has been requested repeatedly since 2022
   (EmulatorJS#315, linuxserver/docker-emulatorjs#30) and never implemented. The
   docker-emulatorjs issue was auto-closed by a stale-bot, not a deliberate
@@ -46,11 +52,17 @@ Target games (all SCUMM engine, no other engines needed):
   (~59 of them) is compiled out via the build's engine-gating flags. This
   shrinks the WASM binary and removes unrelated risk (3D/WebGL engines, MT-32
   emulation, etc. don't apply here).
-- **Repo: new standalone repo** (this directory), not a fork of
-  `libretro/scummvm`. ScummVM engine source is vendored as a git submodule
-  pointed at upstream `scummvm/scummvm` directly (same lineage as the proven
-  Emscripten port), while the libretro wrapper code is adapted from
-  `libretro/scummvm`'s existing desktop wrapper (see Approach, below).
+- **Repo: new standalone repo** (this directory), which vendors
+  `libretro/scummvm` as a single git submodule — **corrected from the
+  original plan** to submodule vanilla `scummvm/scummvm` separately from an
+  "adapted" wrapper. `libretro/scummvm` is not a thin wrapper repo; it's a
+  full source fork containing the entire ScummVM engine tree *and* the
+  libretro wrapper together, patched as a pair. The spike (see Spike Results)
+  proved this combined tree builds correctly for emscripten as-is, so
+  splitting it back into "vanilla engine submodule + separately-adapted
+  wrapper" would introduce a graft-mismatch risk (patches in one but not the
+  other) for no benefit. One submodule, pinned to a release tag, is simpler
+  and matches what was actually proven to work.
 - **Deployment: self-host first, upstream later if it's solid.** No commitment
   yet to getting this merged into EmulatorJS's official `cores.json` — that's a
   stretch goal once the core is proven to actually work well.
@@ -72,36 +84,90 @@ Target games (all SCUMM engine, no other engines needed):
 
 ## Approach
 
-**Extend the existing `libretro/scummvm` desktop wrapper with a new emscripten
-platform target**, rather than writing a clean-room wrapper. Reuse its
-`OSystem_libretro` video backend, audio callback wiring, and launcher-suppression
-logic — code that's already debugged for the libretro API surface — and teach
-its build system to target `emcc`/`em++` with static engine linking (mirroring
-flags already proven in `scummvm/dists/emscripten/build.sh`).
+**Use the existing `libretro/scummvm` wrapper and its existing `emscripten`
+platform target as-is** — no new build-system code is needed (this was the
+original Approach A/B framing's central risk, and it's now resolved: see
+Spike Results). Remaining work is: fixing the one real build gap found (the
+link step), wiring the zip-mount + auto-detect boot sequence described below,
+and diagnosing the runtime issue the spike surfaced (an `ErrnoError` on boot
+with no game content — see Spike Results).
 
-**Named risk and pivot trigger:** this wrapper was written assuming desktop
-threading/blocking behavior (real OS threads, synchronous dialogs), which may
-not translate to WASM's single-event-loop model — particularly ScummVM's audio
-mixer, whose pull-vs-push sample model relative to `retro_run()`'s expectations
-is unknown until tested. **If the spike shows the wrapper fighting WASM's
-execution model harder than plausible incremental fixes can resolve, stop and
-pivot to a fresh, minimal wrapper written non-blocking from the start,**
-rather than sinking further time into forcing the desktop wrapper to comply.
+**Named risk, still open:** the emscripten platform sets `USE_LIBCO=0`, which
+routes the build through `rthreads.o` (real pthread-based coroutines) instead
+of `libco` (fiber-based). This means the existing port is attempting genuine
+Emscripten pthreads (Web Workers + SharedArrayBuffer) for whatever ScummVM
+uses coroutines/threads for internally — likely audio mixing and/or the
+engine-vs-frontend execution split. This has real deployment implications
+(pthreads need cross-origin-isolation headers: COOP/COEP, HTTPS) and the
+spike did not get far enough to observe it in action (it crashed during boot
+before reaching steady-state `retro_run()`). **If wiring a real game reveals
+this threading model doesn't work cleanly in the browser (deadlocks, silent
+audio, requires infrastructure this project doesn't want to depend on), stop
+and pivot to a fresh, minimal wrapper written non-blocking from the start,**
+rather than sinking further time into forcing the existing wrapper to comply.
 This is a deliberate, named decision point — not a fallback to reach for on
 the first sign of friction.
+
+## Spike Results (empirical, from live build-and-run during design)
+
+Before writing the implementation plan, the core pipeline was actually built
+and run once, live, to ground this spec in fact rather than assumption. What
+was verified:
+
+1. **`emmake make platform=emscripten LITE=1` builds cleanly**, scoped to
+   SCUMM only by overwriting `backends/platform/libretro/lite_engines.list`
+   to contain just `scumm` (default list has ~33 engines; `LITE=1` reads that
+   file). Produced `scummvm_libretro_emscripten.bc` (~24MB), zero real errors,
+   ~440 warnings (all pre-existing codebase noise — pragma-pack, fribidi enum
+   casts, missing-override — none introduced by or relevant to this project).
+2. **Linking that `.bc` via `EmulatorJS/RetroArch`'s `Makefile.emulatorjs`
+   fails by default** with `wasm-ld: undefined symbol: vtable for
+   __cxxabiv1::__si_class_type_info` and friends — `emcc`'s own error message
+   correctly diagnoses it: the shared Makefile links with `emcc` (C driver),
+   which doesn't pull in `libc++abi`'s RTTI support that ScummVM's heavily
+   C++ (RTTI/exceptions-using) codebase needs. **Fix: pass `LD=em++` on the
+   make command line** (overrides the `LD=emcc` that `emmake` sets by
+   default). With that one flag, the link succeeds and produces a real
+   `scummvm_libretro.js` (274KB) + `scummvm_libretro.wasm` (14MB).
+3. **EmulatorJS's actual loader (v4.2.3, same version RomM ships) downloads
+   and begins executing this core** when packaged into its expected bundle
+   format (`7z a scummvm-wasm.data scummvm_libretro.wasm scummvm_libretro.js`)
+   and referenced via `EJS_core = "scummvm"`. One naming detail learned:
+   **the frontend requests the `-legacy` variant by default**
+   (`scummvm-legacy-wasm.data`), not the plain name — the real build needs to
+   produce both variants (`build-emulatorjs.sh`'s `--legacy` flag toggles
+   `HAVE_OPENGLES3`), or the test page needs to be configured to not request
+   legacy, whichever proves simpler once revisited.
+4. **It crashes with an `ErrnoError`** (an Emscripten filesystem error) during
+   WASM init when given no game content (`EJS_gameUrl = ""`, no zip-mount
+   code exists yet). This was tested as a fast, low-cost check of whether
+   ScummVM's content-less boot path (straight to its Launcher GUI, a feature
+   that exists on desktop RetroArch) would "just work" in the browser before
+   any zip-mount code was written — it doesn't, at least not with zero setup.
+   This is the concrete next problem: most likely the core's boot path
+   expects either real game content or bundled system/theme files that
+   aren't present in this minimal setup. Not yet diagnosed further — that's
+   implementation-plan work, not spec-time work.
+
+**What this means for scope:** the foundational "can this even be built and
+loaded" risk is resolved. The remaining unknowns are narrower and more
+tractable: fix the `ErrnoError` (likely by wiring real game content via
+zip-mount rather than testing content-less boot), and then observe whether
+audio/threading behaves once the core actually reaches steady-state
+execution with a real game loaded.
 
 ## Repo Structure
 
 ```
 scummvm-wasm/
-├── scummvm/                  # git submodule -> scummvm/scummvm (upstream), pinned to a release tag
-├── libretro-wrapper/         # libretro core glue code (retro_run, callbacks, etc.)
-│   ├── libretro.cpp          # adapted from libretro/scummvm's wrapper
-│   └── Makefile.emscripten   # new build target, modeled on dists/emscripten/build.sh flags
-├── zip-mount/                # core-side zip -> virtual Common::Archive layer
-├── build/                    # emsdk setup, engine-gating (SCUMM only), .bc -> .wasm pipeline
-├── test-page/                # minimal static HTML page embedding EmulatorJS for manual testing
-└── docs/                     # spec/plan docs (this file)
+├── scummvm-core/              # git submodule -> libretro/scummvm (pinned to a release tag)
+│   └── backends/platform/libretro/   # the existing wrapper + emscripten platform target (used as-is)
+├── zip-mount/                 # core-side zip -> virtual Common::Archive layer (new code, to be written)
+├── retroarch/                 # git submodule -> EmulatorJS/RetroArch (branch "next"), for the link step
+├── build/                     # build scripts: emsdk setup, lite_engines.list override, the two-stage
+│                               # build (core .bc, then RetroArch link with LD=em++), .data packaging
+├── test-page/                 # minimal static HTML page embedding EmulatorJS for manual testing
+└── docs/                      # spec/plan docs (this file)
 ```
 
 ## Components & Data Flow
@@ -117,20 +183,31 @@ scummvm-wasm/
    wraps on the CLI — there is no argv/process boundary inside a libretro
    core, so this must be a direct API call, not a shelled-out CLI invocation)
    → fall through to normal `retro_run()` frame pump once a game is running.
+   **Current status: the existing wrapper's content-less boot path throws an
+   `ErrnoError` before this code exists** (see Spike Results) — diagnosing
+   that and confirming a real game (via zip-mount) gets past it is the first
+   implementation-plan task.
 3. **Video**: reuse `OSystem_libretro`'s existing frame buffer copy into
-   `retro_video_refresh_cb`, called once per `retro_run()`.
-4. **Audio (flagged risk)**: `retro_run()` expects to pull a fixed sample
-   batch per frame via `audio_batch_cb`. Whether ScummVM's mixer already
-   supports a "pull N samples on demand" model, or pushes from a background
-   thread on desktop (requiring Asyncify or a thread-emulation shim in WASM),
-   is the central unknown the spike must answer.
+   `retro_video_refresh_cb`, called once per `retro_run()`. Not yet observed
+   running (the spike crashed before reaching steady-state `retro_run()`).
+4. **Audio (flagged risk, sharpened by the spike)**: `retro_run()` expects to
+   pull a fixed sample batch per frame via `audio_batch_cb`. The build
+   confirmed the wrapper compiles against `rthreads.o` (real pthread-based
+   coroutines, not fiber-based `libco`) for the emscripten platform — meaning
+   whatever ScummVM uses coroutines for (likely audio mixing) is attempting
+   genuine Emscripten pthreads. Not yet observed working or failing at
+   runtime; see the Approach section's named risk.
 5. **Input**: map RetroArch's pointer device (`RETRO_DEVICE_POINTER`) to
    ScummVM's mouse cursor for point-and-click; `retro_keyboard_callback` for
    rare text-entry needs (copy-protection code entry, etc.). Touch-device
    virtual mouse UX is explicitly deferred.
-6. **Engine gating** (`build/`): SCUMM-only is enforced by the build script
-   itself (`--enable-engine=scumm --disable-all-engines` or the libretro
-   Makefile's equivalent), not left as a manual flag someone could forget.
+6. **Engine gating** (`build/`): SCUMM-only is enforced by overwriting
+   `backends/platform/libretro/lite_engines.list` to contain just `scumm`
+   before building with `LITE=1` — verified working in the spike. (The
+   generic `--enable-engine=scumm --disable-all-engines` configure flags
+   exist upstream but aren't how this specific wrapper's build is invoked;
+   `LITE=1` plus a trimmed `lite_engines.list` is the actual mechanism this
+   Makefile uses.)
 
 ## Error Handling
 
@@ -192,7 +269,11 @@ target games before v1 is considered done.
 
 ## Next Steps
 
-Hand this spec to the writing-plans skill to produce a concrete implementation
-plan, starting with the spike: standing up the `emscripten` platform target in
-the adapted libretro wrapper, scoped to the SCUMM engine only, and getting a
-`.bc` to build at all — before any EmulatorJS-side integration work begins.
+The feasibility spike (build → link → load in EmulatorJS) is done — see Spike
+Results. Hand this spec to the writing-plans skill to produce a concrete
+implementation plan, starting from where the spike left off: reproduce the
+verified build/link steps inside this project's actual repo structure
+(rather than the throwaway scratchpad they were first proven in), then
+diagnose and fix the `ErrnoError` on boot — most likely by building the
+zip-mount layer and testing with real content (`zak.scm`) rather than a
+content-less boot — before moving on to audio/input validation.
