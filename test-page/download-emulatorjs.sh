@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 EJS_VERSION="4.2.3"
-if [ -d ejs/data ]; then
+if [ -f ejs/data/loader.js ]; then
   echo "EmulatorJS already present at test-page/ejs — skipping download."
   exit 0
 fi
