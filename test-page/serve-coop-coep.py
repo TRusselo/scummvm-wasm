@@ -6,6 +6,12 @@ class COOPCOEPHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
         self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        # This project's core/.data/.wasm artifacts get rebuilt repeatedly
+        # during a single debugging session while the server keeps running.
+        # Without this, browsers may serve a stale cached copy on a normal
+        # reload (no Cache-Control/ETag were being sent at all), silently
+        # testing an old build and producing misleading results.
+        self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
 if __name__ == "__main__":

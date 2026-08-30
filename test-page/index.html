@@ -17,6 +17,20 @@
   // "-thread" when this is set) and enables the loader's own
   // SharedArrayBuffer usage on its side.
   EJS_threads = true;
+  // Point-and-click adventure games use an absolute cursor position that
+  // the guest OS/game itself tracks internally, fed from relative mouse
+  // deltas (the same model DOS mouse drivers used, and what libretro's
+  // "mouse" input device already sends per-frame) -- so the in-game
+  // cursor already moves correctly. Without pointer lock, though, the
+  // browser also keeps the real OS cursor visible and unclipped over the
+  // canvas, so the player sees two independently-moving cursors. Locking
+  // the mouse hides the OS cursor and makes browser mouse events
+  // movementX/Y-only, which is exactly what the existing relative-delta
+  // input pipeline already expects -- this is a UX default, not a new
+  // input path.
+  EJS_defaultOptions = {
+    lockMouse: "enabled",
+  };
 </script>
 <script src="ejs/data/loader.js"></script>
 </body>
