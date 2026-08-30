@@ -160,14 +160,26 @@ copyrighted game data.
 
 ## Known limitations
 
-- EmulatorJS's generic save-state UI (its own "Save State" menu entry,
-  independent of ScummVM's built-in save/load) doesn't work -- the SCUMM
-  libretro core's `_save_state_info` doesn't return what EmulatorJS's
-  `GameManager.getState()` expects. This was an intentional scope
-  decision, not an oversight: ScummVM's own in-game save-anywhere/
-  load-anywhere system works fine and was always the intended save
-  mechanism for this project. See docs/GOTCHAS.md if you want to fix the
-  generic path anyway.
+- EmulatorJS's own "Save State"/"Load State" buttons work (bridged to
+  ScummVM's save/load system -- see docs/GOTCHAS.md for the three
+  separate bugs, two in ScummVM and one in RetroArch/EmulatorJS, that
+  had to be fixed to make this work), and so does ScummVM's own in-game
+  save-anywhere/load-anywhere menu. Both write to the same underlying
+  save slot mechanism.
+- What's *not* implemented is server-backed persistence -- EmulatorJS's
+  own documented hooks for this (`EJS_onSaveState`, `EJS_onLoadState`,
+  `EJS_loadStateURL`, and the equivalent save-file hooks) aren't wired up
+  anywhere in `test-page/`, since this is a local static-file test
+  harness with no backend to persist to. Hosting this core somewhere
+  with real save-state persistence (e.g. RomM) means wiring those hooks
+  up to that host's own backend -- a deployment-specific integration
+  step, not something this project's test page needs to do itself.
+- The exit-confirmation dialog only offers "Exit"/"Cancel" in the
+  EmulatorJS release this project is pinned to (v4.2.3) -- no separate
+  "Exit & Save" button. Confirmed by reading `emulator.min.js`'s dialog
+  construction directly: it unconditionally creates exactly two buttons.
+  If a newer EmulatorJS release adds one, or a host's own wrapper UI
+  does, that's independent of the save-state fix above.
 - Only manually tested via a real browser (Chrome), not covered by any
   automated test suite.
 - The Emscripten SDK version is not pinned (`setup-emsdk.sh` installs

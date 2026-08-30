@@ -9,5 +9,10 @@
 	branch = emulatorjs-wasm-fixes
 [submodule "retroarch"]
 	path = retroarch
-	url = https://github.com/EmulatorJS/RetroArch.git
-	branch = next
+	# Fork of EmulatorJS/RetroArch carrying one local commit (fixes
+	# save_state_info() returning a dangling stack pointer, see
+	# docs/GOTCHAS.md) that upstream doesn't have. As with scummvm-core
+	# above, this URL just needs to be somewhere that commit is fetchable
+	# from.
+	url = https://github.com/TRusselo/RetroArch.git
+	branch = emulatorjs-wasm-fixes

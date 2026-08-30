@@ -161,6 +161,148 @@ Real MIDI hardware output was never a goal for this project (these are
 SCUMM adventure games using their own AdLib/MT-32/etc. music emulation);
 excluding the plugin loses nothing.
 
+## Save states: implementing retro_serialize()/retro_unserialize()
+
+`scummvm-core/backends/platform/libretro/src/libretro-core.cpp`'s
+`retro_serialize()`/`retro_serialize_size()`/`retro_unserialize()` used
+to be permanent stubs (`return 0`/`return false`) -- meaning EmulatorJS's
+own "Save State"/"Load State" toolbar buttons always failed, even though
+ScummVM's own in-game Save/Load menu worked fine. Getting real save-state
+support working required finding and fixing **three separate, unrelated
+bugs** across two different codebases (ScummVM and RetroArch/EmulatorJS)
+that all happened to produce the exact same user-visible symptom
+("FAILED TO SAVE STATE"). If you're touching this code, read all three --
+fixing only one or two still leaves it broken.
+
+**The design**, for context on why the fix looks the way it does: ScummVM
+has no API to serialize a running engine's state into a memory buffer --
+`Engine::saveGameState()`/`loadGameState()` only know how to read/write
+*named slots* via `SaveFileManager`. So the bridge works by driving a real
+engine save/load into a reserved slot (see below for why 200, not some
+rounder number), then copying that slot's save-file bytes to/from the
+buffer libretro provides. This reuses the exact same save mechanism as
+ScummVM's own in-game Save/Load menu, just made reachable through
+EmulatorJS's own save-state UI instead of requiring the GMM.
+
+A real complication this design has to handle: `retro_serialize()`/
+`retro_unserialize()` run on what this backend calls the "main" thread,
+but `g_engine` and everything reachable from it belong to the "emu
+thread" -- a real pthread parked wherever the running engine last yielded
+(see `libretro-threads.cpp`'s `retro_switch_to_emu_thread()`/
+`retro_switch_to_main_thread()`). Calling `g_engine->saveGameState()`
+directly from `retro_serialize()` would be touching engine state from the
+wrong thread mid-execution. The fix sets a pending-operation flag and
+drives the emu thread forward with `retro_switch_to_emu_thread()` (the
+same primitive `retro_run()` already uses once per frame) until a hook
+added to `OSystem_libretro::pollEvent()` -- which *does* run on the emu
+thread -- sees the flag, does the actual save/load, and reports back.
+
+### Bug 1 (ScummVM): `saveGameState()`/`loadGameState()` don't all complete synchronously
+
+The generic `Engine::saveGameState()`/`loadGameState()` do their file I/O
+synchronously. SCUMM's override doesn't: `ScummEngine::saveGameState()`
+just calls `requestSave()`, which sets an internal flag
+(`_saveLoadFlag`) for SCUMM's own main loop to act on later, in
+`scummLoop_handleSaveLoad()`. Code that needs to know when a save/load
+has *actually* finished -- not just been accepted -- has no generic way
+to ask. Fixed by adding a new virtual, `Engine::isSaveOrLoadPending()`
+(default `false`, since most engines' base implementation is already
+synchronous), overridden in `ScummEngine` as `_saveLoadFlag != 0`. The
+save-state bridge polls this after arming a request and waits for it to
+clear before treating the request as finished.
+
+### Bug 2 (ScummVM): `_saveLoadSlot` is a `byte` -- slot numbers above 255 silently wrap
+
+The reserved slot originally used was 990 (chosen to sit comfortably
+above SCUMM's UI-visible slot range of 0-99 and away from slot 100,
+which `ScummEngine::requestLoad()` treats specially as a temporary-restart
+slot). This is wrong: `ScummEngine::_saveLoadSlot` (`scumm.h`) is declared
+`byte`. Assigning 990 to it silently truncates to `990 % 256 = 222` --
+SCUMM saved to and loaded from slot 222 the entire time, while the
+save-state bridge kept asking about slot 990. No error anywhere in the
+chain indicates this; the save write genuinely succeeds, just under a
+different slot than the one being asked about afterward. The tell was a
+`ssdbg_list_saves()`-style directory listing (see the debugging note
+below) showing a `zak.s222` file nobody had ever explicitly saved to.
+Fixed by using slot 200 instead -- still outside the UI range, still not
+100, and comfortably inside a byte.
+
+### Bug 3 (ScummVM): SCUMM never overrides the generic `getSaveStateName()`
+
+`Engine::getSaveStateName(slot)`'s generic default produces
+`"<target>.<slot:03d>"` (e.g. `zak.990`). Nothing inside SCUMM's own
+save/load code calls this generic virtual -- `ScummEngine::saveState()`/
+`loadState()` use their own `makeSavegameName()`, which produces
+`"<target>.s<slot:02d>"` (e.g. `zak.s200`, with an `s`/`c` prefix
+character SCUMM has always used to distinguish real saves from
+temporary/restart state). These two naming schemes silently disagree,
+and nothing before this bridge ever needed to call the generic
+`getSaveStateName()` on a SCUMM engine, so the mismatch was invisible.
+The save-state bridge calls `saveGameState()` (writes to the *real*
+`.s200` name), then calls the generic `getSaveStateName()` to figure out
+what to `openForLoading()` (asks for the *wrong* `.990` name) -- a
+`SaveFileManager` lookup that fails every time. Fixed by overriding
+`ScummEngine::getSaveStateName()` to delegate to `makeSavegameName()`,
+making the generic virtual finally agree with what SCUMM actually does.
+
+### Bug 4 (RetroArch/EmulatorJS): `save_state_info()` returns a dangling stack pointer
+
+Separate from all of the above, and the one that made the first three
+much harder to diagnose: `retroarch/tasks/task_save.c`'s
+`save_state_info()` (EmulatorJS-specific, `#ifdef EMULATORJS`) declared
+its result buffer as a **local stack array** (`char state_data[300]`)
+and returned a pointer to it. The JS side
+(`emulatorjs.js`'s `saveStateInfo` -- `Module.cwrap(..., "string", [])`)
+reads that pointer back via Emscripten's `UTF8ToString()`, and never
+calls back into C to free anything, despite this function's own comment
+claiming "This must be freed by the JavaScript side!" -- the comment
+describes intent that was never actually implemented on either side.
+Since the buffer is stack-local, it's invalid the instant the C function
+returns; whatever JS reads back is just whatever happened to still be
+sitting at that stack address. The observed result: **every single**
+save-state attempt, success or failure, logged garbled, non-ASCII
+console output (e.g. `֧_F4`) instead of the intended message, and
+EmulatorJS's UI showed a generic "FAILED TO SAVE STATE" regardless of
+what actually happened underneath. This bug alone was enough to make the
+three ScummVM-side bugs above look identical from the browser console --
+fixing it first (change `state_data` to `static`, so the buffer survives
+after the function returns) is what turned that garbled text into an
+actual, legible error message ("Error writing data", "Size is zero",
+etc.), which was the only way to make any further progress diagnosing
+the ScummVM-side bugs. If you only take one lesson from this section,
+take this one: **when a JS-visible C string comes back corrupted, check
+whether the C function is returning a pointer to its own stack frame
+before assuming the bug is anywhere near where the corruption shows up.**
+
+### Debugging note: neither console logging nor OSD notifications were visible from the emu thread
+
+Two debugging approaches that seemed obvious both turned out to be
+dead ends for this specific bridge, because the code being debugged runs
+on the emu thread (a separate real pthread/Web Worker under
+`HAVE_THREADS=1`):
+
+- `fprintf(stderr, ...)`/ScummVM's own `retro_log_cb` -- console output
+  from a pthread Worker is not automatically visible to a DevTools
+  Protocol listener attached only to the main page's target. Even
+  `retro_init()`'s own always-present debug log line never once appeared
+  across an entire session of testing, in hindsight a clear early sign
+  of this.
+- `retro_osd_notification()` -- goes through
+  `RETRO_ENVIRONMENT_SET_MESSAGE_EXT`, which doesn't appear to be
+  rendered anywhere visible in this EmulatorJS build.
+
+What actually worked: exporting small C functions with
+`__attribute__((used, visibility("default")))` (the same thing
+`EMSCRIPTEN_KEEPALIVE` expands to) returning `int`/`const char *`
+diagnostic values from static counters, then calling them from the
+browser console via
+`Module.ccall('function_name', 'number'|'string', [...])`. This reads
+state directly out of the WASM instance's memory from JS, sidestepping
+the console-visibility problem entirely. Remove these before shipping --
+they're not needed once the underlying bug is fixed, and they cost a
+`used` attribute's worth of dead-code-elimination protection for no
+runtime benefit in the final build.
+
 ## Build-system traps that produce misleading "it's still broken" results
 
 These two cost the most wall-clock time in this project, not because they
