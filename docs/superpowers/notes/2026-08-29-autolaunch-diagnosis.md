@@ -87,3 +87,77 @@ This was a genuinely unknown risk named (but not resolved) in the design
 spec's "Approach" section — this diagnosis resolves it: the risk is real,
 and confirmed to require the COOP/COEP-serving fix above, not just a
 recompile.
+
+## Post-fix status (after Task 6's rebuild)
+
+Task 6 applied the mechanical fix above (`HAVE_THREADS=1`,
+`PTHREAD_POOL_SIZE=4` in `build/build-retroarch-core.sh`; matching pthread
+compile flags on the ScummVM core side in `build/build-core.sh`; the
+COOP/COEP-serving test server). This fix was verified correct and
+necessary: reverting it and rebuilding reproduces the exact wasm-ld
+feature-mismatch error it fixes (`--shared-memory is disallowed by
+pngerror.o because it was not compiled with 'atomics' or 'bulk-memory'
+features`), confirming the fix addresses a real, load-bearing build
+requirement, not a red herring.
+
+**Real progress**: with the fix applied, the ScummVM splash logo now
+renders in the browser. Thread initialization no longer fails outright the
+way it did before this fix (no more "Failed to initialize emulation
+thread!" abort) — this is a genuine step forward from the pre-fix state.
+
+**But**: execution then crashes with `RuntimeError: memory access out of
+bounds`, reproduced across multiple runs with varying failure points (the
+crash does not occur at a single deterministic instruction/offset each
+time).
+
+**What is actually known — precisely, and no further**: this crash was
+observed in exactly one configuration:
+
+- `HAVE_THREADS=1`
+- `ASYNC=1` (forced on whenever `HAVE_AL=1`, which is
+  `Makefile.emulatorjs`'s default — see its `else ifeq ($(HAVE_AL), 1) /
+  override ASYNC = 1` block)
+- `ASSERTIONS=0` (the default; `Makefile.emulatorjs` only turns
+  `ASSERTIONS` on for its unrelated `same_cdi` target)
+- `HAVE_WASMFS=0` (the default)
+- `PROXY_TO_PTHREAD=0` (the default)
+- the ScummVM tree was compiled *without* an explicit C++ standard override
+  reaching the compiler — `build/build-core.sh` was passing `CFLAGS=`/
+  `CXXFLAGS=` as GNU Make command-line variables, which silently discarded
+  the `-std=c++11` that
+  `scummvm-core/backends/platform/libretro/Makefile`'s own `emscripten`
+  platform block adds via `CXXFLAGS +=`. This has since been fixed (see
+  Fix 4 in the final-review fix wave — the build now uses `EMCC_CFLAGS`
+  instead, which appends rather than replaces, so `-std=c++11` reaches the
+  compiler as originally intended). The crash described here was observed
+  *before* that fix, so this variable changed too between diagnosis and
+  today; it is listed for completeness, not because it's implicated.
+
+Given all of the above, **it is not yet established that "the threading
+model doesn't work."** That conclusion was reached prematurely in earlier
+notes on this branch. The crash is equally consistent with a cheap
+configuration problem (e.g. an asyncify stack overflow — Asyncify's stack
+is hardcoded to a mere 8192 bytes via `ASYNCIFY_STACK_SIZE=8192` in
+`Makefile.emulatorjs`, and `ASYNC=1`'s full-asyncify transform is exactly
+the kind of thing that overflows a stack that small) as it is with a
+genuine C++ concurrency bug in the wrapper's own code.
+
+**Concrete next diagnostic steps, in order of cheapness:**
+
+1. Rebuild with `EMCC_CFLAGS="-sASSERTIONS=1"` set for the link step. If
+   the generic `RuntimeError: memory access out of bounds` turns into a
+   clear `Asyncify stack overflow` message, the fix is very likely just
+   raising `ASYNCIFY_STACK_SIZE` (currently hardcoded to 8192 in
+   `retroarch/Makefile.emulatorjs`), not a wrapper rewrite.
+2. If that's inconclusive, try `HAVE_WASMFS=1` — `Makefile.emulatorjs`'s
+   own comment above that flag says it is the "recommended FS when using
+   HAVE_THREADS," and this build has never tried it (it shipped with the
+   default `HAVE_WASMFS=0`).
+3. If still inconclusive, try `PROXY_TO_PTHREAD=1` (also never tried on
+   this branch).
+
+Only if all three of these are tried and the crash persists unchanged
+does this genuinely indicate a deeper concurrency bug in the wrapper's own
+code — at that point, and not before, the spec's named "pivot to a
+clean-room wrapper" option would be earned. That conclusion is not yet
+earned as of this writing.

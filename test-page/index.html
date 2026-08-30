@@ -10,6 +10,13 @@
   EJS_pathtodata = "ejs/data/";
   EJS_startOnLoaded = true;
   EJS_gameUrl = "";
+  // The core is built with HAVE_THREADS=1 (see build/build-retroarch-core.sh)
+  // and packaged as "scummvm-thread-wasm.data" (see build/package-core.sh).
+  // EJS_threads tells the loader to request the "-thread" variant
+  // (test-page/ejs/data/src/emulator.js's filename-building logic appends
+  // "-thread" when this is set) and enables the loader's own
+  // SharedArrayBuffer usage on its side.
+  EJS_threads = true;
 </script>
 <script src="ejs/data/loader.js"></script>
 </body>
