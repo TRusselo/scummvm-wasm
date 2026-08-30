@@ -1,0 +1,330 @@
+# Gotchas
+
+Everything in this file was learned the hard way -- by hitting the actual
+failure, misdiagnosing it at least once, and eventually finding the real
+cause. If you're extending this project and something breaks in a way
+that looks familiar, check here before re-deriving the answer from
+scratch. Each entry names the actual file/flag involved, not just the
+symptom, so you can grep for it.
+
+The full chronological investigation (including the false starts) lives
+in `docs/superpowers/notes/2026-08-29-autolaunch-diagnosis.md`, if you
+want the "how we figured this out" narrative rather than just the
+conclusion.
+
+## Build flags and linking
+
+### `LD=em++`, not the default `emcc`
+
+`retroarch/Makefile.emulatorjs`'s default link driver is `emcc`, which
+does not link `libc++abi`. ScummVM's C++ code uses RTTI, and without
+`libc++abi` the link fails with `undefined symbol: vtable for
+__cxxabiv1::__si_class_type_info`. `build/build-retroarch-core.sh` passes
+`LD=em++` explicitly. If you ever see that exact undefined-symbol error,
+this is why.
+
+### Passing extra compiler flags: use `EMCC_CFLAGS`, never `CFLAGS=`/`CXXFLAGS=` on the make command line
+
+`scummvm-core/backends/platform/libretro/Makefile`'s `emscripten`
+platform block appends its own required flags via `CXXFLAGS += -std=c++11`
+(plus warning suppressions). GNU Make **command-line variable
+assignments** (`make CXXFLAGS=...`) override *all* in-makefile
+assignments to that variable, including `+=` accumulator lines -- so
+`make CXXFLAGS="-pthread"` silently discards `-std=c++11` too, and the
+whole tree compiles at Emscripten's default C++ standard instead. This is
+not a hypothetical: it happened, and produced no error, just quietly
+different (and eventually broken) behavior.
+
+The fix: set the `EMCC_CFLAGS` **environment variable** instead of a make
+command-line variable. Emscripten's own `emcc.py` driver reads
+`EMCC_CFLAGS` directly and appends it to every compiler/linker invocation
+unconditionally -- it *adds* to whatever CFLAGS/CXXFLAGS the Makefile
+built up internally, rather than replacing them. Both `build-core.sh` and
+`build-retroarch-core.sh` use this pattern:
+
+```bash
+EMCC_CFLAGS="-pthread -sSHARED_MEMORY" emmake make platform=emscripten LITE=1 ...
+```
+
+### Real pthreads require matching compile flags on *both* sides of the link
+
+The ScummVM core is built with `USE_LIBCO=0` (a platform-Makefile default
+for the `emscripten` target), which routes threading through
+libretro-common's real-pthread-based `rthreads.o`, not the fiber-based
+`libco` used elsewhere. That means:
+
+- `build-core.sh` must compile with `-pthread -sSHARED_MEMORY` (via
+  `EMCC_CFLAGS`, see above).
+- `build-retroarch-core.sh`'s RetroArch link must use `HAVE_THREADS=1
+  PTHREAD_POOL_SIZE=4` (not `HAVE_THREADS=0`, which is
+  `Makefile.emulatorjs`'s own default).
+
+Mismatch between these two produces a `wasm-ld` error at link time:
+`--shared-memory is disallowed by <object>.o because it was not compiled
+with 'atomics' or 'bulk-memory' features` -- which is actually a *good*
+error, because it fails loudly at build time rather than at runtime.
+
+### `HAVE_THREADS=1` requires cross-origin isolation at serve time
+
+Real pthreads need `SharedArrayBuffer`, which browsers only expose on
+pages served with `Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp`. Plain `python3 -m
+http.server` doesn't send these. Use `test-page/serve-coop-coep.py`
+(or add the equivalent headers to whatever you actually deploy with). If
+`HAVE_THREADS=1` is correctly built but pthreads still silently fail to
+spawn in the browser, this is the first thing to check -- `curl -sI` the
+page and grep for `cross-origin`.
+
+### Native stack size: 4MB (Emscripten's default) is not enough
+
+ScummVM's own call depth exceeded a 4MB native stack under this specific
+build (Emscripten default `STACK_SIZE`), producing
+`RuntimeError: memory access out of bounds` with no further detail. This
+looked, for a while, like a genuine architectural problem with the
+threading model -- it wasn't. Rebuilding with
+`EMCC_CFLAGS="-sASSERTIONS=1 -sSAFE_HEAP=2 -sSTACK_OVERFLOW_CHECK=2"`
+turned the generic error into an exact one:
+
+```
+RuntimeError: Aborted(stack overflow (Attempt to set SP to 0x0027ddd0,
+with stack limits [0x0027e2d0 - 0x0067e2d0]))
+```
+
+The stack limits shown are exactly 4MB apart, confirming it precisely.
+Fix: `build/build-retroarch-core.sh` passes `STACK_SIZE=16777216` (16MB)
+to the RetroArch link step -- a genuinely necessary, permanent fix, not a
+diagnostic-only flag. (The three `ASSERTIONS`/`SAFE_HEAP`/
+`STACK_OVERFLOW_CHECK` flags used to *find* this were removed again once
+the fix landed -- they add real per-operation runtime overhead and were
+only needed to get the specific error message.)
+
+**Don't confuse this with `ASYNCIFY_STACK_SIZE`** (hardcoded to a tiny
+8192 bytes in `Makefile.emulatorjs`) -- that's Emscripten's Asyncify
+unwind/rewind bookkeeping stack, a completely separate, much smaller
+region from the native call stack `STACK_SIZE` controls. Bumping
+`ASYNCIFY_STACK_SIZE` was tried as a hypothesis for an unrelated crash
+(see the WebMIDI section below) and had zero effect -- confirmed via the
+exact same stack-limit numbers reappearing unchanged. If you're chasing a
+stack-related crash, check which limits the error message actually
+reports before changing either flag; they're not interchangeable.
+
+## The WebMIDI plugin: exclude it, don't patch around it
+
+This was the single biggest time sink in this project, and it's worth
+understanding fully because the failure mode is deeply misleading: it
+manifests as an apparently-unrelated stack overflow in the main render
+loop, seconds after the actual root cause has already run and failed.
+
+**Root cause:** `scummvm-core/backends/midi/webmidi.cpp` is compiled in
+unconditionally for any Emscripten build (see
+`scummvm-core/backends/module.mk`'s unconditional `ifdef EMSCRIPTEN`
+block -- no gating flag). Its `EM_JS`/`EM_ASYNC_JS` blocks reference a
+bare `midiOutputMap` JS global and call `Module.setValue(...)`. Both only
+exist in ScummVM's own **standalone-Emscripten shell**
+(`scummvm-core/dists/emscripten/custom_shell-pre.js`), which this
+RetroArch/EmulatorJS-based libretro-core build never includes. The result:
+ScummVM's sound driver enumerates MIDI outputs at engine startup, calls
+into this plugin, and throws an **uncaught exception mid-execution**
+(`Uncaught ReferenceError: midiOutputMap is not defined`, and after a
+naive stub fix, `Uncaught TypeError: Module.setValue is not a function`
+right behind it).
+
+That uncaught exception happens inside
+`WebMIDIMusicPlugin::getDevices()`'s C++ caller, whose
+`while (strcmp(*iter, "") != 0)` loop has **no bounds check** on the
+pointer the (now-aborted) JS call returns. This corrupts engine state
+badly enough that, several seconds and many frames later, the *unrelated*
+main render loop (`MainLoop_runner`) crashes with a generic
+`RuntimeError: Aborted(stack overflow ...)`. Chasing that overflow
+directly -- raising `STACK_SIZE` further, tuning `ASYNCIFY_STACK_SIZE`,
+auditing the main-loop callback for asyncify re-entrancy bugs -- is a
+dead end. **Fix the MIDI crash first; the overflow disappears on its
+own.**
+
+**The fix requires two separate edits, not one:**
+
+1. `scummvm-core/backends/module.mk` -- remove `midi/webmidi.o` from the
+   `ifdef EMSCRIPTEN` block's `MODULE_OBJS`.
+2. `scummvm-core/base/plugins.cpp` -- comment out
+   `#ifdef EMSCRIPTEN / LINK_PLUGIN(WEBMIDI) / #endif`.
+
+Doing only (1) produces a **link failure**, not a quiet fix:
+`wasm-ld: undefined symbol: g_WEBMIDI_type`. That symbol comes from
+`REGISTER_PLUGIN_STATIC(WEBMIDI, ...)` in `webmidi.cpp`, referenced by a
+separate, hand-written static-plugin registration table in
+`base/plugins.cpp` that is **completely independent of the object-file
+list** in `module.mk`. If you're excluding any other plugin the same way,
+check `base/plugins.cpp` for a `LINK_PLUGIN(...)` reference to it too --
+this is a general pattern in ScummVM's build, not specific to WebMIDI.
+
+Real MIDI hardware output was never a goal for this project (these are
+SCUMM adventure games using their own AdLib/MT-32/etc. music emulation);
+excluding the plugin loses nothing.
+
+## Build-system traps that produce misleading "it's still broken" results
+
+These two cost the most wall-clock time in this project, not because they
+were hard to fix, but because they made *already-correct* fixes look like
+they hadn't worked.
+
+### Editing `module.mk` doesn't reliably invalidate already-built archives
+
+After removing `midi/webmidi.o` from `MODULE_OBJS`, several
+rebuild-and-retest cycles kept showing the exact same MIDI errors, even
+though the source edit was correct and confirmed present. The cause: this
+build's incremental `make` did not reliably detect that
+`backends/libbackends.a` (and the intermediate `libtemp/libbackends.a`,
+and the final `scummvm_libretro_emscripten.bc`) needed to be regenerated
+just because a `module.mk` variable changed.
+
+**Fix:** after any change to a module's object list, explicitly delete
+the stale artifacts before rebuilding:
+
+```bash
+rm -f scummvm-core/backends/platform/libretro/backends/libbackends.a \
+      scummvm-core/backends/platform/libretro/libtemp/libbackends.a \
+      scummvm-core/backends/platform/libretro/scummvm_libretro_emscripten.bc \
+      retroarch/libretro_emscripten.a
+```
+
+(Adjust the archive name to whichever module you actually changed.)
+
+**Verify before spending another full rebuild-and-browser-test cycle:**
+`strings` the actual compiled artifact for whatever symbol/string you
+expected to remove. This is far cheaper than a rebuild + repackage +
+browser reload, and it would have caught the stale-archive problem
+immediately instead of after several confusing "still broken" cycles:
+
+```bash
+strings scummvm-core/backends/platform/libretro/scummvm_libretro_emscripten.bc \
+  | grep -c midiOutputMap   # expect 0 after a real fix
+```
+
+### `bash script.sh | tail -N` silently swallows the script's real exit code
+
+Even with `set -euo pipefail` *inside* `script.sh`, piping its output
+through `tail` (or any command) in the *outer* shell means the pipeline's
+reported exit code is `tail`'s (almost always 0), not the script's. This
+let one real build failure go completely unnoticed, and a downstream
+packaging step went on to silently re-package stale, already-broken
+artifacts as if the rebuild had succeeded.
+
+**Fix:** when the exit code matters (basically always, for build
+scripts), redirect to a file and check explicitly instead of piping
+through a pager:
+
+```bash
+bash build/build-retroarch-core.sh > /tmp/build.log 2>&1
+echo "EXIT_CODE=$?" >> /tmp/build.log
+tail -20 /tmp/build.log   # now safe -- exit code already captured above
+```
+
+### Browsers can serve a stale core after a same-session rebuild
+
+During active development, the RetroArch core gets rebuilt many times
+while the test server keeps running. Plain `http.server` sends no
+`Cache-Control` header at all, and Chrome's heuristic caching can serve a
+previous build's `.data`/`.wasm` on an ordinary reload, silently testing
+old code and producing misleading results. `test-page/serve-coop-coep.py`
+sends `Cache-Control: no-store` for exactly this reason. If test results
+seem inexplicably inconsistent between runs where nothing should have
+changed, suspect this before suspecting nondeterminism in the actual
+code -- and confirm with a hard reload (Ctrl+Shift+R / Cmd+Shift+R) or by
+checking response headers with `curl -sI`, not just a normal reload.
+
+## EmulatorJS / packaging conventions
+
+### `.data` bundle naming: `-thread` and `-legacy` suffixes are capability flags, not arbitrary names
+
+EmulatorJS's loader (see `retroarch/emulatorjs/build-emulatorjs.sh` for
+the canonical naming logic) appends `-thread` when the core was built
+with real pthread support, and `-legacy` when GLES3 support is *absent*
+(`HAVE_OPENGLES3=0`). This build uses `HAVE_THREADS=1 HAVE_OPENGLES3=1`,
+so the correct, honest name is `scummvm-thread-wasm.data` --
+`package-core.sh` produces exactly that, not `scummvm-wasm.data` or a
+`-legacy` copy.
+
+**Caveat:** without a core-report JSON (`ejs/data/cores/reports/*.json`),
+EmulatorJS's loader defaults `webgl2Enabled` to `false`
+(`emulator.js`: `rep.options.defaultWebGL2 : false`), which makes it
+*request* the `-legacy` variant regardless of what the core actually
+supports. Until a real core-report JSON exists for this core, keep both
+`scummvm-thread-wasm.data` and `scummvm-thread-legacy-wasm.data` present
+and identical (`package-core.sh` doesn't do this for you --
+`cp -f test-page/ejs/data/cores/scummvm-thread-wasm.data
+test-page/ejs/data/cores/scummvm-thread-legacy-wasm.data` after every
+`package-core.sh` run). If you only refresh one of the two after a
+rebuild, the loader may silently pick up the stale one.
+
+### Zip packaging: flat structure, always
+
+See the README's [Adding a game](../README.md#adding-a-game) section.
+The short version: `cd` into the game's actual data folder before
+zipping, so the zip's internal paths have no parent directory component.
+EmulatorJS's generic zip extraction writes every entry to the filesystem
+root by basename; a nested zip structure doesn't get flattened for you in
+a way ScummVM's directory-based auto-detection can rely on, so don't
+create the ambiguity in the first place.
+
+### Content loads via `argv`, not a direct `retro_load_game()` call from JS
+
+`emulator.js`'s `startGame()` calls
+`this.Module.callMain(["/" + this.fileName])` -- i.e. it runs RetroArch's
+own compiled `main()` with the content path as a CLI positional argument
+(the WASM equivalent of running `retroarch /00.LFL` from a terminal), not
+a direct JS-to-`retro_load_game()` API call. This matters if you're
+debugging why content isn't being picked up: check RetroArch's own CLI
+argument parsing and content-path handling
+(`retroarch_parse_input_and_config`,
+`runloop_path_set_basename(argv[optind])`), not EmulatorJS's JS-side
+loading code -- by the time JS hands off to `callMain`, EmulatorJS's job
+is basically done.
+
+## Mouse input and pointer lock
+
+The libretro "mouse" input device already sends relative
+`movementX`/`movementY`-style deltas per frame -- this is the same model
+original DOS mouse drivers used, and it's why the in-game cursor's
+direction and movement worked correctly from the very first successful
+boot, with no code changes needed. What's *not* automatic is hiding the
+OS cursor: without engaging the browser's Pointer Lock API, the real OS
+cursor stays visible and moves independently of the in-game cursor,
+which looks broken even though the actual input pipeline is fine.
+
+Fix: `test-page/index.html` sets
+`EJS_defaultOptions = { lockMouse: "enabled" }`. This is EmulatorJS's own
+documented mechanism for defaulting its settings-menu options
+(`loader.js` maps `window.EJS_defaultOptions` directly to
+`this.config.defaultOptions`, consumed at startup by
+`changeSettingOption`) -- not a custom patch. It engages pointer lock on
+the first canvas click, which also happens to be the same click needed
+to satisfy the browser's audio-autoplay gate, so in practice this all
+resolves with a single click after load.
+
+## Debugging technique notes
+
+- **Read the browser console directly and unfiltered**, via a real
+  browser-automation console-reading tool if you have one, rather than
+  relying on a page-injected patch (e.g. overriding `window.Worker`) or
+  waiting for someone to manually paste console output. A real,
+  build-blocking error (`Module.setValue is not a function`) was missed
+  for an entire debugging pass specifically because an `onlyErrors`-style
+  filtered query returned only one (different) result, and the second
+  error was sitting in the unfiltered output the whole time.
+- **Uncaught errors inside a spawned pthread worker are real signal, not
+  noise** -- don't assume a generic `worker.onerror`-tagged `ErrorEvent`
+  with no visible message is benign background noise just because it
+  reproduces on every run. It might be (EmulatorJS's own zip-decompression
+  worker throws one unrelated to gameplay, confirmed present even before
+  any of this project's own code ran), but the only way to know is to
+  actually capture the error's real `.message`, not just its `type`.
+- **Don't probe unexported `Module.*` internals from outside the page**
+  (e.g. `Module.PThread`) just to inspect runtime state -- Emscripten
+  sets up warning-getter traps on well-known-but-unexported symbol names
+  that call `abort()` the moment they're touched, immediately killing the
+  entire running instance you were trying to inspect. If you need runtime
+  visibility that isn't already exported, wrap a *known-safe*, standard
+  browser API from the outside instead (this project did this
+  successfully by wrapping `window.requestAnimationFrame` to log frame
+  timing, with zero risk to the running instance) or add the export at
+  build time and verify it landed before relying on it.
