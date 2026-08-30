@@ -1,0 +1,7 @@
+[submodule "scummvm-core"]
+	path = scummvm-core
+	url = https://github.com/libretro/scummvm.git
+[submodule "retroarch"]
+	path = retroarch
+	url = https://github.com/EmulatorJS/RetroArch.git
+	branch = next
