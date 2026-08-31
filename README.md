@@ -9,7 +9,7 @@ games boot and play (video, audio, mouse, and gamepad input all
 confirmed working):
 
 - Maniac Mansion
-- Zak McKracken and the Alien Mindbenders
+- Zak McKracken and the Alien Mindbenders (EGA and FM TOWNS VGA)
 - Loom
 - Indiana Jones and the Last Crusade
 - Indiana Jones and the Fate of Atlantis (including the CD/talkie version,
