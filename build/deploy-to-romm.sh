@@ -8,9 +8,12 @@ if [ -z "${1:-}" ]; then
   exit 1
 fi
 
-# EmulatorJS's browser-side loader picks between the plain and "-legacy"
-# filename at runtime based on the browser's own WebGL2 capability
-# detection -- both must be staged or a browser routed to "-legacy" 404s.
+# EmulatorJS's own downloadGameCore() (src/emulator.js) defaults EVERY core
+# to the "-legacy" filename on a user's first visit whenever the core's
+# reports/<core>.json doesn't set `options.defaultWebGL2` -- unconditional
+# on first visit, not a real check of the browser's actual WebGL2 support
+# (confirmed: dosbox_pure's own shipped report doesn't set it either).
+# Both must be staged or a first-time visitor routed to "-legacy" 404s.
 CORE_FILE="test-page/ejs/data/cores/scummvm-thread-wasm.data"
 CORE_FILE_LEGACY="test-page/ejs/data/cores/scummvm-thread-legacy-wasm.data"
 if [ ! -f "$CORE_FILE" ]; then

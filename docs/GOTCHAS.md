@@ -386,17 +386,20 @@ so the correct, honest name is `scummvm-thread-wasm.data` --
 `package-core.sh` produces exactly that, not `scummvm-wasm.data` or a
 `-legacy` copy.
 
-**Caveat:** without a core-report JSON (`ejs/data/cores/reports/*.json`),
-EmulatorJS's loader defaults `webgl2Enabled` to `false`
-(`emulator.js`: `rep.options.defaultWebGL2 : false`), which makes it
-*request* the `-legacy` variant regardless of what the core actually
-supports. Until a real core-report JSON exists for this core, keep both
-`scummvm-thread-wasm.data` and `scummvm-thread-legacy-wasm.data` present
-and identical (`package-core.sh` doesn't do this for you --
-`cp -f test-page/ejs/data/cores/scummvm-thread-wasm.data
-test-page/ejs/data/cores/scummvm-thread-legacy-wasm.data` after every
-`package-core.sh` run). If you only refresh one of the two after a
-rebuild, the loader may silently pick up the stale one.
+**Caveat:** without a core-report JSON (`ejs/data/cores/reports/*.json`)
+that sets `options.defaultWebGL2: true`, EmulatorJS's own
+`downloadGameCore()` (`emulator.js`) defaults every core to the
+`-legacy` filename on a user's *first visit* -- unconditional, not a real
+check of the browser's actual WebGL2 support (confirmed: `dosbox_pure`'s
+own shipped report doesn't set it either). Until a real core-report JSON
+exists for this core, both `scummvm-thread-wasm.data` and
+`scummvm-thread-legacy-wasm.data` need to exist and be identical.
+`package-core.sh` now handles this for you: it produces
+`scummvm-thread-wasm.data` and then `cp`s it to
+`scummvm-thread-legacy-wasm.data` as its last step, so both are always in
+sync after a single run. `build/deploy-to-romm.sh` likewise stages both
+files into the ROMM fork checkout. There's no manual copy step and no
+stale-copy hazard anymore.
 
 ### Zip packaging: flat structure, always
 
@@ -548,6 +551,16 @@ documented mechanism for defaulting its settings-menu options
 the first canvas click, which also happens to be the same click needed
 to satisfy the browser's audio-autoplay gate, so in practice this all
 resolves with a single click after load.
+
+When deploying this core into ROMM specifically, there's no
+`EJS_defaultOptions` to set -- ROMM's own `Player.vue` never sets
+`lockMouse` and has no equivalent of the test-page's
+`EJS_defaultOptions` global. The equivalent fix there is a `config.yml`
+addition instead of a code change: `emulatorjs.settings.scummvm.lockMouse:
+enabled`. This is ROMM's own per-core EmulatorJS option override
+mechanism (see `backend/config/config_manager.py`, which reads
+`emulatorjs.settings.<core>.<option>` out of `config.yml`), not anything
+specific to this integration.
 
 ## Debugging technique notes
 

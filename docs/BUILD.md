@@ -154,7 +154,8 @@ Output: `retroarch/scummvm_libretro.js` and `retroarch/scummvm_libretro.wasm`.
 
 Repackages the two RetroArch output files into the single `.data`
 container EmulatorJS's loader expects, under the naming convention it
-looks for:
+looks for -- and produces both the plain and `-legacy` filenames EmulatorJS
+needs:
 
 ```bash
 rm -f test-page/ejs/data/cores/scummvm-wasm.data \
@@ -162,6 +163,8 @@ rm -f test-page/ejs/data/cores/scummvm-wasm.data \
 
 7z a -y test-page/ejs/data/cores/scummvm-thread-wasm.data \
   retroarch/scummvm_libretro.wasm retroarch/scummvm_libretro.js
+cp test-page/ejs/data/cores/scummvm-thread-wasm.data \
+   test-page/ejs/data/cores/scummvm-thread-legacy-wasm.data
 ```
 
 The `rm -f` first removes any stale non-thread-suffixed names from
@@ -171,12 +174,44 @@ those names should never exist as real output -- only as leftovers).
 file named `scummvm-thread-wasm.data`, per the `-thread`/`-legacy` naming
 convention EmulatorJS's loader parses to detect a core's capabilities
 (see GOTCHAS.md's packaging section for the full naming-convention
-explanation and a caveat about also keeping a `-legacy`-suffixed copy in
-sync until this project ships a real core-report JSON).
+explanation). The final `cp` then produces an identical
+`scummvm-thread-legacy-wasm.data` copy, because EmulatorJS's own
+`downloadGameCore()` defaults every core to the `-legacy` filename on a
+user's first visit unless the core ships a `reports/<core>.json` setting
+`options.defaultWebGL2: true` -- this project doesn't ship one, so both
+names must exist and be identical, and this script now guarantees that in
+one run with no separate manual copy step.
 
-Output: `test-page/ejs/data/cores/scummvm-thread-wasm.data`, the file
+Output: `test-page/ejs/data/cores/scummvm-thread-wasm.data` and
+`scummvm-thread-legacy-wasm.data`. The plain (non-`-legacy`) name is what
 `test-page/index.html` (via `EJS_core = "scummvm"`) tells EmulatorJS's
-loader to fetch.
+loader to fetch by default; the `-legacy` copy is what a first-time
+visitor actually gets served, per the above.
+
+## `build/deploy-to-romm.sh`
+
+Not part of the core-build pipeline proper -- stages the already-built
+core into a separate ROMM fork checkout so that checkout's own
+`docker build` can bundle it into a ROMM image. Takes one required
+argument: the path to that ROMM fork checkout.
+
+```bash
+build/deploy-to-romm.sh /home/user/git/romm
+```
+
+It requires `build/package-core.sh` to have already been run (it errors
+out if either `test-page/ejs/data/cores/scummvm-thread-wasm.data` or
+`scummvm-thread-legacy-wasm.data` is missing), then copies both files
+into `<checkout>/docker/scummvm-core/` -- the directory that checkout's
+`docker/Dockerfile` `COPY`s from in its `emulator-stage` (see that
+repo's `docker/scummvm-core/README.md`). Both variants are staged for the
+same reason `package-core.sh` produces both: EmulatorJS defaults every
+core to `-legacy` on a first visit, so a ROMM deployment missing either
+file 404s for some users.
+
+Run this any time you have a fresh local build to deploy, before running
+`docker build` in the ROMM checkout -- it doesn't touch anything in this
+repo (`scummvm-wasm`) besides reading the already-packaged `.data` files.
 
 ## `test-page/download-emulatorjs.sh`
 
