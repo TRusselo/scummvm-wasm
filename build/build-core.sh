@@ -2,8 +2,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Scope the build to the SCUMM engine only.
-echo "scumm" > scummvm-core/backends/platform/libretro/lite_engines.list
+# Scope the build's engine set. Defaults to SCUMM only; override by pointing
+# ENGINES_LIST_FILE at a file with one ScummVM engine name per line (see
+# build/engine-lists/).
+ENGINES_LIST_FILE="${ENGINES_LIST_FILE:-}"
+if [ -n "$ENGINES_LIST_FILE" ]; then
+  cp "$ENGINES_LIST_FILE" scummvm-core/backends/platform/libretro/lite_engines.list
+else
+  echo "scumm" > scummvm-core/backends/platform/libretro/lite_engines.list
+fi
 
 source toolchain/emsdk/emsdk_env.sh
 
