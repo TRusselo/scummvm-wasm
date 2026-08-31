@@ -531,6 +531,53 @@ Chosen for build/deploy simplicity over eliminating pillarboxing. Revisit
 option 1 if the pillarboxing on lowres titles turns out to matter more in
 practice than it does on paper.
 
+## GL/3D engines: a second core, grouped by GL involvement not by strict necessity
+
+The 13 engines this project's main core excludes (declaring a `3d`
+dependency or `tinygl` component in their own `configure.engine`) turned
+out to split into two very different groups on closer inspection, not one:
+
+- **Only 3 (`hpl1`, `twp`, `watchmaker`) actually require anything.** Their
+  deps include the literal `opengl_game_shaders`/`opengl_game_classic`
+  tokens, which `Makefile.common` genuinely gates behind
+  `FORCE_OPENGLES2=1` (adds them to `UNAVAILABLE_DEPS` otherwise).
+- **The other 10 (`alcachofa`, `freescape`, `grim`, `myst3`, `stark`,
+  `tetraedge`, `tinsel`, `wintermute`, plus the internal-only `testbed`/
+  `playground3d`) only reference `3d`/`tinygl`.** `USE_TINYGL = 1` is
+  unconditional in `Makefile.common` -- no availability check gates it at
+  all -- and ScummVM's own `configure` derives `_3d=yes` directly from
+  `_tinygl=yes` (see `configure` around line 7273), with no dependency on
+  `FORCE_OPENGLES2`/real hardware GL whatsoever. TinyGL is ScummVM's own
+  bundled *software* 3D rasterizer -- pure CPU, no GPU/WebGL context, a
+  completely different code path from the real `retro_hw_render_callback`
+  wiring in `libretro-graphics-opengl.cpp`. Confirmed empirically: an
+  isolated `grim`-only build compiled and linked cleanly with no GL flag
+  set at all, producing `gfx_tinygl.o` in its archive (`gfx_opengl.o`/
+  `gfx_opengl_shaders.o` are also always compiled in, alongside it, for
+  every engine that references 3D -- presumably inert without
+  `HAVE_OPENGL`/`HAVE_OPENGLES2` defined, though this hasn't been proven
+  by actually running the binary yet).
+
+That means the 10 TinyGL-only engines would compile fine in the main
+core -- they don't need a separate binary on technical grounds. **They're
+kept out anyway, by choice:** one core for pure 2D, a second core for
+anything GL-touching at all, rather than a small set of "mostly excluded,
+except these 10 which are actually fine" exceptions to remember. All 11
+real games (`testbed`/`playground3d` excluded as ScummVM's own internal
+non-game test harnesses) go into `build/engine-lists/gl-core.list`,
+meant to be built as its own core with `FORCE_OPENGLES2=1` -- harmless for
+the 8 TinyGL-only engines in that list, required for the 3 that actually
+gate on it. See `build/engine-lists/README.md` for the current list
+contents and status (not yet built or runtime-tested as a group).
+
+**Whether TinyGL's software rendering actually performs acceptably under
+Emscripten/WASM for a real 3D game is a separate, still-open question.**
+Compiling proves nothing about runtime behavior -- see the WebMIDI and
+save-state sections above for two prior cases where a clean compile hid a
+real runtime bug. TinyGL is CPU-only real-time 3D rendering for games
+(Grim Fandango, Myst III) that assumed a real GPU on their original
+hardware; whether that's fast enough in a browser is unverified.
+
 ## Pillarboxing/letterboxing: constrain a wrapper around `#game`, not `#game` itself
 
 SCUMM's native output is 320x200 (8:5 = 1.6:1). If `test-page/index.html`'s
