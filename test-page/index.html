@@ -3,13 +3,25 @@
 <head><title>ScummVM WASM Core</title></head>
 <body style="background:#222;color:#eee;font-family:monospace;">
 <h3>ScummVM WASM core</h3>
-<div id="game" style="width:640px;height:480px;background:#000;"></div>
+<!--
+  EmulatorJS's own JS resizes #game itself directly (overriding any
+  aspect-ratio/width/height we put on #game's own style -- confirmed by
+  testing, not just theory), so the aspect-ratio constraint has to live on
+  a WRAPPER around #game instead: EmulatorJS sizes #game to fill its
+  immediate parent, so giving that parent SCUMM's true native ratio
+  (320x200 = 8:5 = 1.6) means #game inherits a correctly-shaped box with
+  nothing left for RetroArch's (correctly-functioning) aspect-preserving
+  GL renderer to pad with bars. See docs/GOTCHAS.md.
+-->
+<div style="width:960px;aspect-ratio:8/5;max-width:100%;">
+<div id="game" style="width:100%;height:100%;background:#000;"></div>
+</div>
 <script>
   EJS_player = "#game";
   EJS_core = "scummvm";
   EJS_pathtodata = "ejs/data/";
   EJS_startOnLoaded = true;
-  EJS_gameUrl = "";
+  EJS_gameUrl = "zak.scm";
   // The core is built with HAVE_THREADS=1 (see build/build-retroarch-core.sh)
   // and packaged as "scummvm-thread-wasm.data" (see build/package-core.sh).
   // EJS_threads tells the loader to request the "-thread" variant

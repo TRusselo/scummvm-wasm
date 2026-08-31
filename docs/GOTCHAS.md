@@ -422,6 +422,74 @@ argument parsing and content-path handling
 loading code -- by the time JS hands off to `callMain`, EmulatorJS's job
 is basically done.
 
+## Pillarboxing/letterboxing: constrain a wrapper around `#game`, not `#game` itself
+
+SCUMM's native output is 320x200 (8:5 = 1.6:1). If `test-page/index.html`'s
+`#game` container isn't *also* exactly that shape, you'll see real black
+bars baked into the canvas's own rendered pixels -- not a CSS-level letterbox
+sitting around a correctly-sized canvas, but bars actually drawn into the
+canvas's pixel buffer by RetroArch's own GL renderer, which faithfully
+preserves the core's true aspect ratio inside whatever shape it's given.
+Confirmed directly (not by eyeballing screenshots, which repeatedly gave
+contradictory-looking results across different window sizes -- see the
+debugging-technique note below): querying `canvas.width`/`height` against
+`canvas.getBoundingClientRect()` showed the two matching exactly (e.g.
+980x503 and 980x503), meaning the canvas was displayed at 1:1 with no CSS
+scaling, and the container's own natural shape (~1.95:1) simply didn't
+match SCUMM's real 1.6:1 -- the bars were the *correct* result of asking a
+correctly-aspect-preserving renderer to fit 1.6:1 content into a
+1.95:1-shaped box.
+
+**The fix is not on `#game` itself.** EmulatorJS's own JS resizes `#game`
+directly at runtime, overriding any `width`/`height`/`aspect-ratio` you put
+in its own inline style or a class rule (confirmed by testing: setting
+`aspect-ratio:8/5` directly on `#game` had zero effect on its measured
+`getBoundingClientRect()` after load). EmulatorJS does, however, resize
+`#game` to fill its *immediate parent* -- so wrap it:
+
+```html
+<div style="width:960px;aspect-ratio:8/5;max-width:100%;">
+<div id="game" style="width:100%;height:100%;background:#000;"></div>
+</div>
+```
+
+Giving the wrapper the correct 8:5 ratio means `#game` inherits a
+correctly-shaped box, and RetroArch's renderer has nothing left to pad.
+Confirmed fixed: `canvas.getBoundingClientRect()` measured 838x523.75
+afterward -- 838/523.75 = 1.6002, matching 8:5 to four significant figures,
+with zero visible bars.
+
+**If you're chasing a similar layout bug in this project again:** don't
+trust visual comparison of screenshots taken at different points across a
+debugging session -- window size, canvas size, and letterbox/pillarbox
+orientation all vary together, and it's very easy to misread two
+differently-sized screenshots as "before/after" when they're actually just
+two different container shapes that both happen to show *some* bars. Get
+exact numbers instead: `canvas.width`/`height` (the actual render buffer),
+`canvas.getBoundingClientRect()` (the CSS-rendered display box), and the
+container's own `getBoundingClientRect()`, compared directly. This is the
+same lesson as the save-state section's debugging note, applied to layout
+instead of application state.
+
+**A dead end worth naming, so it isn't re-investigated:** early in this
+investigation it looked like RetroArch's canvas-size-sync
+(`library_platform_emscripten.js`'s `ResizeObserver` on the WASM canvas)
+was failing to fire reliably, requiring repeated manual window
+resizes to "converge" on a correct size -- a plausible-sounding
+resize-timing bug. Testing this in an automated browser-automation tab
+produced a real, reproducible-looking failure (a freshly attached
+`ResizeObserver` never fired for confirmed box-size changes), but this
+was very likely an artifact of that tab being backgrounded/non-visible
+from Chrome's own perspective (corroborated by an unrelated
+`NotAllowedError: ... WakeLock: The requesting page is not visible`
+console error appearing in the same session) -- Chrome throttles various
+visibility-gated behavior for backgrounded tabs. Dispatching synthetic
+`resize` events as a workaround had no effect in either the automated tab
+or a real, focused, visible browser tab, which in hindsight was the
+signal that the actual bug wasn't about resize timing at all. The real
+issue (container shape, above) has nothing to do with `ResizeObserver`
+or resize-event timing.
+
 ## Mouse input and pointer lock
 
 The libretro "mouse" input device already sends relative

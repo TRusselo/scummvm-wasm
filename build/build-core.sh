@@ -27,7 +27,18 @@ cd scummvm-core/backends/platform/libretro
 # toolchain/emsdk/upstream/emscripten/emcc.py), so it adds these flags on top
 # of whatever CFLAGS/CXXFLAGS the Makefile assembles on its own, rather than
 # replacing them.
-EMCC_CFLAGS="-pthread -sSHARED_MEMORY" emmake make platform=emscripten LITE=1 \
+# USE_HIGHRES defaults to 1 (Makefile.common), initializing the reported
+# canvas at a fixed 1280x720 (16:9) overlay resolution meant for high-res
+# engines (GRIM, Director) -- SCUMM never needs more than 320x200-ish, and
+# leaving this enabled produces a 16:9-shaped video output with the actual
+# game rendered into a smaller centered region, padded with permanent black
+# bars baked into the framebuffer itself (not a CSS/display letterbox --
+# the in-game mouse cursor's own coordinate space is clamped to the smaller
+# real content area, confirming ScummVM draws into a sub-rect of a larger
+# canvas rather than the frontend adding bars around a correctly-sized one).
+# Several other constrained libretro platforms (miyoo, miyoomini, armv7)
+# already disable this for the same class of reason.
+EMCC_CFLAGS="-pthread -sSHARED_MEMORY" emmake make platform=emscripten LITE=1 USE_HIGHRES=0 \
   -j"$(nproc)"
 
 echo "Build artifact:"
