@@ -158,6 +158,32 @@ works identically -- it's the real, complete game, not a demo.
 Game files (`test-page/*.scm`) are gitignored; this repo ships no
 copyrighted game data.
 
+### Skipping autodetection with a `.scummvm` hook file
+
+If a zip contains a `<name>.scummvm` text file alongside the game's data
+files, ScummVM's libretro backend uses it to skip full-directory
+autodetection entirely and launch directly -- this is stock upstream
+ScummVM behavior (see `scummvm-core/backends/platform/libretro/src/libretro-os-utils.cpp`'s
+built-in help text), not something specific to this project, and it works
+through this project's zip-flat convention unchanged. The hook file's
+content is either:
+
+- a ScummVM **game ID** (e.g. `zak`, `maniac`, `tentacle`, `atlantis`) --
+  works even if the game was never added via the ScummVM GUI; ScummVM
+  launches it directly from the hook file's own folder with default
+  options, or
+- a **target** name matching an entry already in `scummvm.ini` -- only
+  useful if that config file is already populated, which isn't the normal
+  path for this project's zip-per-game setup.
+
+The game ID form is the useful one here. Confirmed working end-to-end:
+zipping Zak McKracken's files flat plus a `zak.scummvm` file containing
+just `zak` launches straight into the game, skipping the ~60-line
+per-file detection scan (see GOTCHAS.md's debugging-technique note) that
+a plain autodetected zip goes through. Not required -- plain autodetection
+(no hook file) already works for every game this project ships -- but
+useful if you want faster, more precise startup for a specific game.
+
 ## Known limitations
 
 - EmulatorJS's own "Save State"/"Load State" buttons work (bridged to
