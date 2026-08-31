@@ -186,6 +186,20 @@ useful if you want faster, more precise startup for a specific game.
 
 ## Known limitations
 
+- **⚠️ Requires HTTPS (or `localhost`) wherever you actually deploy it --
+  a bare LAN IP or hostname over plain HTTP will not work, no matter how
+  correctly everything else is configured.** This core uses real pthreads
+  (`HAVE_THREADS=1`), which need `SharedArrayBuffer`, which browsers only
+  grant on a secure context -- HTTPS, or the special-cased `localhost`.
+  Serving over plain HTTP to any other origin makes the browser silently
+  *ignore* the required `Cross-Origin-Opener-Policy`/
+  `Cross-Origin-Embedder-Policy` headers rather than erroring on them, and
+  the resulting failure (`SharedArrayBuffer function is not exposed`)
+  looks unrelated to HTTPS at first glance. The local `test-page/` harness
+  sidesteps this by using `localhost`; any other deployment (e.g. behind a
+  reverse proxy, on a LAN IP, etc.) needs a real TLS certificate in front
+  of it. See docs/GOTCHAS.md's "`HAVE_THREADS=1` requires cross-origin
+  isolation at serve time" section for the full explanation.
 - EmulatorJS's own "Save State"/"Load State" buttons work (bridged to
   ScummVM's save/load system -- see docs/GOTCHAS.md for the three
   separate bugs, two in ScummVM and one in RetroArch/EmulatorJS, that

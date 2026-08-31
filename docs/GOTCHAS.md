@@ -75,6 +75,42 @@ http.server` doesn't send these. Use `test-page/serve-coop-coep.py`
 spawn in the browser, this is the first thing to check -- `curl -sI` the
 page and grep for `cross-origin`.
 
+**⚠️ HTTPS (or `localhost`) IS ALSO REQUIRED -- sending the headers above
+is not enough on its own.** Per spec, browsers only honor
+`Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy` on a
+*"potentially trustworthy origin"* -- HTTPS, or the special-cased
+`localhost`. Serve this core over plain HTTP to any other origin (a bare
+LAN IP like `http://192.168.1.12:8787`, a non-`localhost` hostname over
+HTTP, etc.) and the browser silently **ignores** both headers rather than
+erroring on them. The failure mode is easy to miss because it doesn't look
+like a networking problem:
+
+- The browser console logs a real but easy-to-scroll-past warning: *"The
+  Cross-Origin-Opener-Policy header has been ignored, because the URL's
+  origin was untrustworthy... deliver the response using the HTTPS
+  protocol. You can also use the 'localhost' origin instead."*
+- The actual, load-bearing error appears later and looks unrelated at
+  first glance: `Threads is set to true, but the SharedArrayBuffer
+  function is not exposed.`
+- Non-threaded cores on the exact same host/page continue to work fine
+  (they never touch `SharedArrayBuffer`), which makes this look like a
+  core-specific bug rather than a page-level one -- confirmed during this
+  project's own ROMM integration testing: `dosbox_pure` (also
+  `HAVE_THREADS=1`) fails identically on the same plain-HTTP origin scummvm
+  fails on, while every non-threaded core on that same ROMM instance works.
+
+**Practical takeaway:** any real deployment of this core (or any other
+`HAVE_THREADS=1` EmulatorJS core) needs either a real TLS certificate in
+front of it (a reverse proxy like Caddy/nginx/Traefik/SWAG with
+Let's Encrypt, etc.) or must only ever be accessed as `localhost` -- a bare
+LAN IP or internal hostname over plain HTTP will never work no matter how
+correctly the COOP/COEP headers are configured server-side. This is not
+something fixable in this project's own code -- it's a browser security
+policy on the client side. See the "Access via HTTPS" step in
+[README.md](../README.md)'s Known Limitations if you're deploying this
+somewhere other than the local `test-page/` harness (which sidesteps this
+entirely by using `localhost`).
+
 ### Native stack size: 4MB (Emscripten's default) is not enough
 
 ScummVM's own call depth exceeded a 4MB native stack under this specific
