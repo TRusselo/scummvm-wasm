@@ -8,12 +8,24 @@
   aspect-ratio/width/height we put on #game's own style -- confirmed by
   testing, not just theory), so the aspect-ratio constraint has to live on
   a WRAPPER around #game instead: EmulatorJS sizes #game to fill its
-  immediate parent, so giving that parent SCUMM's true native ratio
-  (320x200 = 8:5 = 1.6) means #game inherits a correctly-shaped box with
-  nothing left for RetroArch's (correctly-functioning) aspect-preserving
-  GL renderer to pad with bars. See docs/GOTCHAS.md.
+  immediate parent, so giving that parent the correct native ratio means
+  #game inherits a correctly-shaped box with nothing left for RetroArch's
+  (correctly-functioning) aspect-preserving GL renderer to pad with bars.
+  See docs/GOTCHAS.md.
+
+  The ratio is set dynamically by EJS_onGameStart below, not hardcoded
+  here: different SCUMM games report different native aspect ratios (e.g.
+  most SCUMM titles report 1.6, but this was confirmed to vary by game --
+  see the comment on EJS_onGameStart), so a fixed ratio is only ever
+  correct for some games, not all of them.
+
+  width:100% (not a fixed pixel value) is required here too: a hardcoded
+  width like "960px" caps the game at that size on any wider window --
+  it'll shrink below 960px (via max-width) but never grow past it,
+  which looks like "the game won't scale past one resolution" even
+  though the aspect-ratio math itself is correct.
 -->
-<div style="width:960px;aspect-ratio:8/5;max-width:100%;">
+<div id="game-wrapper" style="width:100%;aspect-ratio:8/5;">
 <div id="game" style="width:100%;height:100%;background:#000;"></div>
 </div>
 <script>
@@ -42,6 +54,29 @@
   // input path.
   EJS_defaultOptions = {
     lockMouse: "enabled",
+  };
+  // Different SCUMM games report different native aspect ratios (see the
+  // comment on #game-wrapper above) -- read the actual loaded game's ratio
+  // from the core instead of hardcoding one. A single read right at game
+  // start isn't enough: for at least one tested game (Zak McKracken
+  // FM-TOWNS CD) the value getVideoDimensions("aspect") returns right at
+  // game start differs from what it settles on a moment later, once the
+  // engine's own video-mode setup finishes running -- so this polls for a
+  // while after start and keeps the wrapper's aspect-ratio in sync with
+  // whatever the core currently reports.
+  EJS_onGameStart = () => {
+    const wrapper = document.querySelector("#game-wrapper");
+    let current = null;
+    const sync = () => {
+      const aspect = EJS_emulator.gameManager.getVideoDimensions("aspect");
+      if (aspect && aspect !== current) {
+        current = aspect;
+        wrapper.style.aspectRatio = String(aspect);
+      }
+    };
+    sync();
+    const interval = setInterval(sync, 500);
+    setTimeout(() => clearInterval(interval), 10000);
   };
 </script>
 <script src="ejs/data/loader.js"></script>

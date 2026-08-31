@@ -448,16 +448,54 @@ in its own inline style or a class rule (confirmed by testing: setting
 `#game` to fill its *immediate parent* -- so wrap it:
 
 ```html
-<div style="width:960px;aspect-ratio:8/5;max-width:100%;">
+<div id="game-wrapper" style="width:100%;aspect-ratio:8/5;">
 <div id="game" style="width:100%;height:100%;background:#000;"></div>
 </div>
 ```
 
-Giving the wrapper the correct 8:5 ratio means `#game` inherits a
+Giving the wrapper the correct ratio means `#game` inherits a
 correctly-shaped box, and RetroArch's renderer has nothing left to pad.
 Confirmed fixed: `canvas.getBoundingClientRect()` measured 838x523.75
 afterward -- 838/523.75 = 1.6002, matching 8:5 to four significant figures,
 with zero visible bars.
+
+**Two follow-up corrections, both found by testing a second game (Zak
+McKracken's FM-TOWNS CD release) rather than just the one already-working
+title:**
+
+1. **The ratio isn't a project-wide constant.** 8:5 (1.6) happens to be
+   what most SCUMM titles report, but it's not universal -- different
+   games/platforms report different values (confirmed: the FM-TOWNS
+   release does not report 1.6 the same way at every point during
+   startup -- see the next point). Hardcoding `aspect-ratio:8/5` on the
+   wrapper is only correct for *some* games. Read the actual value from
+   the core instead, via EmulatorJS's own
+   `this.gameManager.getVideoDimensions("aspect")`, and apply it to the
+   wrapper's `style.aspectRatio` at runtime.
+
+2. **A single read isn't enough, either.** Reading
+   `getVideoDimensions("aspect")` once at `EJS_onGameStart` can catch a
+   value that hasn't settled yet -- for the FM-TOWNS release specifically,
+   the value returned right at game start differed from what it settled
+   on a moment later, once the engine's own video-mode setup finished
+   running. Poll for several seconds after start (e.g. every 500ms for
+   10s) and keep re-applying whenever the reported value changes, rather
+   than trusting the first read.
+
+3. **`width:100%` on the wrapper, never a fixed pixel value.** An early
+   version of this fix used `width:960px;max-width:100%` -- this shrinks
+   correctly on narrower windows (via `max-width`) but **never grows past
+   960px** on wider ones, since nothing tells it to. The symptom looks
+   exactly like a resize/timing bug ("shrinking the window makes the game
+   smaller, but expanding it stops scaling at one point") and is easy to
+   misdiagnose as a continuation of the aspect-ratio investigation above
+   -- it's actually a completely unrelated, much simpler CSS mistake.
+   Always use `width:100%` (or otherwise genuinely responsive sizing) on
+   the wrapper, with the aspect ratio as the only shape constraint.
+
+See `test-page/index.html`'s `EJS_onGameStart` for the current
+implementation of both the dynamic-ratio polling and the responsive
+wrapper width together.
 
 **If you're chasing a similar layout bug in this project again:** don't
 trust visual comparison of screenshots taken at different points across a
