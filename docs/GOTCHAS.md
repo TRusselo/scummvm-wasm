@@ -461,6 +461,76 @@ argument parsing and content-path handling
 loading code -- by the time JS hands off to `callMain`, EmulatorJS's job
 is basically done.
 
+## `USE_HIGHRES`: a global compile-time engine gate, not just a canvas-size cosmetic flag
+
+`USE_HIGHRES` (`backends/platform/libretro/Makefile.common`) is a
+preprocessor macro baked into `portdefs.h` at compile time, not a runtime
+setting:
+
+```c
+#ifndef USE_HIGHRES
+#define RES_W_OVERLAY 320
+#define RES_H_OVERLAY 200
+#else
+#define RES_W_OVERLAY 1280
+#define RES_H_OVERLAY 720
+#endif
+```
+
+This project originally built with `USE_HIGHRES=0` (see `build-core.sh`
+history) specifically so SCUMM's real 320x200 output wouldn't get padded
+into a fixed 1280x720 overlay with permanent black bars baked into the
+canvas's own framebuffer -- see the section below for the distinct,
+already-fixed *container-shape* pillarboxing problem, which this is not.
+
+**It's also a silent dependency gate, discovered while sweeping additional
+engines.** `configure_engines.sh`'s enable loop treats `highres` as a
+regular engine dependency: any engine whose own `configure.engine` lists
+`highres` in its deps field gets disabled outright when
+`USE_HIGHRES=0` -- not a build warning, not a log line (the whole
+`configure` invocation runs with stdout redirected to `/dev/null`), just
+absent from the final linked binary. A 103-engine compile-only sweep
+(every ScummVM engine except the 13 declaring a `3d`/`tinygl` dependency --
+see `build/engine-lists/README.md`) reported exit 0 but linked only 55
+engines; the other 48 were, without exception, exactly the ones declaring
+`highres` as a dep. This isn't a niche gap -- it includes Broken Sword 1 &
+2 (`sword1`/`sword2`), Little Big Adventure (`twine`), Starship Titanic
+(`titanic`), Blade Runner, Director, and the Mohawk engine. It also
+silently excludes SCUMM's own `he` subengine (Humongous Entertainment kids'
+games -- Freddi Fish, Pajama Sam) from every build shipped so far, since
+`he`'s own `configure.engine` also declares `highres` -- an existing gap in
+this project's SCUMM-only binary, not something introduced by adding more
+engines.
+
+**Two ways to resolve the conflict, both legitimate:**
+
+1. **Two binaries, split by resolution profile** (`USE_HIGHRES=0` for
+   SCUMM-shaped engines, `=1` for the 48 requiring highres), shipped as two
+   named EJS cores under the same ROMM "ScummVM" platform entry (ROMM's
+   `_EJS_CORES_MAP` already takes an array per platform --
+   `scummvm: ["scummvm", "scummvm-hi"]` -- the same mechanism used when one
+   console has multiple valid cores, e.g. NES's fceumm vs. nestopia).
+   Eliminates pillarboxing entirely for the lowres-native engines. Cost:
+   two cores to build/ship/maintain, and no automatic per-ROM engine
+   detection at the ROMM/EJS layer -- the user picks the right core
+   manually per game (same friction as any other multi-core EJS platform).
+2. **One binary, `USE_HIGHRES=1` globally.** Simpler to build and deploy
+   (one core, one ROMM registration, no manual per-game core picking), at
+   the cost of real pillarboxing for every lowres-native engine, SCUMM
+   included -- a *different*, deeper kind than the section below fixes
+   (see the note at the end of that section). Confirmed **cosmetic, not
+   functional**: ScummVM clamps mouse/input coordinates to the actual
+   rendered sub-rect regardless of the padded overlay size, so gameplay is
+   correct either way. Real secondary cost: a 1280x720 framebuffer is
+   ~14x the pixel count of 320x200, composited every frame even though
+   most of it is black -- a genuine (if usually minor) CPU/bandwidth cost
+   for lightweight 2D games, not purely aesthetic.
+
+**Decision for this project: option 2, single binary, `USE_HIGHRES=1`.**
+Chosen for build/deploy simplicity over eliminating pillarboxing. Revisit
+option 1 if the pillarboxing on lowres titles turns out to matter more in
+practice than it does on paper.
+
 ## Pillarboxing/letterboxing: constrain a wrapper around `#game`, not `#game` itself
 
 SCUMM's native output is 320x200 (8:5 = 1.6:1). If `test-page/index.html`'s
@@ -566,6 +636,18 @@ or a real, focused, visible browser tab, which in hindsight was the
 signal that the actual bug wasn't about resize timing at all. The real
 issue (container shape, above) has nothing to do with `ResizeObserver`
 or resize-event timing.
+
+**This fix stops working once `USE_HIGHRES=1` is baked into the core, and
+that's expected, not a regression to chase.** The dynamic-ratio read this
+section relies on (`getVideoDimensions("aspect")`) reports whatever the
+*core* claims its resolution is -- with `USE_HIGHRES=1` that's always the
+padded 1280x720 overlay, not the game's real content size, so the wrapper
+ends up correctly shaped around the wrong (padded) rectangle and the actual
+game still renders smaller with real bars baked into the pixel buffer. This
+is the different, deeper pillarboxing described in the `USE_HIGHRES`
+section above -- a compile-time engine-gate tradeoff, not a CSS bug. Don't
+re-investigate this section's fix for it; it was never meant to solve
+that problem.
 
 ## Mouse input and pointer lock
 

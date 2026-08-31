@@ -2,15 +2,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Scope the build's engine set. Defaults to SCUMM only; override by pointing
-# ENGINES_LIST_FILE at a file with one ScummVM engine name per line (see
-# build/engine-lists/).
-ENGINES_LIST_FILE="${ENGINES_LIST_FILE:-}"
-if [ -n "$ENGINES_LIST_FILE" ]; then
-  cp "$ENGINES_LIST_FILE" scummvm-core/backends/platform/libretro/lite_engines.list
-else
-  echo "scumm" > scummvm-core/backends/platform/libretro/lite_engines.list
-fi
+# Scope the build's engine set. Defaults to all-engines.list (103 engines,
+# every ScummVM engine except the 13 requiring OpenGL -- see
+# build/engine-lists/README.md); override by pointing ENGINES_LIST_FILE at
+# a different file with one ScummVM engine name per line.
+ENGINES_LIST_FILE="${ENGINES_LIST_FILE:-build/engine-lists/all-engines.list}"
+cp "$ENGINES_LIST_FILE" scummvm-core/backends/platform/libretro/lite_engines.list
 
 source toolchain/emsdk/emsdk_env.sh
 
@@ -34,18 +31,21 @@ cd scummvm-core/backends/platform/libretro
 # toolchain/emsdk/upstream/emscripten/emcc.py), so it adds these flags on top
 # of whatever CFLAGS/CXXFLAGS the Makefile assembles on its own, rather than
 # replacing them.
-# USE_HIGHRES defaults to 1 (Makefile.common), initializing the reported
-# canvas at a fixed 1280x720 (16:9) overlay resolution meant for high-res
-# engines (GRIM, Director) -- SCUMM never needs more than 320x200-ish, and
-# leaving this enabled produces a 16:9-shaped video output with the actual
-# game rendered into a smaller centered region, padded with permanent black
-# bars baked into the framebuffer itself (not a CSS/display letterbox --
-# the in-game mouse cursor's own coordinate space is clamped to the smaller
-# real content area, confirming ScummVM draws into a sub-rect of a larger
-# canvas rather than the frontend adding bars around a correctly-sized one).
-# Several other constrained libretro platforms (miyoo, miyoomini, armv7)
-# already disable this for the same class of reason.
-EMCC_CFLAGS="-pthread -sSHARED_MEMORY" emmake make platform=emscripten LITE=1 USE_HIGHRES=0 \
+# USE_HIGHRES defaults to 1 (Makefile.common) and is left at that default
+# here deliberately. It's a compile-time engine-scoping gate as much as a
+# canvas-size setting: any engine whose own configure.engine declares a
+# "highres" dependency (48 of the 103 in all-engines.list, including
+# Broken Sword 1/2, Little Big Adventure, Director, and SCUMM's own `he`
+# subengine) is silently excluded from the build when USE_HIGHRES=0. The
+# cost of leaving it at 1 is real but cosmetic: lowres-native engines like
+# SCUMM render into a smaller centered region of a fixed 1280x720 overlay,
+# with black bars baked into the framebuffer itself (not a CSS/display
+# letterbox -- confirmed the in-game mouse cursor's own coordinate space
+# still clamps correctly to the real content area, so input/gameplay is
+# unaffected). See docs/GOTCHAS.md's "USE_HIGHRES" section for the full
+# tradeoff and the two-binary alternative that eliminates the pillarboxing
+# at the cost of a second core to build/ship/maintain.
+EMCC_CFLAGS="-pthread -sSHARED_MEMORY" emmake make platform=emscripten LITE=1 \
   -j"$(nproc)"
 
 echo "Build artifact:"
