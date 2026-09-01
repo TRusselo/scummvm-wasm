@@ -4,12 +4,12 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (23 of 102, + agos2 subengine bonus)
+## Confirmed working so far (24 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
-`cine`, `sherlock`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`cine`, `sherlock`, `hugo`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -153,11 +153,11 @@ friction.
 | dreamweb | DreamWeb | **Confirmed working** — legally freeware since 2011 | Yes | Already tested |
 | griffon | The Griffon Legend | **Blocked** — official freeware zip from scummvm.org works fine as packaged (its `data/`/`mapdb/`/`music/`/`sfx/`/`art/` sibling subdirectories must NOT be flattened, unlike most engines — see GOTCHAS.md); needed `fonts.dat` companion file (now fixed), but the compiled WASM core crashes with a `RuntimeError: memory access out of bounds` inside the engine's own code once gameplay starts. Genuine engine bug, not a packaging issue — needs debug-build investigation, deferred by user decision | Yes | scummvm.org freeware games page (`griffon-1.0.zip`) |
 | hopkins | Hopkins FBI | Same | Yes (has English translation) | archive.org French-adventure collections |
-| hugo | Hugo's House of Horrors | Same (first, smallest, shareware) | Yes | archive.org, "Hugo's House of Horrors DOS" |
+| hugo | Hugo's House of Horrors | **Confirmed working** — needed `hugo.dat` companion file (straight append, no collision this time) | Yes | archive.org (`msdos_Hugos_House_of_Horrors_1990`), already tested |
 | icb | In Cold Blood | Same | Yes | archive.org, "In Cold Blood PC game" |
 | immortal | The Immortal | Same (small floppy-era game) | Yes | archive.org EA classics |
 | lab | Labyrinth: The Computer Game | Same | Yes | archive.org Lucasfilm games |
-| macventure | Shadowgate | Same (small classic Mac/DOS title) | Yes | archive.org Mac/DOS collections |
+| macventure | Shadowgate | Same | Yes | Deferred — correction: ScummVM's `macventure` engine only supports the **Macintosh** and **Apple IIgs** releases (`detection.cpp`'s `MACGAME`/`IIGSGAME` macros hard-code `kPlatformMacintosh`/`kPlatformApple2GS`), not the MS-DOS version; a packaged DOS copy failed to detect for exactly this reason. Sourcing a Mac release means extracting from a `.moof`/HFS floppy disk image — same disk-image-tooling complexity class as `startrek`/`twine`, deferred alongside them |
 | made | Return to Zork | Rodney's Funscreen (much smaller kids' title) | Yes | archive.org; prefer Funscreen over multi-disc Return to Zork |
 | mads | Rex Nebular and the Cosmic Gender Bender | Same | Yes | archive.org, "Rex Nebular Cosmic Gender Bender" |
 | mtropolis | Obsidian | Same (no smaller mTropolis title known) | Yes | archive.org, note multi-CD |
