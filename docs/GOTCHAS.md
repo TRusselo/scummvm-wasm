@@ -494,6 +494,67 @@ convention adopted early in this project, not a real ROMM requirement.
 Either extension works; use whichever is more convenient (`.zip` avoids
 an extra rename step when repackaging).
 
+### Some engines hardcode relative subpaths in their own C++ source -- for those, keep the directory structure, don't flatten
+
+Most engines (SCUMM included) scan their game folder without caring about
+directory layout, which is why flattening to zero subdirectories is the
+default-safe move (see above). `griffon` is a counterexample:
+`engines/griffon/sound.cpp`, `dialogs.cpp`, and `resources.cpp` all pass
+literal relative-path strings straight to the file-open calls --
+`"music/boss.ogg"`, `"sfx/door.ogg"`, `"art/window.bmp"`, etc. Flattening
+this zip would silently break every one of those lookups. The official
+`griffon-1.0.zip` from `scummvm.org`'s freeware page already ships with
+the correct `data/`, `mapdb/`, `music/`, `sfx/`, `art/` sibling
+subdirectories intact and no filename collisions between them -- for this
+engine, leave the structure as-is rather than flattening. If it hits the
+intermittent EmulatorJS extraction crash described below, that's the
+known flakiness, not a reason to flatten and break the engine's own path
+lookups.
+
+### Companion `.dat` files can collide by name with a file the original game already ships
+
+Like `drascula.dat`/`lure.dat`/`queen.tbl` before it, `teenagent` needs
+its own ScummVM-authored companion file from
+`scummvm-core/dists/engine-data/teenagent.dat` (403,315 bytes, a
+versioned resource/translation table -- see
+`engines/teenagent/resources.cpp`'s `TEENAGENT_DAT_VERSION` check). The
+twist: the original 1996 DOS game *also* ships its own file literally
+named `teenagent.dat` (70,047 bytes, an internal resource index used by
+the original executable, functionally unrelated to ScummVM's file of the
+same name). Since ScummVM's `teenagent` engine never reads the original
+executable's data at all, the fix is to **delete the game's original
+`teenagent.dat` from the zip and replace it with ScummVM's own** (not
+just append -- a straight append leaves the original in place and
+ScummVM reads that one, failing with "The 'teenagent.dat' engine data
+file is corrupt." since it doesn't match the expected versioned format).
+Check any newly-added engine's `resources.cpp`/`detection.cpp` for a
+`_DAT_VERSION` constant before assuming an engine-data companion file can
+just be appended -- if the game's own archive already contains a file by
+that exact name, it needs replacing, not adding to.
+
+### Clearing EmulatorJS's IndexedDB caches: `await indexedDB.deleteDatabase()` does not actually wait
+
+`IDBOpenDBRequest` is not a native `Promise` -- awaiting it directly
+resolves immediately with the request object, before the deletion
+actually completes (before its `onsuccess`/`onblocked` event fires). A
+retest immediately after this bare `await` can still see the old cached
+ROM, making a genuine fix look like it didn't work. Wrap it properly:
+
+```js
+function delDb(name) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = () => resolve();
+    req.onblocked = () => resolve(); // still completes once the blocking connection closes
+    req.onerror = () => reject(req.error);
+  });
+}
+await Promise.all([delDb("EmulatorJS-core"), delDb("EmulatorJS-roms")]);
+```
+
+Follow with a hard reload (`ctrl+shift+r`) before retesting, same as the
+intermittent-extraction-crash workaround below.
+
 ### Multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
 
 Found live-debugging user reports of specific SCUMM titles failing:

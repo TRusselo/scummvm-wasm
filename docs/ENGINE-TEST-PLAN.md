@@ -4,19 +4,27 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (13 of 102, + agos2 subengine bonus)
+## Confirmed working so far (15 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
-`cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`.
-Marked **Confirmed working** in their table row below — search this file
-for that phrase to jump to them.
+`cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
+`got`, `teenagent`. Marked **Confirmed working** in their table row
+below — search this file for that phrase to jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
 removed and skipped per user caution (unsigned/unverified `.exe`, low
 value anyway since ScummVM itself marks SLUDGE unstable/WIP).
 
-`griffon` deferred -- 5 sibling subdirectories mixed with root files,
-too risky to flatten blindly without more careful handling.
+`griffon` **blocked** -- not a packaging problem (the directory
+structure is fine as-is, see GOTCHAS.md; the missing `fonts.dat`
+companion file was found and fixed), but the compiled WASM core crashes
+with `RuntimeError: memory access out of bounds` inside the engine's own
+code once the game actually starts (hit in the main loop and again in a
+`ResizeObserver` callback). This is a genuine engine-level bug in this
+WASM build, not something fixable by repackaging the ROM — would need
+rebuilding the core with debug symbols and stepping through
+`engines/griffon/` source to root-cause. Deferred by user decision
+rather than investigated further tonight.
 
 ## Scope
 
@@ -131,7 +139,7 @@ friction.
 | dragons | Blazing Dragons | Same | Yes | archive.org PS1/DOS collections |
 | drascula | Drascula: The Vampire Strikes Back | **Confirmed working** — needed `drascula.dat` companion file | Yes | Already tested |
 | dreamweb | DreamWeb | **Confirmed working** — legally freeware since 2011 | Yes | Already tested |
-| griffon | The Griffon Legend | Same — freeware | Yes | archive.org or itch.io mirrors |
+| griffon | The Griffon Legend | **Blocked** — official freeware zip from scummvm.org works fine as packaged (its `data/`/`mapdb/`/`music/`/`sfx/`/`art/` sibling subdirectories must NOT be flattened, unlike most engines — see GOTCHAS.md); needed `fonts.dat` companion file (now fixed), but the compiled WASM core crashes with a `RuntimeError: memory access out of bounds` inside the engine's own code once gameplay starts. Genuine engine bug, not a packaging issue — needs debug-build investigation, deferred by user decision | Yes | scummvm.org freeware games page (`griffon-1.0.zip`) |
 | hopkins | Hopkins FBI | Same | Yes (has English translation) | archive.org French-adventure collections |
 | hugo | Hugo's House of Horrors | Same (first, smallest, shareware) | Yes | archive.org, "Hugo's House of Horrors DOS" |
 | icb | In Cold Blood | Same | Yes | archive.org, "In Cold Blood PC game" |
@@ -184,7 +192,7 @@ friction.
 | lilliput | The Adventures of Robin Hood | Same | Yes | archive.org, "Adventures of Robin Hood Firstlight" |
 | m4 | Orion Burger | Same (ScummVM team calls it fully completable) | Yes | archive.org, "Orion Burger Sanctuary Woods" |
 | mortevielle | Mortville Manor (Le Manoir de Mortevielle) | Same | Unclear — verify English/fan translation | archive.org French DOS abandonware |
-| mutationofjb | Mutation of J.B. | Same — **freeware, made for ScummVM** | Yes | Distributed via ScummVM's own site/wiki |
+| mutationofjb | Mutation of J.B. | Same | **No** — correction: not actually freeware (earlier draft was wrong). It's a commercial 1996 Slovak game with only Slovak/German releases; no legitimate free English source found. Abandonware-only, testing-only if sourced at all | Not on scummvm.org's freeware page; abandonware sites host ISOs in a legal gray area |
 | ngi | Fullpipe (Pilot Pirks) | Same | Likely Russian-primary — testing-only, verify | ScummVM team has requested other-language copies; may be hard to source |
 | petka | Red Comrades Save the Galaxy | Same | No — Russian-only, unverified fan translations | archive.org Russian abandonware collections |
 | pink | Pink Panther: Hokus Pokus Pink | Same | Unclear | search "Hokus Pokus Pink" on Russian game collections |
@@ -193,7 +201,9 @@ friction.
 | saga2 | Faery Tale Adventure II: Halls of the Dead | Same (only SAGA2 title) | Yes | archive.org DOS/Win9x collections |
 | supernova | Mission Supernova | Same | No — German-origin, unverified translation | German abandonware archives on archive.org |
 | teenagent | TeenAgent | Same — freeware | Yes | archive.org freeware collections |
+| teenagent | TeenAgent | **Confirmed working** — officially freeware; needed ScummVM's own `teenagent.dat` companion file swapped in (the original game ships a same-named but unrelated internal file — see GOTCHAS.md) | Yes | Already tested (freeware DOS zip via archive.org `msdos_TeenAgent_1995`) |
 | toltecs | 3 Skulls of the Toltecs | Same | Yes | archive.org DOS/Win ISO collections |
+| got | God of Thunder | **Confirmed working** — officially freeware, hosted directly by scummvm.org | Yes | Already tested (`gotfree.zip`, ~1 MiB) |
 | trecision | Nightlong: Union City Conspiracy | Same | Yes | archive.org DreamCatcher/Trecision uploads |
 | tucker | Bud Tucker in Double Trouble | Same | Yes | archive.org DOS collections |
 | wage | Resolved: official ScummVM WAGE Collection is a multi-game bundle, not one title — **Confirmed working** via "Magic Rings" (1988, picked for its clean filename, avoiding punycode-mangled entries elsewhere in the bundle) | Same | Yes | scummvm.org freeware games page (`wage-games-master-1.0.zip`), already tested |
@@ -203,7 +213,6 @@ friction.
 | Engine | Notes |
 |---|---|
 | crab | Could not confidently identify — possibly a newer/indie addition |
-| got | Could not confidently identify |
 | tot | Could not confidently identify ("ToT") |
 | vcruise | Could not confidently identify |
 
@@ -227,7 +236,7 @@ testable. Researched now for completeness; some are very well-known.
 | hpl1 | Penumbra: Overture | Genre-notable (horror cult favorite) | Standalone tech demo if it exists, else full game | Yes | archive.org/itch.io Frictional Games back-catalog |
 | alcachofa | Yesterday | Genre-notable | Same (only title this engine supports) | Yes | archive.org modern-adventure collections |
 | watchmaker | The Watchmaker | Niche/obscure | Same (only title, heavy on video) | Yes | archive.org FMV-adventure/CD-ROM collections |
-| wintermute | (needs re-verification — see confidence note above) | Genre-notable | **Flagged for re-check**: prior candidate (5 Days a Stranger) was wrong-engine (that's AGS). Need an actual small Wintermute freeware title — candidates to check: Ghost in the Sheet, or a Book of Unwritten Tales demo | Unclear until re-verified | Check itch.io Wintermute-engine freeware collections directly |
+| wintermute | Helga Deep In Trouble | Genre-notable | Same — **resolved**: officially freeware, hosted directly by scummvm.org (`helga_deep_in_trouble.zip`, ~169 MiB — check against the 1 GB go-ahead threshold when this engine's core is ready, but well under it). Earlier candidate (5 Days a Stranger) was wrong-engine (that's AGS) | Yes (English and Czech) | scummvm.org freeware games page |
 
 ---
 
@@ -243,3 +252,13 @@ testable. Researched now for completeness; some are very well-known.
    new per-engine packaging quirks as they're found.
 4. Leave working, English ROMs in `/mnt/unraid/emulation/scummvm/roms/`;
    non-English ROMs used for testing-only should not be left there.
+5. **Do not download/test any candidate ROM over 1 GB without checking
+   with the user first.** Several Widely Known-tier engines are
+   CD-ROM-era games that can run large (`bladerunner`, `sword1`/`sword2`
+   full CD releases, `mohawk`, `groovie`, `lastexpress`, `titanic`,
+   `mtropolis`, etc.) — check the file size before pulling one down and
+   flag/defer instead of proceeding if it's near or over that threshold.
+6. Also on the user's wishlist, separate from engine testing: full game
+   collections for King's Quest, Space Quest, and Leisure Suit Larry
+   (played KQ5 and LSL1 as a kid) — to source and package once the
+   engine-testing pass is further along.
