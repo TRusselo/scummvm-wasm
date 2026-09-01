@@ -341,7 +341,7 @@ runtime benefit in the final build.
 
 ## Build-system traps that produce misleading "it's still broken" results
 
-These two cost the most wall-clock time in this project, not because they
+These cost the most wall-clock time in this project, not because they
 were hard to fix, but because they made *already-correct* fixes look like
 they hadn't worked.
 
@@ -377,6 +377,40 @@ immediately instead of after several confusing "still broken" cycles:
 strings scummvm-core/backends/platform/libretro/scummvm_libretro_emscripten.bc \
   | grep -c midiOutputMap   # expect 0 after a real fix
 ```
+
+### `libdetect.a`/`libdeps.a` don't get rebuilt when `lite_engines.list` changes
+
+Rebuilding with a larger `lite_engines.list` (55 to 103, then 103 to 123
+engines, same `scummvm-core` checkout each time) silently kept the *old*
+engine set's detection plugins linked in. Confirmed as an undefined-symbol
+link failure (`g_SCUMM_DETECTION_type`) rather than a silent no-op only
+because the newly-added engine (SCUMM's own `he`/`scumm_7_8` subengines)
+happened to trigger `engines/detection_table.h`'s
+`LINK_PLUGIN(SCUMM_DETECTION)` for the first time in a way the stale
+archive didn't satisfy -- a smaller change might have linked "successfully"
+while silently missing detection for the new engines instead of failing
+loud.
+
+Root cause: `backends/platform/libretro/libdetect.a` and `libdeps.a` are
+top-level merged archives (`emar -M < script.mri`, see the final link line)
+that `make` did not reliably decide needed regenerating just because
+`lite_engines.list` changed -- the exact same class of bug as the
+`module.mk` case above, different files. Confirmed by comparing mtimes:
+per-engine archives (`engines/scumm/libscumm.a`) matched the current
+build's timestamp; `libdetect.a`/`libdeps.a` were dated from an earlier
+build in the same checkout, hours/builds prior.
+
+**Fix:** delete both before rebuilding whenever `lite_engines.list`
+changes:
+
+```bash
+rm -f scummvm-core/backends/platform/libretro/libdetect.a \
+      scummvm-core/backends/platform/libretro/libdeps.a
+```
+
+**Verify:** `ls -la` both files after the rebuild and confirm the mtime is
+current and (for `libdetect.a` specifically) the size actually changed --
+identical size after adding engines is a sign it wasn't really rebuilt.
 
 ### `bash script.sh | tail -N` silently swallows the script's real exit code
 
