@@ -1129,6 +1129,42 @@ actual game's real dimensions once it loads, regardless of
 `USE_HIGHRES`, so this section's dynamic-ratio wrapper continues to size
 correctly either way.
 
+## Full keyboard input (typing, arrow-key movement) for parser-driven games
+
+Text-parser games (`agi`, `sci`, `hugo`, and any other engine where the
+player types commands or moves with raw arrow keys rather than pure
+point-and-click) need more than EmulatorJS's default input handling
+provides out of the box -- by default EJS maps a fixed retropad-style
+button set, not full keyboard passthrough.
+
+The core already supports it: `backends/platform/libretro/src/libretro-core.cpp`
+registers a real `retro_keyboard_callback`
+(`RETRO_DEVICE_KEYBOARD` is fully wired), and RetroArch's own
+`input/drivers/emulatorjs_input.c` forwards raw browser keydown/keyup
+events straight to it -- but only when gated on, via
+`ejs_set_keyboard_enabled()`. EmulatorJS exposes this as a real,
+already-built settings menu item: **Settings (gear icon) → Input Options
+→ "Direct Keyboard Input" → Enabled**. No rebuild, no redeploy -- it's a
+per-session player-facing toggle, off by default, that a player can flip
+on before a parser-driven game and off again afterward.
+
+**Why this isn't set as a default for the whole core:** the setting is
+inherently per-*core*, not per-game -- ScummVM is one shared EJS core
+across every title, so there's no ROMM/EJS mechanism to default this to
+"on" only for `agi`/`sci`/`hugo` while leaving it "off" for
+point-and-click games (`config.yml`'s `emulatorjs.settings.scummvm.*`
+per-core override, the same mechanism already used for `lockMouse`, would
+apply to the whole core). Whether raw keyboard passthrough is actually
+harmless for point-and-click games (Monkey Island, Broken Sword, etc.) --
+inert extra key events vs. double-firing against ScummVM's own existing
+keyboard shortcuts (Esc to skip, F5 for the in-game menu) -- hasn't been
+tested. Decided to leave it as a manual per-session toggle rather than a
+core-wide default until/unless that's actually verified safe.
+
+There's also a related "Forward Alt key" toggle (`altKeyboardInput`,
+also off by default) for games that need Alt as a real modifier rather
+than EJS's own hotkey use of it.
+
 ## Mouse input and pointer lock
 
 The libretro "mouse" input device already sends relative
