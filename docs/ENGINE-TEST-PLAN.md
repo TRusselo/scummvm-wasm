@@ -4,35 +4,37 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (15 of 102, + agos2 subengine bonus)
+## Confirmed working so far (17 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
-`got`, `teenagent`. Marked **Confirmed working** in their table row
-below — search this file for that phrase to jump to them.
+`got`, `teenagent`, `awe`, `sword1`. Marked **Confirmed working** in
+their table row below — search this file for that phrase to jump to
+them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
 removed and skipped per user caution (unsigned/unverified `.exe`, low
 value anyway since ScummVM itself marks SLUDGE unstable/WIP).
 
-`griffon` and `glk` **blocked** on the same shared bug, not a packaging
-problem: both needed their `fonts.dat` companion file (found and fixed),
-but both then crash with the **identical** `RuntimeError: memory access
-out of bounds` stack trace once that file is supplied (same wasm
-function indices and byte offsets — see GOTCHAS.md's "Suspected shared
-bug" section). This looks like a bug in ScummVM's common
-font-rendering codepath in this WASM build, not something fixable by
-repackaging. Any other untested engine that reports "Could not locate
-the 'fonts.dat' engine data file" should be treated as high-risk for
-this same crash. Deferred by user decision rather than investigated
-further tonight.
+`griffon`, `glk`, and `dm` **blocked** on the same shared bug, not a
+packaging problem: all three needed their `fonts.dat` companion file
+(found and fixed), but all three then crash with the **identical**
+`RuntimeError: memory access out of bounds` stack trace once that file
+is supplied (same wasm function indices and byte offsets — see
+GOTCHAS.md's "Suspected shared bug" section). This looks like a bug in
+ScummVM's common font-rendering codepath in this WASM build, not
+something fixable by repackaging. Any other untested engine that reports
+"Could not locate the 'fonts.dat' engine data file" should be treated as
+high-risk for this same crash. Deferred by user decision rather than
+investigated further tonight.
 
-Both ROMs are correctly packaged (fonts.dat fix already applied) and
-kept — not deleted — at
-`/mnt/unraid/emulation/scummvm/non-running/Griffon Legend.zip` and
-`.../Zork I.zip`, for easy retesting once the underlying WASM bug is
-fixed. `non-running/` is the convention going forward for any ROM that's
-packaged correctly but blocked by an engine/core bug rather than
+All three ROMs are correctly packaged (fonts.dat fix already applied)
+and kept — not deleted — in
+`/mnt/unraid/emulation/scummvm/non-running/` (`Griffon Legend.zip`,
+`Zork I.zip`, `Dungeon Master.zip`), for easy retesting once the
+underlying WASM bug is fixed. `non-running/` is the convention going
+forward for any ROM that's packaged correctly but blocked by an
+engine/core bug rather than
 abandoned — as opposed to a bad packaging attempt, which just gets fixed
 in place or discarded.
 
@@ -109,9 +111,9 @@ friction.
 |---|---|---|---|---|
 | agi | King's Quest I | **Confirmed working** (Leisure Suit Larry 1-3 and Space Quest I-III both play) | Yes | Already tested |
 | glk | Zork I | **Blocked** — same shared engine-level bug as `griffon` (see GOTCHAS.md): needs `fonts.dat` companion file (confirmed, now fixed), but crashes with the identical `RuntimeError: memory access out of bounds` stack trace once that file is supplied. Genuine cross-engine WASM bug, not fixable by repackaging | Yes, legally free | Already tested (archive.org `zork1` item, official Infocom DOS release, MD5-matched to detection table entry `88-840726`) |
-| awe | Another World / Out of This World | Another World (fit on ~2 floppies originally) | Yes | archive.org DOS releases |
-| dm | Dungeon Master | Dungeon Master (Amiga/Atari ST releases are small) | Yes | archive.org FTL Games / Amiga-ST collections |
-| sword1 | Broken Sword: The Shadow of the Templars | Official free demo (much smaller than full CD game) | Yes | archive.org has both full game and demo |
+| awe | Another World / Out of This World | **Confirmed working** — English DOS release, flat zip (no subdirectories, no fonts.dat needed) | Yes | archive.org (`another_world_dos`), already tested |
+| dm | Dungeon Master | **Blocked** — same shared `fonts.dat` engine bug as `griffon`/`glk` (third confirmation of the identical crash signature, see GOTCHAS.md) | Yes | archive.org (`msdos_Dungeon_Master_1989`), already tested |
+| sword1 | Broken Sword: The Shadow of the Templars | **Confirmed working** via the official free demo — needed a root-level anchor file preserved in the zip for detection to succeed (see GOTCHAS.md's "no file at the true root" entry); a first packaging attempt that stripped all root files to only the needed subdirectories produced an empty game list, not a crash | Yes | archive.org (`Broken_Sword_demo`), already tested |
 | sword2 | Broken Sword II: The Smoking Mirror | Official free demo if available, else full game | Yes | archive.org Broken Sword collections |
 | sci | King's Quest V | **Confirmed working** (King's Quest V plays) | Yes | Already tested |
 | bladerunner | Blade Runner | Only title (CD-ROM, FMV-heavy, no smaller alt) | Yes | archive.org Westwood/abandonware collections |

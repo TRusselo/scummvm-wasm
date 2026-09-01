@@ -555,6 +555,75 @@ await Promise.all([delDb("EmulatorJS-core"), delDb("EmulatorJS-roms")]);
 Follow with a hard reload (`ctrl+shift+r`) before retesting, same as the
 intermittent-extraction-crash workaround below.
 
+### Zips with subdirectories but no file at the true root silently fail to detect any game
+
+For engines that need their directory structure preserved (see the
+griffon entry above), there's a second, distinct requirement beyond
+"don't flatten": **at least one file must sit at the zip's true root
+level**, not nested inside any subdirectory. `sword1`'s official Broken
+Sword demo hit this: a first packaging attempt kept only the needed
+subdirectories (`CLUSTERS/`, `MUSIC/`, `SMACKSHI/`, `SMACKSLO/`,
+`SPEECH/`) and dropped every loose root-level file as "installer
+cruft." Symptom: no crash, no error -- ScummVM's own launcher loaded
+fine, but its game list was simply empty, as if the ROM contained
+nothing at all. Confirmed via direct filesystem inspection
+(`Module.FS.readdir()`, see below) that every file *had* extracted
+correctly -- this is not the extraction-crash bug described next.
+
+Root cause, traced through
+`backends/platform/libretro/src/libretro-core.cpp`'s `retro_load_game()`:
+the frontend (RetroArch/EmulatorJS) hands the core a single file path as
+"the" content reference for a multi-file zip -- for a directory-based
+game, whichever file that turns out to be. The core then calls
+`Common::FSNode(game->path).getParent()` and passes *that directory* to
+`testGame()` for autodetection. If the picked file lives inside
+`CLUSTERS/`, the effective scan root becomes `/CLUSTERS`, not the true
+zip root -- so a detection entry needing files from two sibling
+directories (`clusters/scripts.clu` *and* `smackshi/intro.smk`, both
+relative to the same root) can never match, because from `/CLUSTERS`'s
+own perspective, `smackshi/` doesn't exist as a child.
+
+For every previously-working flat game (no subdirectories at all), this
+never surfaces: whatever single file gets picked as "content" is
+necessarily a sibling of every other file, so its parent *is* the
+correct root by construction. It only becomes visible for
+directory-structured games once every root-level file has been removed.
+
+Fix: keep at least one original root-level file in the zip (the specific
+file doesn't matter -- it just needs to exist at that level so whichever
+file the frontend selects as its content reference is more likely to sit
+there, or at minimum establishes that root-level files exist at all).
+Practically, don't over-clean these zips -- dropping genuinely unneeded
+subdirectories (e.g. a Windows installer's `DIRECTX/`/`INSTALL/` folders)
+is fine and reduces size/crash-surface, but leave loose root-level files
+alone even if they look like installer artifacts.
+
+**Diagnostic technique used to rule out the extraction-crash bug**: from
+the browser console, inspect the emulator's actual in-memory filesystem
+directly rather than guessing from symptoms alone:
+
+```js
+const mod = window.EJS_emulator?.gameManager?.Module || window.Module;
+function walk(path, depth) {
+  let out = [];
+  for (const e of mod.FS.readdir(path)) {
+    if (e === '.' || e === '..') continue;
+    const full = path.replace(/\/$/, '') + '/' + e;
+    out.push(full);
+    if (depth > 0) {
+      const st = mod.FS.stat(full);
+      if (mod.FS.isDir(st.mode)) out = out.concat(walk(full, depth - 1));
+    }
+  }
+  return out;
+}
+walk('/', 3);
+```
+
+This confirms or rules out "did the zip actually extract" independent of
+whatever ScummVM's own UI shows, separating a packaging/extraction
+problem from a detection-logic problem.
+
 ### Multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
 
 Found live-debugging user reports of specific SCUMM titles failing:
