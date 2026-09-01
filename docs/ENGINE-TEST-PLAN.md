@@ -27,6 +27,15 @@ the 'fonts.dat' engine data file" should be treated as high-risk for
 this same crash. Deferred by user decision rather than investigated
 further tonight.
 
+Both ROMs are correctly packaged (fonts.dat fix already applied) and
+kept — not deleted — at
+`/mnt/unraid/emulation/scummvm/non-running/Griffon Legend.zip` and
+`.../Zork I.zip`, for easy retesting once the underlying WASM bug is
+fixed. `non-running/` is the convention going forward for any ROM that's
+packaged correctly but blocked by an engine/core bug rather than
+abandoned — as opposed to a bad packaging attempt, which just gets fixed
+in place or discarded.
+
 ## Scope
 
 - **102 top-level engines** below: every engine in
@@ -253,6 +262,10 @@ testable. Researched now for completeness; some are very well-known.
    new per-engine packaging quirks as they're found.
 4. Leave working, English ROMs in `/mnt/unraid/emulation/scummvm/roms/`;
    non-English ROMs used for testing-only should not be left there.
+   Correctly-packaged ROMs blocked by an engine/core bug (not a
+   packaging problem) go in
+   `/mnt/unraid/emulation/scummvm/non-running/` instead of being
+   deleted, for easy access when retesting later.
 5. **Do not download/test any candidate ROM over 1 GB without checking
    with the user first.** Several Widely Known-tier engines are
    CD-ROM-era games that can run large (`bladerunner`, `sword1`/`sword2`
