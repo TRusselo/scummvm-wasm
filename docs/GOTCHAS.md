@@ -481,6 +481,63 @@ root by basename; a nested zip structure doesn't get flattened for you in
 a way ScummVM's directory-based auto-detection can rely on, so don't
 create the ambiguity in the first place.
 
+### Multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
+
+Found live-debugging user reports of specific SCUMM titles failing:
+zips whose files were split across two or more subdirectories at the same
+level (e.g. Full Throttle's `DATA/` + `VIDEO/`, The Dig's `VIDEO/` next to
+root files, Curse of Monkey Island's `RESOURCE/` next to root files) threw
+`Uncaught ErrnoError {errno: 20}` (`ENOTDIR`) from `mkdir`/`mknod`, deep in
+EmulatorJS's bundled decompression Worker (`_extract`/`asm._extract` in
+`emulator.min.js`'s compression module) -- before ScummVM's own code ever
+ran. Titles with all files at one directory level (flat at the zip root,
+*or* everything under one single wrapper folder) don't hit it. Fix:
+repackage so every file sits at one directory level, whichever level that
+is -- collapse multiple sibling subdirectories into one (a single wrapper
+folder is fine; flat-at-root is fine; multiple siblings is not). This is
+a property of the zip file itself, unrelated to which ScummVM engine the
+game uses.
+
+**This crash (and a separate bogus "engine not compiled in" failure on a
+provably-correct core) turned out to be intermittent, not deterministic,
+on the *same* zip file with *no* changes to it or the deployed core in
+between.** Confirmed exhaustively: the same "fixed" Full Throttle zip
+crashed with `ENOTDIR` on one load and loaded correctly on the very next
+one, with the served core file verified byte-identical (`sha256sum`) both
+times, and the core binary itself verified via `strings` to genuinely
+contain the fix (`ScummEngine_v7`/`ScummEngine_v8` symbols present,
+`"...not compiled in"` string literals absent). Browser HTTP cache,
+EmulatorJS's own `EmulatorJS-core`/`EmulatorJS-roms` IndexedDB caches, and
+service workers were all ruled out individually (cleared/deleted directly
+via `indexedDB.deleteDatabase()` and confirmed gone, hard-reload with
+`ctrl+shift+r`, and a plain `fetch()`/`XMLHttpRequest` from the same page
+context reliably returned the correct bytes even when EmulatorJS's own
+load produced the wrong result moments later). The likely culprit is a
+race in EmulatorJS's own decompression Worker around heap growth during
+extraction (`Warning: Enlarging memory arrays, this is not fast!` fires
+multiple times for these large files, each one a `ALLOW_MEMORY_GROWTH`
+reallocation that could invalidate an in-flight buffer reference) -- but
+this lives in EmulatorJS's own vendored code, not this project's source,
+so it hasn't been fixed at the root, only worked around.
+
+**Practical takeaway: if a fix that should have worked appears not to
+have, retry before concluding it didn't.** A single failure after a real
+fix is not strong evidence the fix was wrong -- confirm with a second
+attempt (ideally after clearing the two IndexedDB databases above) before
+spending time re-diagnosing something that was already correct.
+
+### "Could not fetch core report JSON! Core caching will be disabled!" is expected, not a bug
+
+This warning (`emulator.min.js`, from a 404 on
+`ejs/data/cores/reports/scummvm.json`) appears on every load and is
+harmless -- there's no real report JSON shipped for this core (see the
+`-legacy` section above), so EmulatorJS falls back to not caching core
+metadata client-side the way it would for an official, catalog-listed
+core. It does not affect whether the actual `.data` file download is
+cached (that's the separate `EmulatorJS-core` IndexedDB database,
+unaffected by this warning) -- only some secondary metadata convenience.
+Safe to ignore.
+
 ### Content loads via `argv`, not a direct `retro_load_game()` call from JS
 
 `emulator.js`'s `startGame()` calls
