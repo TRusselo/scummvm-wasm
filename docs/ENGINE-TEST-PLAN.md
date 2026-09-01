@@ -4,11 +4,19 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (4 of 102, + agos2 subengine bonus)
+## Confirmed working so far (13 of 102, + agos2 subengine bonus)
 
-`agi`, `sci`, `sky`, `agos` (base + `agos2` subengine). Marked
-**Confirmed working** in their table row below — search this file for
-that phrase to jump to them.
+`agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
+`cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`.
+Marked **Confirmed working** in their table row below — search this file
+for that phrase to jump to them.
+
+`sludge` was tested successfully (The Interview, freeware) but then
+removed and skipped per user caution (unsigned/unverified `.exe`, low
+value anyway since ScummVM itself marks SLUDGE unstable/WIP).
+
+`griffon` deferred -- 5 sibling subdirectories mixed with root files,
+too risky to flatten blindly without more careful handling.
 
 ## Scope
 
@@ -96,7 +104,7 @@ friction.
 | nancy | Nancy Drew: Secrets Can Kill | Secrets Can Kill (shortest/oldest in series) | Yes | archive.org early Nancy Drew CD-ROM titles |
 | groovie | The 7th Guest | Same (only realistic option; large CD-ROM) | Yes | archive.org CD-ROM preservation collections |
 | sky | Beneath a Steel Sky | **Confirmed working** — officially freeware | Yes | Already tested |
-| adl | Mystery House | Same — **bundled ScummVM freeware game** | Yes | scummvm.org freeware games page |
+| adl | Mystery House | **Confirmed working** — bundled ScummVM freeware game | Yes | Already tested |
 | lastexpress | The Last Express | Same (only title, CD-ROM) | Yes | archive.org, "The Last Express 1997 CD-ROM" |
 | ags | (actively used indie engine — Blackwell, Unavowed, etc.) | 5 Days a Stranger (Chzo Mythos) — freeware, short | Yes | Freeware, creator's site or archive.org AGS collections |
 | toon | Toonstruck | Same | Yes | archive.org Virgin Interactive collections |
@@ -110,8 +118,8 @@ friction.
 | mm | World of Xeen (via `xeen` subengine — newest/most feature-rich of mm1/xeen; base `mm` has no standalone game) | Might and Magic IV: Clouds of Xeen alone (lighter than the combined World of Xeen release) | Yes | archive.org Might and Magic / New World Computing collections |
 | tsage | Return to Ringworld (via `ringworld2` subengine — sequel, newest of the tsage-based titles; base `tsage` has no standalone game; based on Larry Niven's Hugo/Nebula-winning novel) | Same (only title on this subengine) | Yes | archive.org, "Return to Ringworld DOS" |
 | sherlock | Sherlock Holmes: Consulting Detective | The Case of the Serrated Scalpel | Yes | archive.org DOS adventure collections |
-| queen | Flight of the Amazon Queen | Same — **officially freeware** | Yes | archive.org direct |
-| lure | Lure of the Temptress | Same — freed by Revolution Software | Yes | archive.org DOS floppy version |
+| queen | Flight of the Amazon Queen | **Confirmed working** — officially freeware; needed `queen.tbl` companion file | Yes | Already tested |
+| lure | Lure of the Temptress | **Confirmed working** — freed by Revolution Software; needed `lure.dat` companion file | Yes | Already tested |
 | gob | Gobliiins | Same (original, smallest in trilogy) | Yes | archive.org, "Gobliiins DOS" |
 | cine | Future Wars | Same | Yes | archive.org Delphine Software collections |
 | cruise | Cruise for a Corpse | Same | Yes | archive.org Delphine Software collections |
@@ -121,8 +129,8 @@ friction.
 | dgds | Rise of the Dragon | Heart of China (smaller/shorter) | Yes | archive.org Dynamix/Sierra back-catalog |
 | director | (varies — CD-ROM Director-based titles) | Small Director-based demo/shareware title | Likely yes | archive.org "Macromedia Director games" |
 | dragons | Blazing Dragons | Same | Yes | archive.org PS1/DOS collections |
-| drascula | Drascula: The Vampire Strikes Back | Same | Yes | archive.org; also ScummVM's own community translation |
-| dreamweb | DreamWeb | Same — **legally freeware since 2011** | Yes | Official free release; also archive.org |
+| drascula | Drascula: The Vampire Strikes Back | **Confirmed working** — needed `drascula.dat` companion file | Yes | Already tested |
+| dreamweb | DreamWeb | **Confirmed working** — legally freeware since 2011 | Yes | Already tested |
 | griffon | The Griffon Legend | Same — freeware | Yes | archive.org or itch.io mirrors |
 | hopkins | Hopkins FBI | Same | Yes (has English translation) | archive.org French-adventure collections |
 | hugo | Hugo's House of Horrors | Same (first, smallest, shareware) | Yes | archive.org, "Hugo's House of Horrors DOS" |
@@ -134,13 +142,13 @@ friction.
 | mads | Rex Nebular and the Cosmic Gender Bender | Same | Yes | archive.org, "Rex Nebular Cosmic Gender Bender" |
 | mtropolis | Obsidian | Same (no smaller mTropolis title known) | Yes | archive.org, note multi-CD |
 | neverhood | The Neverhood | Same; check for an official demo | Yes | archive.org DOS CD release |
-| parallaction | The Big Red Adventure | Same | Yes | archive.org, "Big Red Adventure DOS" |
+| parallaction | The Big Red Adventure | **Confirmed working** (via Nippon Safes Inc., official freeware, English language-select confirmed) | Yes | Already tested |
 | pegasus | The Journeyman Project: Pegasus Prime | Same (only Pegasus-engine title) | Yes | archive.org CD release |
 | buried | The Journeyman Project 2: Buried in Time | Same | Yes | archive.org Presto Studios collections |
 | plumbers | Plumbers Don't Wear Ties | Same (already tiny, mostly static slides) | Yes | archive.org FMV/CD-ROM collections |
 | private | Private Eye | Same (compact, short FMV mystery) | Yes | archive.org CD-ROM FMV collections |
 | saga | I Have No Mouth, and I Must Scream | Inherit the Earth: Quest for the Orb (lighter download) | Yes | archive.org has both |
-| sludge | Out of Order | Same — freeware indie title | Yes | archive.org indie/freeware collections |
+| sludge | Out of Order | **Tested and worked** (via The Interview, official freeware) but removed and skipped per user caution — unsigned/unverified `.exe`, low priority anyway (ScummVM marks SLUDGE unstable/WIP) | Yes | Skipped, not kept |
 | titanic | Starship Titanic | Same | Yes | archive.org, multi-CD, larger download |
 | tony | Tony Tough and the Night of the Roasted Moths | Same | Yes | archive.org DOS/Win collections |
 | touche | Touché: The Adventures of the Fifth Musketeer | Same | Yes | archive.org DOS collections |
@@ -160,8 +168,8 @@ friction.
 | avalanche | Lord Avalot d'Argent | Same (only title, small) | Yes | archive.org old British PC archives |
 | bagel | Spaceship Warlock / Hodj 'n' Podj | Hodj 'n' Podj may be lighter — verify which is smaller | Yes | archive.org Boffo/HyperCard-era collections |
 | bbvs | Beavis and Butt-Head in Virtual Stupidity | Same (only title) | Yes | archive.org abandonware collections |
-| cge | Soltys | Same — **bundled ScummVM freeware game** | Yes | ScummVM's own SourceForge freeware releases |
-| cge2 | Sfinx | Same (same developer as Soltys) | Needs verification | ScummVM freeware games page/wiki |
+| cge | Soltys | **Confirmed working** — bundled ScummVM freeware game | Yes | Already tested |
+| cge2 | Sfinx | **Confirmed working** — official English release (`sfinx-en-v1.1.zip`) | Yes | Already tested |
 | chamber | Chamber of the Sci-Mutant Priestess | Same (only title) | Yes | archive.org abandonware DOS collections |
 | chewy | Chewy: Esc from F5 | Same | Fan translation only, no official English | archive.org German adventure collections |
 | composer | (low confidence — likely Byron Preiss edutainment title) | Same | Yes (US kids' edutainment) | archive.org "Byron Preiss Multimedia" collections |
@@ -188,6 +196,7 @@ friction.
 | toltecs | 3 Skulls of the Toltecs | Same | Yes | archive.org DOS/Win ISO collections |
 | trecision | Nightlong: Union City Conspiracy | Same | Yes | archive.org DreamCatcher/Trecision uploads |
 | tucker | Bud Tucker in Double Trouble | Same | Yes | archive.org DOS collections |
+| wage | Resolved: official ScummVM WAGE Collection is a multi-game bundle, not one title — **Confirmed working** via "Magic Rings" (1988, picked for its clean filename, avoiding punycode-mangled entries elsewhere in the bundle) | Same | Yes | scummvm.org freeware games page (`wage-games-master-1.0.zip`), already tested |
 
 ## Unclear — Needs Verification (check ScummVM's wiki before sourcing)
 
@@ -197,7 +206,6 @@ friction.
 | got | Could not confidently identify |
 | tot | Could not confidently identify ("ToT") |
 | vcruise | Could not confidently identify |
-| wage | Engine itself is an obscure vintage classic-Mac adventure-creation tool; specific bundled title unconfirmed |
 
 ---
 
