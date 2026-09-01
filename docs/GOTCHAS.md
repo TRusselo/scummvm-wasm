@@ -571,6 +571,40 @@ await Promise.all([delDb("EmulatorJS-core"), delDb("EmulatorJS-roms")]);
 Follow with a hard reload (`ctrl+shift+r`) before retesting, same as the
 intermittent-extraction-crash workaround below.
 
+### `bchunk -s` swaps audio byte order -- don't use it on a normal little-endian rip, or CD music becomes static
+
+`bchunk` splits a `.bin`/`.cue` CD image into separate track files, and
+handles `MODE1/2352` (data) and `AUDIO` tracks differently -- audio
+tracks come out as raw headerless PCM (`.cdr`), which `ffmpeg -f s16le
+-ar 44100 -ac 2` can decode directly into a normal format. `bchunk`'s
+`-s` flag is documented as "swabaudio: swap byte order in audio tracks"
+-- it exists for target systems that need big-endian samples. Passing it
+unconditionally (out of habit, or copying a command that included it) on
+a normal rip byte-swaps every 16-bit sample, and the result decodes as
+pure static: the game still boots and detects fine, plays back the
+"track" without any error, and it's still nominally valid audio data (no
+codec failure) -- the corruption is only audible, never visible in a
+screenshot or log. Confirmed the fix by re-running plain `bchunk
+image.bin image.cue out` (no `-s`) and comparing: same file size, same
+duration, but real music instead of noise. **A screenshot proving a
+CD-audio game boots and looks correct is not enough verification if the
+game has music -- someone needs to actually listen.**
+
+Also relevant here: ScummVM's generic ripped-CD-audio detection
+(`Engine::existExtractedCDAudioFiles()`, called with no argument from
+most engines' init code) defaults to checking for **track 1**
+specifically (`track1.*`/`track01.*`/etc, see
+`backends/audiocd/default/default-audiocd.cpp`'s
+`fillPotentialTrackNames`), regardless of which physical CD track number
+the actual audio content came from. Gobliiins' music is physically CD
+track 2 (track 1 is the data track), but the "you're missing ripped CD
+audio" warning dialog only goes away once `track01.ogg` exists --
+whether the *game* internally requests track 1 or track 2 when it
+actually plays music is a separate question the engine's own script
+data decides, so the safe fix when there's only one music track is to
+provide both `track01.<ext>` and `track02.<ext>` (same file, two names)
+rather than guess which number is load-bearing.
+
 ### Packaging full multi-CD retail games: raw `.mdf` images need manual sector-stripping, and each disc's same-named cluster files need renaming, not merging
 
 Archive.org's copies of full retail games (as opposed to freeware/demo
