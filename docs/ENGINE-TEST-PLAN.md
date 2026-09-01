@@ -4,12 +4,13 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (28 of 102, + agos2 subengine bonus)
+## Confirmed working so far (30 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
-`cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
+`toltecs`, `tucker`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -214,10 +215,10 @@ friction.
 | supernova | Mission Supernova | Same | No — German-origin, unverified translation | German abandonware archives on archive.org |
 | teenagent | TeenAgent | Same — freeware | Yes | archive.org freeware collections |
 | teenagent | TeenAgent | **Confirmed working** — officially freeware; needed ScummVM's own `teenagent.dat` companion file swapped in (the original game ships a same-named but unrelated internal file — see GOTCHAS.md) | Yes | Already tested (freeware DOS zip via archive.org `msdos_TeenAgent_1995`) |
-| toltecs | 3 Skulls of the Toltecs | Same | Yes | archive.org DOS/Win ISO collections |
+| toltecs | 3 Skulls of the Toltecs | **Confirmed working** — needed `SAMPLE.AD`/`SAMPLE.OPL` AdLib timbre files (this engine treats their absence as fatal, unlike `saga`'s cosmetic-only warning for the same missing files — both were sitting right in the source archive, easy to miss) | Yes | archive.org (`msdos_3_Skulls_of_the_Toltecs_1996`), already tested |
 | got | God of Thunder | **Confirmed working** — officially freeware, hosted directly by scummvm.org | Yes | Already tested (`gotfree.zip`, ~1 MiB) |
 | trecision | Nightlong: Union City Conspiracy | Same | Yes | archive.org DreamCatcher/Trecision uploads |
-| tucker | Bud Tucker in Double Trouble | Same | Yes | archive.org DOS collections |
+| tucker | Bud Tucker in Double Trouble | **Confirmed working** — the archive's DOS installer-seed folder was missing `infobar.txt` entirely (genuinely absent from the archive, not just misplaced); the real installed game (with speech, full audio) was inside a bundled `BUD.iso` CD image instead, ~622 MiB | Yes | archive.org (`msdos_Bud_Tucker_in_Double_Trouble_1996`), already tested |
 | wage | Resolved: official ScummVM WAGE Collection is a multi-game bundle, not one title — **Confirmed working** via "Magic Rings" (1988, picked for its clean filename, avoiding punycode-mangled entries elsewhere in the bundle) | Same | Yes | scummvm.org freeware games page (`wage-games-master-1.0.zip`), already tested |
 
 ## Unclear — Needs Verification (check ScummVM's wiki before sourcing)

@@ -786,6 +786,27 @@ fix is not strong evidence the fix was wrong -- confirm with a second
 attempt (ideally after clearing the two IndexedDB databases above) before
 spending time re-diagnosing something that was already correct.
 
+### A DOS "installer" folder in an archive.org dump can be a pre-install seed, not the actual installed game -- check for a bundled CD image if key files are missing
+
+Hit twice: `gob` (Gobliiins) and `tucker` (Bud Tucker) both shipped as
+zips with a top-level `.../cd/` folder (a raw CD image, easy to
+dismiss as "just a bonus copy") sitting next to what looked like the
+real DOS floppy install. In both cases, the floppy-looking folder was
+actually **source files for `INSTALL.EXE` to consume**, not an
+already-installed game -- Gobliiins' `INTRO.STK` was present but its
+MD5 didn't match any known hash (it's the pre-install compressed/stub
+version), and Tucker's folder was flat-out missing `infobar.txt`
+entirely, not just misplaced. Both times, the *actual* usable game data
+was inside the `cd/` image instead (an ISO or `.bin` that needed
+extraction) -- confirmed by checking there.
+
+**Practical check:** if a detection-required file is missing or its
+hash doesn't match any table entry despite an exact size match, don't
+assume the archive is simply incomplete -- check whether a `cd/`
+subfolder (or similarly named "bonus" image) contains a complete,
+already-installed copy before concluding the source needs to be
+abandoned.
+
 ### An in-game dialog (e.g. a missing-companion-file warning) can silently ignore clicks until the canvas has been clicked once for focus
 
 Hit testing `saga` (I Have No Mouth, and I Must Scream): a non-fatal
