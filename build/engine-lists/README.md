@@ -37,10 +37,11 @@ it's also named explicitly; that default only cascades in the non-LITE
 desktop build.
 
 Built with `USE_HIGHRES=1` (this project's default -- see
-`docs/GOTCHAS.md`'s `USE_HIGHRES` section for why, and the pillarboxing
-tradeoff that decision carries for SCUMM and other lowres-native engines).
-An earlier `USE_HIGHRES=0` compile-only pass linked only 55 of the
-then-103 top-level engines in this list -- the other 48 all declare
+`docs/GOTCHAS.md`'s `USE_HIGHRES` section for why; confirmed by live
+testing that this carries no pillarboxing cost for SCUMM or any other
+lowres-native engine). An earlier `USE_HIGHRES=0` compile-only pass
+linked only 55 of the then-103 top-level engines in this list -- the
+other 48 all declare
 `highres` as a dependency and were silently disabled, not broken. That's
 why this list now requires `USE_HIGHRES=1`.
 
@@ -61,6 +62,6 @@ Meant to be built as a *separate* core/binary with `FORCE_OPENGLES2=1`
 (needed by 3 of the 11 top-level engines; harmless for the rest, which
 only use TinyGL). Not yet built or runtime-tested as a group -- only
 `grim` has been compile-tested in isolation so far, and only without the
-GL flag. See `docs/GOTCHAS.md`'s `USE_HIGHRES` section for how this maps
-onto ROMM/EJS (a second named core under the same "ScummVM" platform, not
-a separate platform).
+GL flag. See `docs/GOTCHAS.md`'s "GL/3D engines" section for how this
+maps onto ROMM/EJS (a second named core under the same "ScummVM"
+platform, not a separate platform).

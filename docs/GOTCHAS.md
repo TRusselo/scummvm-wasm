@@ -568,11 +568,21 @@ setting:
 #endif
 ```
 
-This project originally built with `USE_HIGHRES=0` (see `build-core.sh`
-history) specifically so SCUMM's real 320x200 output wouldn't get padded
-into a fixed 1280x720 overlay with permanent black bars baked into the
-canvas's own framebuffer -- see the section below for the distinct,
-already-fixed *container-shape* pillarboxing problem, which this is not.
+This project originally built with `USE_HIGHRES=0`, on the assumption
+that SCUMM's real 320x200 output would otherwise get padded into a fixed
+1280x720 overlay with permanent black bars baked into the canvas's own
+framebuffer. **That assumption was wrong, confirmed by live testing after
+switching to `USE_HIGHRES=1`: no pillarboxing on any title, lowres or
+highres, including while resizing the browser window.** `RES_W_OVERLAY`/
+`RES_H_OVERLAY` only seed the *pre-game-load* state (`gui_width`/
+`gui_height`, used solely by ScummVM's own generic launcher screen, which
+ROMM/EJS titles never actually show since games auto-launch). Once any
+game actually loads, `libretro-core.cpp`'s `retro_set_size()` overwrites
+`base_width`/`base_height` -- the values `retro_get_system_av_info()`
+actually reports to the frontend -- with the game's *real* resolution,
+completely independent of these compile-time constants. See the section
+below for the distinct, already-fixed *container-shape* pillarboxing
+problem, which this isn't either.
 
 **It's also a silent dependency gate, discovered while sweeping additional
 engines.** `configure_engines.sh`'s enable loop treats `highres` as a
@@ -593,34 +603,13 @@ games -- Freddi Fish, Pajama Sam) from every build shipped so far, since
 this project's SCUMM-only binary, not something introduced by adding more
 engines.
 
-**Two ways to resolve the conflict, both legitimate:**
-
-1. **Two binaries, split by resolution profile** (`USE_HIGHRES=0` for
-   SCUMM-shaped engines, `=1` for the 48 requiring highres), shipped as two
-   named EJS cores under the same ROMM "ScummVM" platform entry (ROMM's
-   `_EJS_CORES_MAP` already takes an array per platform --
-   `scummvm: ["scummvm", "scummvm-hi"]` -- the same mechanism used when one
-   console has multiple valid cores, e.g. NES's fceumm vs. nestopia).
-   Eliminates pillarboxing entirely for the lowres-native engines. Cost:
-   two cores to build/ship/maintain, and no automatic per-ROM engine
-   detection at the ROMM/EJS layer -- the user picks the right core
-   manually per game (same friction as any other multi-core EJS platform).
-2. **One binary, `USE_HIGHRES=1` globally.** Simpler to build and deploy
-   (one core, one ROMM registration, no manual per-game core picking), at
-   the cost of real pillarboxing for every lowres-native engine, SCUMM
-   included -- a *different*, deeper kind than the section below fixes
-   (see the note at the end of that section). Confirmed **cosmetic, not
-   functional**: ScummVM clamps mouse/input coordinates to the actual
-   rendered sub-rect regardless of the padded overlay size, so gameplay is
-   correct either way. Real secondary cost: a 1280x720 framebuffer is
-   ~14x the pixel count of 320x200, composited every frame even though
-   most of it is black -- a genuine (if usually minor) CPU/bandwidth cost
-   for lightweight 2D games, not purely aesthetic.
-
-**Decision for this project: option 2, single binary, `USE_HIGHRES=1`.**
-Chosen for build/deploy simplicity over eliminating pillarboxing. Revisit
-option 1 if the pillarboxing on lowres titles turns out to matter more in
-practice than it does on paper.
+**Decision for this project: single binary, `USE_HIGHRES=1`.** No
+tradeoff turned out to be needed -- one core handles every engine's
+resolution correctly, confirmed by actually playing lowres (SCUMM) and
+highres (Grim-class) titles side by side with no visible padding on
+either. (An earlier version of this doc proposed splitting into two
+binaries by resolution profile specifically to avoid pillarboxing; that
+was based on the incorrect assumption above and isn't needed.)
 
 ## GL/3D engines: a second core, grouped by GL involvement not by strict necessity
 
@@ -660,6 +649,16 @@ meant to be built as its own core with `FORCE_OPENGLES2=1` -- harmless for
 the 8 TinyGL-only engines in that list, required for the 3 that actually
 gate on it. See `build/engine-lists/README.md` for the current list
 contents and status (not yet built or runtime-tested as a group).
+
+This maps onto ROMM/EJS as a second named core under the same "ScummVM"
+platform, not a separate platform -- ROMM's `_EJS_CORES_MAP` already
+takes an array per platform (`scummvm: ["scummvm", "scummvm-hi"]`), the
+same mechanism used when one console has multiple valid cores (e.g. NES's
+fceumm vs. nestopia). The one real friction: there's no automatic per-ROM
+engine detection at the ROMM/EJS layer, since a Grim Fandango zip and a
+Monkey Island zip look identical to ROMM (same extension, same platform)
+-- the user picks the right core manually per game via EJS's own
+core-selector UI, same as any other multi-core EJS platform.
 
 **Whether TinyGL's software rendering actually performs acceptably under
 Emscripten/WASM for a real 3D game is a separate, still-open question.**
@@ -816,17 +815,15 @@ signal that the actual bug wasn't about resize timing at all. The real
 issue (container shape, above) has nothing to do with `ResizeObserver`
 or resize-event timing.
 
-**This fix stops working once `USE_HIGHRES=1` is baked into the core, and
-that's expected, not a regression to chase.** The dynamic-ratio read this
-section relies on (`getVideoDimensions("aspect")`) reports whatever the
-*core* claims its resolution is -- with `USE_HIGHRES=1` that's always the
-padded 1280x720 overlay, not the game's real content size, so the wrapper
-ends up correctly shaped around the wrong (padded) rectangle and the actual
-game still renders smaller with real bars baked into the pixel buffer. This
-is the different, deeper pillarboxing described in the `USE_HIGHRES`
-section above -- a compile-time engine-gate tradeoff, not a CSS bug. Don't
-re-investigate this section's fix for it; it was never meant to solve
-that problem.
+**This fix keeps working fine under `USE_HIGHRES=1`, confirmed by live
+testing.** An earlier version of this doc claimed otherwise, reasoning
+that `getVideoDimensions("aspect")` would always report the padded
+1280x720 overlay under `USE_HIGHRES=1` rather than the game's real
+content size. That reasoning was wrong -- see the `USE_HIGHRES` section
+above: `retro_set_size()` overwrites the reported resolution with the
+actual game's real dimensions once it loads, regardless of
+`USE_HIGHRES`, so this section's dynamic-ratio wrapper continues to size
+correctly either way.
 
 ## Mouse input and pointer lock
 
