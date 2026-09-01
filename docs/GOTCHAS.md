@@ -807,6 +807,27 @@ subfolder (or similarly named "bonus" image) contains a complete,
 already-installed copy before concluding the source needs to be
 abandoned.
 
+### A ScummVM detection-table entry can exist purely to say "not supported" -- check `ADGF_UNSUPPORTED`/`GAME_NOT_IMPLEMENTED` before sourcing a ROM for it
+
+Picked Logical Journey of the Zoombinis as the `mohawk` engine's test
+candidate (it's the engine's best-known non-Myst/Riven title), before
+noticing that *every single* `zoombini` entry in
+`engines/mohawk/detection_tables.h` -- DOS release, demo, German
+release, all of them -- is flagged both
+`MetaEngineDetection::GAME_NOT_IMPLEMENTED` and `ADGF_UNSUPPORTED`.
+ScummVM ships these entries so it can recognize the game and print a
+"this game is known but not implemented" message in the launcher --
+not so it can actually run it. No amount of correct packaging would
+have made it playable; the engine code simply doesn't support this
+game's data format.
+
+**Practical check:** before spending time sourcing/downloading a
+candidate ROM for an engine, `grep` that engine's
+`detection_tables.h` (or equivalent) for the target game's id and
+confirm its entry doesn't carry `ADGF_UNSUPPORTED`. Pivoted to Myst
+itself instead (the engine's actual flagship, fully implemented) once
+this was caught.
+
 ### An in-game dialog (e.g. a missing-companion-file warning) can silently ignore clicks until the canvas has been clicked once for focus
 
 Hit testing `saga` (I Have No Mouth, and I Must Scream): a non-fatal
