@@ -4,12 +4,12 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (25 of 102, + agos2 subengine bonus)
+## Confirmed working so far (27 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
-`cine`, `sherlock`, `hugo`, `touche`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -142,7 +142,7 @@ friction.
 | lure | Lure of the Temptress | **Confirmed working** — freed by Revolution Software; needed `lure.dat` companion file | Yes | Already tested |
 | gob | Gobliiins | **Confirmed working, with music** — packaged from the CD version's data track (extracted via `bchunk`; a floppy-install source folder found first turned out to be pre-install stub files, not the real game). This specific dump's `INTRO.STK` doesn't match any known hash in ScummVM's detection table despite matching size exactly, but it detected and ran fine anyway. Music required converting the CD audio track to Ogg Vorbis and naming it `track01.ogg`/`track02.ogg` (see GOTCHAS.md — first attempt used `bchunk -s`, which produced pure static; re-ripped without that flag) | Yes | archive.org (`msdos_Gobliiins_1_1991`), CD image (`.bin`/`.cue`) inside the package |
 | cine | Future Wars | **Confirmed working** — a bundled CD-variant install already had pre-ripped `track1.mp3` etc. in ScummVM's exact naming convention, no manual audio work needed | Yes | archive.org (`msdos_Future_Wars_1989`), already tested |
-| cruise | Cruise for a Corpse | Same | Yes | archive.org Delphine Software collections |
+| cruise | Cruise for a Corpse | **Confirmed working** — flat single-wrapper-folder zip, no companion files needed | Yes | archive.org (`msdos_Cruise_for_a_Corpse_1991`), already tested |
 | cryo | Dracula: The Resurrection | Same | Yes | archive.org Cryo Interactive collections |
 | cryomni3d | Atlantis: The Second Age | Versailles 1685 (smaller scope) | Yes | archive.org Cryo back-catalog |
 | darkseed | Dark Seed | Same | Yes | archive.org Cyberdreams collections |
@@ -175,7 +175,7 @@ friction.
 | voyeur | Voyeur | Same (note: mature content) | Yes | archive.org CD-i/DOS FMV collections |
 | zvision | Zork: Grand Inquisitor | Zork Nemesis (only other title on this engine, similar size) | Yes | archive.org Activision/Zork collections |
 | asylum | Sanitarium | Same (only title) | Yes | archive.org abandonware collections |
-| sword25 | Broken Sword 2.5: The Return of the Templars | Same — free fan game | Yes | bs25.org / archive.org fan-game mirrors |
+| sword25 | Broken Sword 2.5: The Return of the Templars | **Confirmed working** — official freeware fan game, only needed `data.b25c` at the zip root (~827 MiB, under the 1 GB threshold) | Yes | scummvm.org freeware games page (`sword25-v1.0.zip`), already tested |
 | agos | Simon the Sorcerer | **Confirmed working** (base `agos`, tonight; `agos2` subengine also confirmed via Simon 2) | Yes | Already in `/mnt/unraid/emulation/scummvm/roms/` |
 
 ## Niche/Obscure
