@@ -481,6 +481,19 @@ root by basename; a nested zip structure doesn't get flattened for you in
 a way ScummVM's directory-based auto-detection can rely on, so don't
 create the ambiguity in the first place.
 
+### ROMM doesn't require the `.scm` extension -- plain `.zip` works fine
+
+This project's own docs and the ROMM integration work both settled on
+renaming packaged zips to `<name>.scm` before dropping them in ROMM's
+library folder. Confirmed unnecessary: a file left with a plain `.zip`
+extension (`loom copy.zip`) scanned and played correctly with no
+difference in behavior. Checked ROMM's own backend source for a `.scm`
+special-case (`grep -rn ".scm" backend/`) and found none -- there's no
+ScummVM-specific extension whitelist being enforced. `.scm` was a
+convention adopted early in this project, not a real ROMM requirement.
+Either extension works; use whichever is more convenient (`.zip` avoids
+an extra rename step when repackaging).
+
 ### Multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
 
 Found live-debugging user reports of specific SCUMM titles failing:
