@@ -4,12 +4,12 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (27 of 102, + agos2 subengine bonus)
+## Confirmed working so far (28 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
-`cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -159,7 +159,7 @@ friction.
 | lab | Labyrinth: The Computer Game | Same | Yes | Deferred — couldn't find a clean DOS/Windows package on archive.org (only Apple II/C64 floppy images turned up, platforms `lab` doesn't support); worth another search pass later |
 | macventure | Shadowgate | Same | Yes | Deferred — correction: ScummVM's `macventure` engine only supports the **Macintosh** and **Apple IIgs** releases (`detection.cpp`'s `MACGAME`/`IIGSGAME` macros hard-code `kPlatformMacintosh`/`kPlatformApple2GS`), not the MS-DOS version; a packaged DOS copy failed to detect for exactly this reason. Sourcing a Mac release means extracting from a `.moof`/HFS floppy disk image — same disk-image-tooling complexity class as `startrek`/`twine`, deferred alongside them |
 | made | Return to Zork | Rodney's Funscreen (much smaller kids' title) | Yes | archive.org; prefer Funscreen over multi-disc Return to Zork |
-| mads | Rex Nebular and the Cosmic Gender Bender | Same | Yes | archive.org, "Rex Nebular Cosmic Gender Bender" |
+| mads | Rex Nebular and the Cosmic Gender Bender | Same | Yes | Deferred — only accessible copy found is 9 raw floppy `.img` disk images, same disk-image tooling complexity class as `lab`/`startrek`/`twine`; not attempted this pass |
 | mtropolis | Obsidian | Same (no smaller mTropolis title known) | Yes | archive.org, note multi-CD |
 | neverhood | The Neverhood | Same; check for an official demo | Yes | archive.org DOS CD release |
 | parallaction | The Big Red Adventure | **Confirmed working** (via Nippon Safes Inc., official freeware, English language-select confirmed) | Yes | Already tested |
@@ -167,7 +167,7 @@ friction.
 | buried | The Journeyman Project 2: Buried in Time | Same | Yes | archive.org Presto Studios collections |
 | plumbers | Plumbers Don't Wear Ties | Same (already tiny, mostly static slides) | Yes | archive.org FMV/CD-ROM collections |
 | private | Private Eye | Same (compact, short FMV mystery) | Yes | archive.org CD-ROM FMV collections |
-| saga | I Have No Mouth, and I Must Scream | Inherit the Earth: Quest for the Orb (lighter download) | Yes | archive.org has both |
+| saga | I Have No Mouth, and I Must Scream | **Confirmed working** — tested the flagship title directly rather than the lighter alternative, ~461 MiB after excluding a redundant CD-bonus subfolder. Shows a non-fatal "missing SAMPLE.AD/SAMPLE.OPL" AdLib warning (cosmetic — different synth used, not a functional issue); the OK dialog needed a canvas-focus click first (see GOTCHAS.md) | Yes | archive.org (`msdos_I_Have_No_Mouth_and_I_Must_Scream_1995`), already tested |
 | sludge | Out of Order | **Tested and worked** (via The Interview, official freeware) but removed and skipped per user caution — unsigned/unverified `.exe`, low priority anyway (ScummVM marks SLUDGE unstable/WIP) | Yes | Skipped, not kept |
 | titanic | Starship Titanic | Same | Yes | archive.org, multi-CD, larger download |
 | tony | Tony Tough and the Night of the Roasted Moths | Same | Yes | archive.org DOS/Win collections |

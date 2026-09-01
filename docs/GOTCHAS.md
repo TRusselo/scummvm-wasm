@@ -786,6 +786,26 @@ fix is not strong evidence the fix was wrong -- confirm with a second
 attempt (ideally after clearing the two IndexedDB databases above) before
 spending time re-diagnosing something that was already correct.
 
+### An in-game dialog (e.g. a missing-companion-file warning) can silently ignore clicks until the canvas has been clicked once for focus
+
+Hit testing `saga` (I Have No Mouth, and I Must Scream): a non-fatal
+"Could not find AdLib instrument definition files..." warning appeared,
+and clicking its OK button -- repeatedly, at the visually-correct
+coordinates, even with an Enter keypress -- did nothing. The in-game
+mouse cursor rendered by ScummVM's own GUI was visibly not tracking
+click positions at all, staying frozen in one spot regardless of where
+the click landed.
+
+Root cause: the canvas/game hadn't received browser input focus yet.
+Nothing before this had required a real click landing purely on empty
+game canvas (previous dialogs happened to get incidental focus from
+whatever click sequence led up to them) -- so this hadn't surfaced
+before. Fix: click once on a neutral part of the canvas (not a button or
+dialog) first, *then* click the actual target -- the second click then
+registers correctly, cursor tracking included. Worth doing this as a
+matter of course before the *first* interaction on any freshly-loaded
+ROM, not just when a click visibly fails to do anything.
+
 ### "Could not fetch core report JSON! Core caching will be disabled!" is expected, not a bug
 
 This warning (`emulator.min.js`, from a 404 on
