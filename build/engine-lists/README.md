@@ -24,28 +24,43 @@ dev/test harnesses (`build-by-default: no`), not real games.
 
 ## all-engines.list
 
-103 engines: every ScummVM engine except the 11 in `gl-core.list` (and
-`testbed`/`playground3d`, excluded from both). Built with `USE_HIGHRES=1`
-(this project's default -- see `docs/GOTCHAS.md`'s `USE_HIGHRES` section
-for why, and the pillarboxing tradeoff that decision carries for SCUMM and
-other lowres-native engines). An earlier `USE_HIGHRES=0` compile-only pass
-linked only 55 of the-then 103 engines in this list -- the other 48 all
-declare `highres` as a dependency and were silently disabled, not broken.
-That's why this list now requires `USE_HIGHRES=1`.
+123 engines: 103 top-level engines (every ScummVM engine except the 11 in
+`gl-core.list`, and `testbed`/`playground3d`, excluded from both) plus 20
+`build-by-default: yes` subengines that never get their own `engines/*/`
+directory and so aren't picked up by scanning directory names --
+`scumm_7_8`/`he`, `agos2`, `eob`/`lol`, `ihnm`, `sci32`, `ultima4`/
+`ultima6`/`ultima8`, `mm1`/`xeen`, `myst`/`mystme`/`riven`, `groovie2`,
+`blueforce`/`ringworld`/`ringworld2`, `versailles`. See `docs/GOTCHAS.md`'s
+"`LITE=1` engine lists must name subengines explicitly" section -- under
+`LITE=1`, a subengine's own `build-by-default: yes` does nothing unless
+it's also named explicitly; that default only cascades in the non-LITE
+desktop build.
+
+Built with `USE_HIGHRES=1` (this project's default -- see
+`docs/GOTCHAS.md`'s `USE_HIGHRES` section for why, and the pillarboxing
+tradeoff that decision carries for SCUMM and other lowres-native engines).
+An earlier `USE_HIGHRES=0` compile-only pass linked only 55 of the
+then-103 top-level engines in this list -- the other 48 all declare
+`highres` as a dependency and were silently disabled, not broken. That's
+why this list now requires `USE_HIGHRES=1`.
 
 Compile-only signal: this list has not been runtime-tested game-by-game.
 A clean compile here means nothing more than "the C++ built" -- per-engine
-runtime bugs (see SCUMM's own save-state fixes) are still expected and
-get found by playing each engine's games individually.
+runtime bugs (see SCUMM's own save-state fixes, and the subengine gap
+above) are still expected and get found by playing each engine's games
+individually.
 
 ## gl-core.list
 
-11 engines: `alcachofa`, `freescape`, `grim`, `hpl1`, `myst3`, `stark`,
-`tetraedge`, `tinsel`, `twp`, `watchmaker`, `wintermute`. Meant to be built
-as a *separate* core/binary with `FORCE_OPENGLES2=1` (needed by 3 of the
-11; harmless for the other 8, which only use TinyGL). Not yet built or
-runtime-tested as a group -- only `grim` has been compile-tested in
-isolation so far, and only without the GL flag. See
-`docs/GOTCHAS.md`'s `USE_HIGHRES` section for how this maps onto ROMM/EJS
-(a second named core under the same "ScummVM" platform, not a separate
-platform).
+14 engines: the 11 top-level GL/3D engines (`alcachofa`, `freescape`,
+`grim`, `hpl1`, `myst3`, `stark`, `tetraedge`, `tinsel`, `twp`,
+`watchmaker`, `wintermute`) plus Wintermute's 3 `build-by-default: yes`
+subengines (`foxtail`, `herocraft`, `wme3d`) that don't get their own
+`engines/*/` directory -- see the subengine note above, same mechanism.
+Meant to be built as a *separate* core/binary with `FORCE_OPENGLES2=1`
+(needed by 3 of the 11 top-level engines; harmless for the rest, which
+only use TinyGL). Not yet built or runtime-tested as a group -- only
+`grim` has been compile-tested in isolation so far, and only without the
+GL flag. See `docs/GOTCHAS.md`'s `USE_HIGHRES` section for how this maps
+onto ROMM/EJS (a second named core under the same "ScummVM" platform, not
+a separate platform).

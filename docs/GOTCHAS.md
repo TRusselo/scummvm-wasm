@@ -578,6 +578,47 @@ real runtime bug. TinyGL is CPU-only real-time 3D rendering for games
 (Grim Fandango, Myst III) that assumed a real GPU on their original
 hardware; whether that's fast enough in a browser is unverified.
 
+## `LITE=1` engine lists must name subengines explicitly -- "build-by-default: yes" doesn't cascade
+
+Discovered live-debugging a production report: SCUMM v7/v8 titles (Full
+Throttle, The Dig, Curse of Monkey Island) failed with ScummVM's own error
+`SCUMM v7-8 support is not compiled in`, despite `scumm` being enabled and
+`scumm_7_8` declaring `build-by-default: yes` in `engines/scumm/
+configure.engine`. Traced to `configure`'s actual engine-enable mechanism:
+
+- `engine_disable_all()` (called unconditionally whenever `LITE!=0`) sets
+  `_engine_<name>_build=no` for *every* registered engine, subengines
+  included -- there's no separate "leave subengines alone" case.
+- Under `LITE=1`, only names literally present in `lite_engines.list` get
+  re-enabled, one `engine_enable()` call per line.
+- `engine_enable()` (`configure` line 790) enables exactly the one name
+  it's given. It never walks a parent's `subengines` field to also enable
+  children -- that cascade only happens in the *non-LITE* desktop build's
+  `engine_enable_all()`, a different function entirely.
+
+Net effect: a subengine's own "build-by-default: yes" is meaningless under
+`LITE=1` unless that exact subengine name also appears in
+`lite_engines.list`, no matter how obviously "on by default" it looks in
+`configure.engine`. This affects every engine list in this project built
+so far (`all-engines.list`, `gl-core.list`), not just SCUMM -- 23
+build-by-default subengines project-wide are never their own top-level
+`engines/*/` directory and so never got picked up by scanning directory
+names: `scumm_7_8`/`he` (SCUMM), `agos2` (AGOS), `eob`/`lol` (Kyra),
+`ihnm` (SAGA), `sci32` (SCI), `ultima4`/`ultima6`/`ultima8` (Ultima),
+`mm1`/`xeen` (MM), `myst`/`mystme`/`riven` (Mohawk), `groovie2` (Groovie),
+`blueforce`/`ringworld`/`ringworld2` (TSAGE), `versailles` (CryOmni3D),
+`foxtail`/`herocraft`/`wme3d` (Wintermute). Fixed by adding all 23
+explicitly to the appropriate list (the last 3, Wintermute's, went to
+`gl-core.list` alongside their parent).
+
+**Symptom shape worth recognizing**: this fails *late and specifically* --
+past packaging, past extraction, past ScummVM's own game-ID detection
+(which succeeds, since detection only needs the parent engine's detection
+table, not the subengine's runtime code) -- and only at actual launch, with
+an engine-specific "X support is not compiled in" message. Don't mistake
+this for a packaging or detection bug just because it shows up after both
+of those appear to have gone fine.
+
 ## Pillarboxing/letterboxing: constrain a wrapper around `#game`, not `#game` itself
 
 SCUMM's native output is 320x200 (8:5 = 1.6:1). If `test-page/index.html`'s
