@@ -4,13 +4,13 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (17 of 102, + agos2 subengine bonus)
+## Confirmed working so far (19 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
-`got`, `teenagent`, `awe`, `sword1`. Marked **Confirmed working** in
-their table row below — search this file for that phrase to jump to
-them.
+`got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`. Marked **Confirmed
+working** in their table row below — search this file for that phrase to
+jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
 removed and skipped per user caution (unsigned/unverified `.exe`, low
@@ -114,11 +114,11 @@ friction.
 | awe | Another World / Out of This World | **Confirmed working** — English DOS release, flat zip (no subdirectories, no fonts.dat needed) | Yes | archive.org (`another_world_dos`), already tested |
 | dm | Dungeon Master | **Blocked** — same shared `fonts.dat` engine bug as `griffon`/`glk` (third confirmation of the identical crash signature, see GOTCHAS.md) | Yes | archive.org (`msdos_Dungeon_Master_1989`), already tested |
 | sword1 | Broken Sword: The Shadow of the Templars | **Confirmed working** via the official free demo — needed a root-level anchor file preserved in the zip for detection to succeed (see GOTCHAS.md's "no file at the true root" entry); a first packaging attempt that stripped all root files to only the needed subdirectories produced an empty game list, not a crash | Yes | archive.org (`Broken_Sword_demo`), already tested |
-| sword2 | Broken Sword II: The Smoking Mirror | Official free demo if available, else full game | Yes | archive.org Broken Sword collections |
+| sword2 | Broken Sword II: The Smoking Mirror | **Confirmed working** via the official "PC Gamer" demo — worked on the first try since its zip already had genuine root-level files (only the `INSTALL/` splash-screen subdirectory was dropped) | Yes | archive.org (`Broken_II_demo_big`), already tested |
 | sci | King's Quest V | **Confirmed working** (King's Quest V plays) | Yes | Already tested |
 | bladerunner | Blade Runner | Only title (CD-ROM, FMV-heavy, no smaller alt) | Yes | archive.org Westwood/abandonware collections |
 | ultima | Ultima VIII: Pagan (via `ultima8` subengine — newest/most advanced of the ultima4/6/8 trio; base `ultima` has no standalone game) | Same (only title on this subengine) | Yes | archive.org Origin Systems / Ultima collections |
-| twine | Little Big Adventure | Same, or its floppy release if smaller | Yes | archive.org Adeline Software/LBA collections |
+| twine | Little Big Adventure | Same | Unclear | Deferred — only accessible archive.org copy found is a 500 MiB CD `.bin`/`.cue` image (French "Adeline" branding, English uncertain); needs CD-image mounting rather than a plain data zip, skipped for now |
 | mohawk | Where in Time is Carmen Sandiego? | Logical Journey of the Zoombinis (smaller, well preserved) | Yes | archive.org Carmen Sandiego / Zoombinis releases |
 | mediastation | Muppet Treasure Island | Unclear if a smaller Media Station title exists | Yes | archive.org, "Muppet Treasure Island PC CD-ROM" |
 | nancy | Nancy Drew: Secrets Can Kill | Secrets Can Kill (shortest/oldest in series) | Yes | archive.org early Nancy Drew CD-ROM titles |
@@ -126,9 +126,9 @@ friction.
 | sky | Beneath a Steel Sky | **Confirmed working** — officially freeware | Yes | Already tested |
 | adl | Mystery House | **Confirmed working** — bundled ScummVM freeware game | Yes | Already tested |
 | lastexpress | The Last Express | Same (only title, CD-ROM) | Yes | archive.org, "The Last Express 1997 CD-ROM" |
-| ags | (actively used indie engine — Blackwell, Unavowed, etc.) | 5 Days a Stranger (Chzo Mythos) — freeware, short | Yes | Freeware, creator's site or archive.org AGS collections |
+| ags | (actively used indie engine — Blackwell, Unavowed, etc.) | **Confirmed working** via 5 Days a Stranger (Chzo Mythos) — a bare freeware `.exe`, no companion files, no subdirectories | Yes | archive.org (`5_Days_a_Stranger`), already tested |
 | toon | Toonstruck | Same | Yes | archive.org Virgin Interactive collections |
-| startrek | Star Trek: 25th Anniversary | Same (DOS floppy version smaller than CD "Judgment Rites") | Yes | archive.org DOS collections |
+| startrek | Star Trek: 25th Anniversary | Same | Yes | Deferred — archive.org only has raw floppy disk images (`.7z` of `.img` files) for the DOS release, needing disk-image extraction rather than a plain data zip; skipped for now |
 
 ## Genre-Notable
 
