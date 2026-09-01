@@ -2,9 +2,13 @@
 
 Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
-candidate ROM for the actual test. **No testing, downloading, or
-packaging has happened yet** — this is the research pass only. Phase 2
-(testing) starts after this list is reviewed.
+candidate ROM for the actual test. Phase 2 (testing) is now underway.
+
+## Confirmed working so far (4 of 102, + agos2 subengine bonus)
+
+`agi`, `sci`, `sky`, `agos` (base + `agos2` subengine). Marked
+**Confirmed working** in their table row below — search this file for
+that phrase to jump to them.
 
 ## Scope
 
@@ -77,13 +81,13 @@ friction.
 
 | Engine | Most Popular Game | Candidate Test ROM | English Available | Source Note |
 |---|---|---|---|---|
-| agi | King's Quest I | King's Quest I (small, iconic, well preserved) | Yes | archive.org Sierra AGI collections |
+| agi | King's Quest I | **Confirmed working** (Leisure Suit Larry 1-3 and Space Quest I-III both play) | Yes | Already tested |
 | glk | Zork I | Zork I | Yes, legally free | archive.org Infocom collections; also GOG's free Zork Anthology files |
 | awe | Another World / Out of This World | Another World (fit on ~2 floppies originally) | Yes | archive.org DOS releases |
 | dm | Dungeon Master | Dungeon Master (Amiga/Atari ST releases are small) | Yes | archive.org FTL Games / Amiga-ST collections |
 | sword1 | Broken Sword: The Shadow of the Templars | Official free demo (much smaller than full CD game) | Yes | archive.org has both full game and demo |
 | sword2 | Broken Sword II: The Smoking Mirror | Official free demo if available, else full game | Yes | archive.org Broken Sword collections |
-| sci | King's Quest V | Jones in the Fast Lane (small, compact SCI0 title) | Yes | archive.org Sierra SCI collections |
+| sci | King's Quest V | **Confirmed working** (King's Quest V plays) | Yes | Already tested |
 | bladerunner | Blade Runner | Only title (CD-ROM, FMV-heavy, no smaller alt) | Yes | archive.org Westwood/abandonware collections |
 | ultima | Ultima VIII: Pagan (via `ultima8` subengine — newest/most advanced of the ultima4/6/8 trio; base `ultima` has no standalone game) | Same (only title on this subengine) | Yes | archive.org Origin Systems / Ultima collections |
 | twine | Little Big Adventure | Same, or its floppy release if smaller | Yes | archive.org Adeline Software/LBA collections |
@@ -91,7 +95,7 @@ friction.
 | mediastation | Muppet Treasure Island | Unclear if a smaller Media Station title exists | Yes | archive.org, "Muppet Treasure Island PC CD-ROM" |
 | nancy | Nancy Drew: Secrets Can Kill | Secrets Can Kill (shortest/oldest in series) | Yes | archive.org early Nancy Drew CD-ROM titles |
 | groovie | The 7th Guest | Same (only realistic option; large CD-ROM) | Yes | archive.org CD-ROM preservation collections |
-| sky | Beneath a Steel Sky | Same — **officially freeware** | Yes | archive.org direct, or GOG (free) |
+| sky | Beneath a Steel Sky | **Confirmed working** — officially freeware | Yes | Already tested |
 | adl | Mystery House | Same — **bundled ScummVM freeware game** | Yes | scummvm.org freeware games page |
 | lastexpress | The Last Express | Same (only title, CD-ROM) | Yes | archive.org, "The Last Express 1997 CD-ROM" |
 | ags | (actively used indie engine — Blackwell, Unavowed, etc.) | 5 Days a Stranger (Chzo Mythos) — freeware, short | Yes | Freeware, creator's site or archive.org AGS collections |
@@ -144,7 +148,7 @@ friction.
 | zvision | Zork: Grand Inquisitor | Zork Nemesis (only other title on this engine, similar size) | Yes | archive.org Activision/Zork collections |
 | asylum | Sanitarium | Same (only title) | Yes | archive.org abandonware collections |
 | sword25 | Broken Sword 2.5: The Return of the Templars | Same — free fan game | Yes | bs25.org / archive.org fan-game mirrors |
-| agos | Simon the Sorcerer | **Already confirmed working tonight** | Yes | Already in `/mnt/unraid/emulation/scummvm/roms/` |
+| agos | Simon the Sorcerer | **Confirmed working** (base `agos`, tonight; `agos2` subengine also confirmed via Simon 2) | Yes | Already in `/mnt/unraid/emulation/scummvm/roms/` |
 
 ## Niche/Obscure
 
