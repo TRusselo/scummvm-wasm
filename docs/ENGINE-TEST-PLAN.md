@@ -4,13 +4,13 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (32 of 102, + agos2 subengine bonus)
+## Confirmed working so far (33 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
-`toltecs`, `tucker`, `mohawk`, `made`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`toltecs`, `tucker`, `mohawk`, `made`, `dgds`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -147,7 +147,7 @@ friction.
 | cryo | Dracula: The Resurrection | Same | Yes | archive.org Cryo Interactive collections |
 | cryomni3d | Atlantis: The Second Age | Versailles 1685 (smaller scope) | Yes | archive.org Cryo back-catalog |
 | darkseed | Dark Seed | Same | Yes | archive.org Cyberdreams collections |
-| dgds | Rise of the Dragon | Heart of China (smaller/shorter) | Yes | archive.org Dynamix/Sierra back-catalog |
+| dgds | Rise of the Dragon | **Confirmed working** — tested Heart of China instead, per this row's own recommendation. The raw floppy-disk archive.org dump (`heart-of-china-1991`, `.IMG`/`.IMA` FAT12 images) is a genuine **installer-seed** case (third time this batch's family of gotchas showed up, though not yet documented as its own GOTCHAS.md entry): the floppies only contain `VOLUME.000`-`006` chunks plus `INSTALL.COM`, not the installed `VOLUME.RMF` the engine's detection requires. Found an already-installed copy instead (`msdos_Heart_of_China_1991`, archive.org's standard pre-installed MS-DOS-collection format) with `VOLUME.RMF` + `VOLUME.001`-`007` sitting flat, ~8.3 MiB total. `VOLUME.RMF`'s size matched a known detection-table entry exactly but its MD5 didn't (same harmless pattern as `mohawk`/`made` this batch) — booted through the Dynamix splash and end credits straight into a real playable scene with an interactive dialogue menu | Yes | archive.org (`msdos_Heart_of_China_1991`), already-installed copy (avoided a separate raw-floppy dump that only contained the DOS installer, not the installed game) |
 | director | (varies — CD-ROM Director-based titles) | Small Director-based demo/shareware title | Likely yes | archive.org "Macromedia Director games" |
 | dragons | Blazing Dragons | Same | Yes | archive.org PS1/DOS collections |
 | drascula | Drascula: The Vampire Strikes Back | **Confirmed working** — needed `drascula.dat` companion file | Yes | Already tested |

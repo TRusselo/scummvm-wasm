@@ -807,6 +807,17 @@ subfolder (or similarly named "bonus" image) contains a complete,
 already-installed copy before concluding the source needs to be
 abandoned.
 
+**A narrower, more common cousin of this:** a size-exact/MD5-mismatched
+detection file does *not* always mean the copy is bad or incomplete --
+it happened three more times in one batch (`mohawk`/Myst,
+`made`/Rodney's Funscreen, `dgds`/Heart of China) with copies that were
+otherwise clearly legitimate, complete, already-installed games (not
+installer seeds) -- just an untabulated dump/release revision. ScummVM's
+`AdvancedMetaEngineDetection` generally still detects and runs these
+fine; a mismatched hash on an otherwise-plausible, correctly-sized file
+is not by itself a reason to keep searching for a "better" copy -- try
+it before assuming it's broken.
+
 ### A ScummVM detection-table entry can exist purely to say "not supported" -- check `ADGF_UNSUPPORTED`/`GAME_NOT_IMPLEMENTED` before sourcing a ROM for it
 
 Picked Logical Journey of the Zoombinis as the `mohawk` engine's test
