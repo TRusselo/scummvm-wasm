@@ -15,16 +15,17 @@ below — search this file for that phrase to jump to them.
 removed and skipped per user caution (unsigned/unverified `.exe`, low
 value anyway since ScummVM itself marks SLUDGE unstable/WIP).
 
-`griffon` **blocked** -- not a packaging problem (the directory
-structure is fine as-is, see GOTCHAS.md; the missing `fonts.dat`
-companion file was found and fixed), but the compiled WASM core crashes
-with `RuntimeError: memory access out of bounds` inside the engine's own
-code once the game actually starts (hit in the main loop and again in a
-`ResizeObserver` callback). This is a genuine engine-level bug in this
-WASM build, not something fixable by repackaging the ROM — would need
-rebuilding the core with debug symbols and stepping through
-`engines/griffon/` source to root-cause. Deferred by user decision
-rather than investigated further tonight.
+`griffon` and `glk` **blocked** on the same shared bug, not a packaging
+problem: both needed their `fonts.dat` companion file (found and fixed),
+but both then crash with the **identical** `RuntimeError: memory access
+out of bounds` stack trace once that file is supplied (same wasm
+function indices and byte offsets — see GOTCHAS.md's "Suspected shared
+bug" section). This looks like a bug in ScummVM's common
+font-rendering codepath in this WASM build, not something fixable by
+repackaging. Any other untested engine that reports "Could not locate
+the 'fonts.dat' engine data file" should be treated as high-risk for
+this same crash. Deferred by user decision rather than investigated
+further tonight.
 
 ## Scope
 
@@ -98,7 +99,7 @@ friction.
 | Engine | Most Popular Game | Candidate Test ROM | English Available | Source Note |
 |---|---|---|---|---|
 | agi | King's Quest I | **Confirmed working** (Leisure Suit Larry 1-3 and Space Quest I-III both play) | Yes | Already tested |
-| glk | Zork I | Zork I | Yes, legally free | archive.org Infocom collections; also GOG's free Zork Anthology files |
+| glk | Zork I | **Blocked** — same shared engine-level bug as `griffon` (see GOTCHAS.md): needs `fonts.dat` companion file (confirmed, now fixed), but crashes with the identical `RuntimeError: memory access out of bounds` stack trace once that file is supplied. Genuine cross-engine WASM bug, not fixable by repackaging | Yes, legally free | Already tested (archive.org `zork1` item, official Infocom DOS release, MD5-matched to detection table entry `88-840726`) |
 | awe | Another World / Out of This World | Another World (fit on ~2 floppies originally) | Yes | archive.org DOS releases |
 | dm | Dungeon Master | Dungeon Master (Amiga/Atari ST releases are small) | Yes | archive.org FTL Games / Amiga-ST collections |
 | sword1 | Broken Sword: The Shadow of the Templars | Official free demo (much smaller than full CD game) | Yes | archive.org has both full game and demo |

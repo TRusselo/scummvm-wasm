@@ -626,6 +626,50 @@ argument parsing and content-path handling
 loading code -- by the time JS hands off to `callMain`, EmulatorJS's job
 is basically done.
 
+## Suspected shared bug: rendering text via `fonts.dat` crashes the WASM core (`RuntimeError: memory access out of bounds`)
+
+Two unrelated engines -- `griffon` (a real-time action RPG) and `glk`
+(text-adventure interpreter, tested via Zork I) -- both crash with the
+byte-for-byte **identical** stack trace, once each had its missing
+`fonts.dat` companion file supplied (see the companion-file-collision
+entry above for why that file is needed at all):
+
+```
+RuntimeError: memory access out of bounds
+    at wasm-function[15670]:0xf50294
+    at wasm-function[2124]:0x1cf60c
+    at wasm-function[75474]:0x4bd58df
+    at wasm-function[39904]:0x2dace62
+    ... (MainLoop_runner)
+```
+
+Identical function indices *and* identical byte offsets across two
+engines with no shared game-specific code is strong evidence this is a
+single bug in ScummVM's **common** font-loading/rendering path that
+`fonts.dat` feeds (`common/engine_data.cpp`'s generic engine-data loader
+is what emits the "Could not locate engine data %s" message both engines
+hit before the fix; the crash itself is presumably in whatever consumes
+that data to actually draw glyphs -- `graphics/fonts/` or `gui/`).
+`sci` was a false lead here: it references `classicmacfonts.dat`, a
+*different* file loaded by a separate codepath (`sci/graphics/macfont.cpp`),
+not `fonts.dat` -- so KQ5 working normally doesn't contradict this.
+
+**Practical implication:** any other untested engine whose ScummVM
+detector reports "Could not locate the 'fonts.dat' engine data file"
+should be treated as high-risk for this same crash once the file is
+supplied -- expect it to hang at the ScummVM logo splash and then crash,
+not actually become playable. Confirmed source references to the literal
+string `"fonts.dat"`: `engines/glk/screen.cpp`,
+`engines/zvision/zvision.cpp`, `graphics/fonts/ttf.cpp` -- but the
+generic loader means any engine could hit it at runtime even without a
+static string match, so the reliable signal is the in-app error message
+itself, not a source grep. This is a genuine engine/graphics-layer bug in
+this WASM build, not a packaging issue -- fixing it would need building
+with debug symbols and stepping through the font-rendering code that
+consumes `fonts.dat`. Deferred by user decision; engines that hit it get
+marked **blocked** (not "deferred" or "needs different packaging") in
+`docs/ENGINE-TEST-PLAN.md`.
+
 ## `USE_HIGHRES`: a global compile-time engine gate, not just a canvas-size cosmetic flag
 
 `USE_HIGHRES` (`backends/platform/libretro/Makefile.common`) is a
