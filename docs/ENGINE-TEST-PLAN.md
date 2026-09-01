@@ -44,13 +44,19 @@ candidate — it's actually an AGS-engine game (confirmed correctly listed
 under `ags` below), so Wintermute's candidate is flagged for
 re-verification instead of asserting a possibly-wrong title.
 
-**Two special cases**, not normal rows:
-- **`mm`** (base Might & Magic) has no standalone game of its own — its
-  actual playable content lives entirely in the `mm1`/`xeen` subengines,
-  which are excluded under "group under parent" scoping. Testing "mm"
-  meaningfully requires picking one of those subengines specifically;
-  it can't be tested as a bare top-level entry the way the others can.
+**One special case, not a normal row:**
 - **`agos`** — see above, already confirmed working tonight.
+
+**Parent engines with no standalone game of their own** (`mm`, `tsage`,
+`ultima`): each is grouped with several subengines, but the parent
+itself has no playable title — only the subengines do. Resolved by
+picking each parent's newest/most feature-rich subengine and testing a
+game from that instead: `mm` → `xeen` (World of Xeen, 1992-93 — a real
+technical leap over `mm1`'s 1986 original), `tsage` → `ringworld2`
+(Return to Ringworld, 1994, sequel to 1993's Ringworld), `ultima` →
+`ultima8` (Ultima VIII: Pagan, 1994 — SVGA graphics, the most advanced of
+the `ultima4`/`ultima6`/`ultima8` trio). These appear below under their
+parent engine name with the chosen subengine noted.
 
 **Easiest-possible starting points**, regardless of tier (officially
 freeware, often hosted directly by ScummVM or the original developer, no
@@ -79,6 +85,7 @@ friction.
 | sword2 | Broken Sword II: The Smoking Mirror | Official free demo if available, else full game | Yes | archive.org Broken Sword collections |
 | sci | King's Quest V | Jones in the Fast Lane (small, compact SCI0 title) | Yes | archive.org Sierra SCI collections |
 | bladerunner | Blade Runner | Only title (CD-ROM, FMV-heavy, no smaller alt) | Yes | archive.org Westwood/abandonware collections |
+| ultima | Ultima VIII: Pagan (via `ultima8` subengine — newest/most advanced of the ultima4/6/8 trio; base `ultima` has no standalone game) | Same (only title on this subengine) | Yes | archive.org Origin Systems / Ultima collections |
 | twine | Little Big Adventure | Same, or its floppy release if smaller | Yes | archive.org Adeline Software/LBA collections |
 | mohawk | Where in Time is Carmen Sandiego? | Logical Journey of the Zoombinis (smaller, well preserved) | Yes | archive.org Carmen Sandiego / Zoombinis releases |
 | mediastation | Muppet Treasure Island | Unclear if a smaller Media Station title exists | Yes | archive.org, "Muppet Treasure Island PC CD-ROM" |
@@ -96,6 +103,8 @@ friction.
 | Engine | Most Popular Game | Candidate Test ROM | English Available | Source Note |
 |---|---|---|---|---|
 | kyra | The Legend of Kyrandia: Book One | Same (smallest of trilogy) | Yes | archive.org, "Legend of Kyrandia DOS" |
+| mm | World of Xeen (via `xeen` subengine — newest/most feature-rich of mm1/xeen; base `mm` has no standalone game) | Might and Magic IV: Clouds of Xeen alone (lighter than the combined World of Xeen release) | Yes | archive.org Might and Magic / New World Computing collections |
+| tsage | Return to Ringworld (via `ringworld2` subengine — sequel, newest of the tsage-based titles; base `tsage` has no standalone game; based on Larry Niven's Hugo/Nebula-winning novel) | Same (only title on this subengine) | Yes | archive.org, "Return to Ringworld DOS" |
 | sherlock | Sherlock Holmes: Consulting Detective | The Case of the Serrated Scalpel | Yes | archive.org DOS adventure collections |
 | queen | Flight of the Amazon Queen | Same — **officially freeware** | Yes | archive.org direct |
 | lure | Lure of the Temptress | Same — freed by Revolution Software | Yes | archive.org DOS floppy version |
@@ -182,10 +191,7 @@ friction.
 |---|---|
 | crab | Could not confidently identify — possibly a newer/indie addition |
 | got | Could not confidently identify |
-| mm | **Special case** — no standalone game; real content is in `mm1`/`xeen` subengines only |
 | tot | Could not confidently identify ("ToT") |
-| tsage | Base engine unclear — Ringworld/Blue Force (its actual games) are excluded subengines |
-| ultima | Base engine unclear — Ultima IV/VI/VIII (its actual games) are excluded subengines |
 | vcruise | Could not confidently identify |
 | wage | Engine itself is an obscure vintage classic-Mac adventure-creation tool; specific bundled title unconfirmed |
 
