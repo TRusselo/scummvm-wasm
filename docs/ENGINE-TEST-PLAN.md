@@ -4,12 +4,12 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (21 of 102, + agos2 subengine bonus)
+## Confirmed working so far (23 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
-`got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`.
-Marked **Confirmed working** in their table row below — search this file for that phrase to
+`got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
+`cine`, `sherlock`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
