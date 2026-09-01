@@ -532,6 +532,22 @@ Check any newly-added engine's `resources.cpp`/`detection.cpp` for a
 just be appended -- if the game's own archive already contains a file by
 that exact name, it needs replacing, not adding to.
 
+Same pattern hit a third time on `kyra` (Legend of Kyrandia): the game's
+own install package ships a 353,834-byte `kyra.dat` (unrelated internal
+data), while ScummVM's own companion file at
+`scummvm-core/dists/engine-data/kyra.dat` is 2,023,908 bytes. Naively
+appending it with `zipfile.ZipFile(path, 'a', ...)` produces a zip with
+*two* entries both named `kyra.dat` -- Python's `zipfile` even prints a
+`UserWarning: Duplicate name` when writing it, easy to miss in a longer
+script's output, and which entry actually gets read back is ambiguous
+rather than reliably "the last one." The reliable fix is always the same
+now: open the zip for reading, copy every entry *except* the colliding
+name into a new zip, then add the correct engine-data file once. Three
+for three so far (`teenagent`, `kyra`, and this pattern should be
+expected for any engine with a `_DAT_VERSION`-style versioned companion
+file) -- treat a same-named collision as the default assumption for these
+files, not the exception.
+
 ### Clearing EmulatorJS's IndexedDB caches: `await indexedDB.deleteDatabase()` does not actually wait
 
 `IDBOpenDBRequest` is not a native `Promise` -- awaiting it directly

@@ -134,13 +134,13 @@ friction.
 
 | Engine | Most Popular Game | Candidate Test ROM | English Available | Source Note |
 |---|---|---|---|---|
-| kyra | The Legend of Kyrandia: Book One | Same (smallest of trilogy) | Yes | archive.org, "Legend of Kyrandia DOS" |
+| kyra | The Legend of Kyrandia: Book One | Packaged, needed `kyra.dat` companion file swap (same collision pattern as `teenagent` — see GOTCHAS.md), **verification pending** (browser froze mid-retest, needs a re-check) | Yes | archive.org (`msdos_Legend_of_Kyrandia_Book_1_1992`) — excluded a bundled CD-variant bonus subfolder (500MB+ of unneeded assets), floppy game data alone is ~32 MiB |
 | mm | World of Xeen (via `xeen` subengine — newest/most feature-rich of mm1/xeen; base `mm` has no standalone game) | Might and Magic IV: Clouds of Xeen alone (lighter than the combined World of Xeen release) | Yes | archive.org Might and Magic / New World Computing collections |
 | tsage | Return to Ringworld (via `ringworld2` subengine — sequel, newest of the tsage-based titles; base `tsage` has no standalone game; based on Larry Niven's Hugo/Nebula-winning novel) | Same (only title on this subengine) | Yes | archive.org, "Return to Ringworld DOS" |
 | sherlock | Sherlock Holmes: Consulting Detective | The Case of the Serrated Scalpel | Yes | archive.org DOS adventure collections |
 | queen | Flight of the Amazon Queen | **Confirmed working** — officially freeware; needed `queen.tbl` companion file | Yes | Already tested |
 | lure | Lure of the Temptress | **Confirmed working** — freed by Revolution Software; needed `lure.dat` companion file | Yes | Already tested |
-| gob | Gobliiins | Same (original, smallest in trilogy) | Yes | archive.org, "Gobliiins DOS" |
+| gob | Gobliiins | Packaged from the CD version's data track (extracted via `bchunk`, a floppy-install source folder found first turned out to be pre-install stub files, not the real game), **not yet tested** (browser froze before this one was reached) — note: this specific dump's `INTRO.STK` doesn't match any known hash in ScummVM's detection table despite matching size exactly, so detection may fail; worth double-checking against ScummVM's wiki if it doesn't boot | Yes | archive.org (`msdos_Gobliiins_1_1991`), CD image (`.bin`/`.cue`) inside the package |
 | cine | Future Wars | Same | Yes | archive.org Delphine Software collections |
 | cruise | Cruise for a Corpse | Same | Yes | archive.org Delphine Software collections |
 | cryo | Dracula: The Resurrection | Same | Yes | archive.org Cryo Interactive collections |
