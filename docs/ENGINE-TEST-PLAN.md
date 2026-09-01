@@ -4,12 +4,12 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (24 of 102, + agos2 subengine bonus)
+## Confirmed working so far (25 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
-`cine`, `sherlock`, `hugo`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`cine`, `sherlock`, `hugo`, `touche`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -156,7 +156,7 @@ friction.
 | hugo | Hugo's House of Horrors | **Confirmed working** — needed `hugo.dat` companion file (straight append, no collision this time) | Yes | archive.org (`msdos_Hugos_House_of_Horrors_1990`), already tested |
 | icb | In Cold Blood | Same | Yes | archive.org, "In Cold Blood PC game" |
 | immortal | The Immortal | Same (small floppy-era game) | Yes | archive.org EA classics |
-| lab | Labyrinth: The Computer Game | Same | Yes | archive.org Lucasfilm games |
+| lab | Labyrinth: The Computer Game | Same | Yes | Deferred — couldn't find a clean DOS/Windows package on archive.org (only Apple II/C64 floppy images turned up, platforms `lab` doesn't support); worth another search pass later |
 | macventure | Shadowgate | Same | Yes | Deferred — correction: ScummVM's `macventure` engine only supports the **Macintosh** and **Apple IIgs** releases (`detection.cpp`'s `MACGAME`/`IIGSGAME` macros hard-code `kPlatformMacintosh`/`kPlatformApple2GS`), not the MS-DOS version; a packaged DOS copy failed to detect for exactly this reason. Sourcing a Mac release means extracting from a `.moof`/HFS floppy disk image — same disk-image-tooling complexity class as `startrek`/`twine`, deferred alongside them |
 | made | Return to Zork | Rodney's Funscreen (much smaller kids' title) | Yes | archive.org; prefer Funscreen over multi-disc Return to Zork |
 | mads | Rex Nebular and the Cosmic Gender Bender | Same | Yes | archive.org, "Rex Nebular Cosmic Gender Bender" |
@@ -171,7 +171,7 @@ friction.
 | sludge | Out of Order | **Tested and worked** (via The Interview, official freeware) but removed and skipped per user caution — unsigned/unverified `.exe`, low priority anyway (ScummVM marks SLUDGE unstable/WIP) | Yes | Skipped, not kept |
 | titanic | Starship Titanic | Same | Yes | archive.org, multi-CD, larger download |
 | tony | Tony Tough and the Night of the Roasted Moths | Same | Yes | archive.org DOS/Win collections |
-| touche | Touché: The Adventures of the Fifth Musketeer | Same | Yes | archive.org DOS collections |
+| touche | Touché: The Adventures of the Fifth Musketeer | **Confirmed working** — real game data was in a bundled CD-variant subfolder (already-extracted plain files, not a raw disc image this time), ~385 MiB total | Yes | archive.org (`msdos_Touche_-_The_Adventures_of_the_Fifth_Musketeer_1995`), already tested |
 | voyeur | Voyeur | Same (note: mature content) | Yes | archive.org CD-i/DOS FMV collections |
 | zvision | Zork: Grand Inquisitor | Zork Nemesis (only other title on this engine, similar size) | Yes | archive.org Activision/Zork collections |
 | asylum | Sanitarium | Same (only title) | Yes | archive.org abandonware collections |
