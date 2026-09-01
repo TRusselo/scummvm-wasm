@@ -113,8 +113,8 @@ friction.
 | glk | Zork I | **Blocked** — same shared engine-level bug as `griffon` (see GOTCHAS.md): needs `fonts.dat` companion file (confirmed, now fixed), but crashes with the identical `RuntimeError: memory access out of bounds` stack trace once that file is supplied. Genuine cross-engine WASM bug, not fixable by repackaging | Yes, legally free | Already tested (archive.org `zork1` item, official Infocom DOS release, MD5-matched to detection table entry `88-840726`) |
 | awe | Another World / Out of This World | **Confirmed working** — English DOS release, flat zip (no subdirectories, no fonts.dat needed) | Yes | archive.org (`another_world_dos`), already tested |
 | dm | Dungeon Master | **Blocked** — same shared `fonts.dat` engine bug as `griffon`/`glk` (third confirmation of the identical crash signature, see GOTCHAS.md) | Yes | archive.org (`msdos_Dungeon_Master_1989`), already tested |
-| sword1 | Broken Sword: The Shadow of the Templars | **Confirmed working** via the official free demo — needed a root-level anchor file preserved in the zip for detection to succeed (see GOTCHAS.md's "no file at the true root" entry); a first packaging attempt that stripped all root files to only the needed subdirectories produced an empty game list, not a crash | Yes | archive.org (`Broken_Sword_demo`), already tested |
-| sword2 | Broken Sword II: The Smoking Mirror | **Confirmed working** via the official "PC Gamer" demo — worked on the first try since its zip already had genuine root-level files (only the `INSTALL/` splash-screen subdirectory was dropped) | Yes | archive.org (`Broken_II_demo_big`), already tested |
+| sword1 | Broken Sword: The Shadow of the Templars | **Confirmed working — full game**, not just the demo. Merged both CD's unique content (English speech, music, cutscenes) into one ~1080 MiB zip, following user's "prefer full game over demo unless it's over the size limit" preference (explicit override granted for this one, since even after deduplicating identical files across discs it landed just over 1 GB). Needed each disc's own `SPEECH.CLU` renamed to `SPEECH1.CLU`/`SPEECH2.CLU` (see GOTCHAS.md's multi-CD section); demo's root-anchor-file lesson still applied | Yes | archive.org (`Broken_Sword_The_Shadow_of_the_Templars_Europe`), raw `.mdf` CD images converted to ISO9660 by hand (see GOTCHAS.md) |
+| sword2 | Broken Sword II: The Smoking Mirror | **Confirmed working — full game**, not just the demo. Same merge approach as `sword1`: both CDs' unique `Clusters`/`Smacks` content combined into one ~1056 MiB zip (explicit size-limit override granted), each disc's `Music.clu`/`speech.clu` renamed to `Music1/2.clu`/`speech1/2.clu` | Yes | archive.org (`Broken_Sword_II_The_Smoking_Mirror_Europe`), raw `.mdf` CD images (Mode 2 Form 1 on CD1, Mode 1 on CD2 — mixed sector modes across discs of the same game) converted to ISO9660 by hand |
 | sci | King's Quest V | **Confirmed working** (King's Quest V plays) | Yes | Already tested |
 | bladerunner | Blade Runner | Only title (CD-ROM, FMV-heavy, no smaller alt) | Yes | archive.org Westwood/abandonware collections |
 | ultima | Ultima VIII: Pagan (via `ultima8` subengine — newest/most advanced of the ultima4/6/8 trio; base `ultima` has no standalone game) | Same (only title on this subengine) | Yes | archive.org Origin Systems / Ultima collections |
@@ -277,4 +277,14 @@ testable. Researched now for completeness; some are very well-known.
 6. Also on the user's wishlist, separate from engine testing: full game
    collections for King's Quest, Space Quest, and Leisure Suit Larry
    (played KQ5 and LSL1 as a kid) — to source and package once the
-   engine-testing pass is further along.
+   engine-testing pass is further along. Also the rest of the Chzo
+   Mythos series beyond `5 Days a Stranger` (7 Days a Skeptic, Trilby's
+   Notes, 6 Days a Sacrifice, The Countdown — all free, same
+   creator/engine).
+7. **Prefer the full retail game over a demo when both exist**, even if
+   sourcing the full game is more work (e.g. raw CD `.mdf` images needing
+   manual conversion — see GOTCHAS.md). The 1 GB threshold above still
+   applies to the final packaged ROM; ask before keeping anything over
+   it rather than assuming an override carries over between games (each
+   of `sword1`/`sword2`'s full-game overrides were granted individually,
+   not as a blanket rule).

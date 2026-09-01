@@ -555,6 +555,73 @@ await Promise.all([delDb("EmulatorJS-core"), delDb("EmulatorJS-roms")]);
 Follow with a hard reload (`ctrl+shift+r`) before retesting, same as the
 intermittent-extraction-crash workaround below.
 
+### Packaging full multi-CD retail games: raw `.mdf` images need manual sector-stripping, and each disc's same-named cluster files need renaming, not merging
+
+Archive.org's copies of full retail games (as opposed to freeware/demo
+releases) are usually raw CD-ROM rips in Alcohol 120% `.mdf`/`.mds`
+format, not plain data files. `7z` cannot read a `.mdf` directly. These
+are raw sector dumps, and the fix is a small manual conversion script,
+run once per disc:
+
+```python
+sector_size = 2352
+sync_header = 16   # Mode 1: sync(12) + header(4)
+# sync_header = 24 # Mode 2 Form 1: sync(12) + header(4) + subheader(8)
+data_size = 2048
+with open('DISC.mdf', 'rb') as fin, open('DISC.iso', 'wb') as fout:
+    while True:
+        sector = fin.read(sector_size)
+        if len(sector) < sector_size:
+            break
+        fout.write(sector[sync_header:sync_header + data_size])
+```
+
+Check the sector mode before picking the offset: the 4th byte of the
+first sector (byte offset 15) is the CD mode -- `01` for Mode 1, `02` for
+Mode 2. **Different discs of the same game can use different modes**:
+confirmed on Broken Sword II, where CD1 was Mode 2 Form 1 (offset 24) and
+CD2 was plain Mode 1 (offset 16). Don't assume the second disc matches
+the first; check each one. A correct offset produces a file `7z l`
+recognizes as `Type = Iso` with a real volume name; a wrong offset (or
+treating an `.mdf` as a plain `.iso`) fails with "Cannot open the file as
+archive."
+
+Once each disc converts to a normal ISO9660 image, `7z x` extracts it
+like any other archive.
+
+**The second problem, specific to multi-CD games**: both discs ship a
+file with the *same name* but *different content* -- e.g. Broken Sword
+1's `SPEECH.CLU` (dialogue for the Paris chapters on CD1, a completely
+different 339 MB file for Ireland/Scotland/Spain/Syria on CD2) or Broken
+Sword 2's `Music.clu`/`speech.clu` (same pattern, both files). Naively
+merging both discs' extracted trees into one zip silently drops half the
+content -- Python's `zipfile` even warns `Duplicate name` when this
+happens, easy to miss in a long build script's output. The fix isn't
+flattening or renaming arbitrarily: **check the engine source for its own
+multi-disc naming convention** before guessing. For `sword1`, see
+`sword1.cpp`'s warning message directly: "copy the SPEECH.CLU files from
+both CDs and rename them to SPEECH1.CLU and SPEECH2.CLU". For `sword2`,
+`music.cpp`'s `getAudioStream(fh, base, cd, ...)` builds the filename as
+`sprintf("%s%d.%s", base, cd, ext)` -- so `music1.clu`/`music2.clu` and
+`speech1.clu`/`speech2.clu`. Both files can live inside the same
+`Clusters`/`CLUSTERS` folder as everything else; both engines already
+register that folder as a matching search subdirectory.
+
+**Not every same-named file needs this treatment.** Some files that
+appear on both discs (Broken Sword 1: several `MUSIC/*.WAV` tracks and
+`SMACKSHI/GRAVE.SMK`; Broken Sword 2: `Clusters/Credits.clu`,
+`Font.clu`, `vielogo.tga`, `credits.bmp`) are genuinely
+byte-identical shared resources, confirmed via `md5sum` before
+deduplicating -- keep one copy, don't rename these. Conversely, don't
+assume a same-named file is a duplicate without checking: also verify
+each disc's unique-per-disc files (different filenames entirely, like
+Broken Sword 1's CD2-only `MUSIC/6M*.WAV`/`7M*.WAV`/`8M*.WAV` tracks and
+`SMACKSHI/IRELAND.SMK` etc.) actually get included -- an early merge
+attempt here only walked CD1's `MUSIC`/`SMACKSHI` folders and silently
+dropped 86 CD2-only tracks and 14 CD2-only cutscenes before this was
+caught by comparing directory listings (`comm -13`) between the two
+discs.
+
 ### Zips with subdirectories but no file at the true root silently fail to detect any game
 
 For engines that need their directory structure preserved (see the
