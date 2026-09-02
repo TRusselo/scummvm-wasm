@@ -22,7 +22,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **34 of 102 confirmed working as of this
+plays, not just compiles. **36 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -50,8 +50,8 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**34 of 102 confirmed** (plus the `agos2` subengine). 4 blocked on a
-shared crash, 6 deferred on sourcing/tooling, 11 waiting on a GL-core
+**36 of 102 confirmed** (plus the `agos2` subengine). 4 blocked on a
+shared crash, 7 deferred on sourcing/tooling, 11 waiting on a GL-core
 build that hasn't happened yet, 3 unidentified, the rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
@@ -74,7 +74,7 @@ table is the at-a-glance summary, kept in sync with it.
 | twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
 | mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
 | mediastation | ⬜ | |
-| nancy | ⬜ | |
+| nancy | ✅ | Nancy Drew: Secrets Can Kill |
 | groovie | ⬜ | |
 | sky | ✅ | Beneath a Steel Sky, official freeware |
 | adl | ✅ | Mystery House, bundled ScummVM freeware |
@@ -108,7 +108,7 @@ table is the at-a-glance summary, kept in sync with it.
 | drascula | ✅ | Drascula: The Vampire Strikes Back |
 | dreamweb | ✅ | DreamWeb, freeware since 2011 |
 | griffon | 🚫 | Same shared `fonts.dat` WASM crash |
-| hopkins | ⬜ | |
+| hopkins | ✅ | Hopkins FBI (freeware Linux port; audio is French despite `EN_ANY` tag) |
 | hugo | ✅ | Hugo's House of Horrors |
 | icb | ⬜ | |
 | immortal | ⏸️ | Apple IIgs-only engine, no clean disk dump found |
@@ -129,7 +129,7 @@ table is the at-a-glance summary, kept in sync with it.
 | tony | 🚫 | Same shared `fonts.dat` WASM crash |
 | touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
 | voyeur | ⬜ | |
-| zvision | ⬜ | |
+| zvision | ⏸️ | Full retail (3 CDs) exceeds 1GB; only lighter alt found fails detection |
 | asylum | ⬜ | |
 | sword25 | ✅ | Broken Sword 2.5, official freeware fan game |
 | agos | ✅ | Simon the Sorcerer (base + `agos2` subengine via Simon 2) |
@@ -301,60 +301,86 @@ project, you may want to fork `scummvm-core` too and repoint
 
 ## Adding a game
 
-For the six original SCUMM target games, flat packaging is enough:
-**zip the contents of the game's data folder directly (`cd` into it
-first), never the folder itself**, so every file sits at the zip's root
-with no subdirectory:
+### 1. Already have a working ScummVM install of the game?
 
-```bash
-cd "/path/to/Game Folder"
-python3 -c "
-import zipfile, sys
-from pathlib import Path
-src = Path('.')
-with zipfile.ZipFile('/tmp/game.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
-    for f in sorted(src.iterdir()):
-        if f.is_file():
-            zf.write(f, arcname=f.name)
-"
-mv /tmp/game.zip path/to/scummvm-wasm/test-page/game.scm
-```
+If you already have a game folder that ScummVM itself can detect and
+launch (from an existing ScummVM install, or a romset built for another
+ScummVM-based frontend), it almost certainly already satisfies the rules
+below -- ScummVM's own auto-detection has always required this same
+one-directory-level layout, independent of this project. Zip that folder
+as-is (see the packaging rule in step 2) and try it before rebuilding
+anything from scratch.
 
-(A plain `zip` binary wasn't available in the environment this was
-developed in -- Python's `zipfile` module works identically and is always
-available.)
+### 2. Packaging from raw game files
 
-**The 102-engine sweep surfaced a fuller picture than "always flatten,"
-though.** The real constraint, and three things that follow from it:
+The packaging rule, in order of how often you'll need each part:
 
-- **All files need to sit at one directory level -- flat-at-root or a
-  single wrapper folder both work.** What actually breaks is *multiple
-  sibling subdirectories* in the same zip (e.g. a `DATA/` folder next to
-  a `VIDEO/` folder): this intermittently crashes EmulatorJS's own
-  bundled decompression worker (`Uncaught ErrnoError {errno: 20}`,
-  `ENOTDIR`) before ScummVM's code ever runs. This is a real, confirmed
-  bug in EmulatorJS's own vendored code (likely a race during heap
-  growth mid-extraction), not something this project introduced or has
-  fixed -- collapsing to one directory level is a packaging workaround,
-  not a fix. See [docs/GOTCHAS.md](docs/GOTCHAS.md)'s "Multiple sibling
-  subdirectories" section for the full investigation.
-- **Some engines need their subdirectory structure preserved, not
-  flattened.** `griffon` is the known example -- its own source hardcodes
-  relative paths like `"music/boss.ogg"`, so flattening its zip breaks
-  every one of those lookups. Check an engine's source for hardcoded
-  relative paths before assuming flat is always correct.
-- **A zip that keeps subdirectory structure still needs at least one
-  file at the true root level**, or ScummVM's own auto-detection can
-  silently produce an empty game list (a different failure than the
-  crash above -- no error, just nothing detected). See GOTCHAS.md's
-  "Zips with subdirectories but no file at the true root" section.
+1. **All files must sit at one directory level: flat-at-root, or a
+   single wrapper folder.** `cd` into the game's data folder and zip its
+   *contents*, not the folder itself, so nothing has a parent path
+   inside the zip:
+
+   ```bash
+   cd "/path/to/Game Folder"
+   python3 -c "
+   import zipfile, sys
+   from pathlib import Path
+   src = Path('.')
+   with zipfile.ZipFile('/tmp/game.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
+       for f in sorted(src.iterdir()):
+           if f.is_file():
+               zf.write(f, arcname=f.name)
+   "
+   ```
+
+   (A plain `zip` binary wasn't available in the environment this was
+   developed in -- Python's `zipfile` module works identically and is
+   always available.)
+
+2. **Never split files across multiple sibling subdirectories in the
+   same zip** (e.g. a `DATA/` folder next to a `VIDEO/` folder) --
+   confirmed to intermittently crash EmulatorJS's own bundled
+   decompression worker (`Uncaught ErrnoError {errno: 20}`, `ENOTDIR`)
+   before ScummVM's code ever runs. This is a real bug in EmulatorJS's
+   own vendored code, not something this project introduced or can fix
+   -- collapsing to one directory level is the only known workaround.
+   See [docs/GOTCHAS.md](docs/GOTCHAS.md)'s "Multiple sibling
+   subdirectories" section for the full investigation.
+
+3. **Exception: some engines need their subdirectory structure
+   preserved, not flattened.** `griffon` is the known example -- its own
+   source hardcodes relative paths like `"music/boss.ogg"`, so
+   flattening its zip breaks every one of those lookups. Check an
+   engine's source for hardcoded relative paths before assuming flat is
+   always correct.
+
+4. **If you do keep subdirectory structure, at least one file must also
+   sit at the zip's true root level**, or ScummVM's own auto-detection
+   silently produces an empty game list -- no crash, no error, just
+   nothing detected. See GOTCHAS.md's "Zips with subdirectories but no
+   file at the true root" section.
+
+5. **Multi-disc games: merge all discs into one zip, not one zip per
+   disc.** When both discs ship a file with the *same name* but
+   *different content* (common for CD-era games -- e.g. dialogue/music
+   archives that differ per disc), check that specific engine's own
+   source for its multi-disc naming convention rather than guessing --
+   e.g. `sword1` expects each disc's `SPEECH.CLU` renamed to
+   `SPEECH1.CLU`/`SPEECH2.CLU`; `sword2` expects
+   `music1.clu`/`music2.clu` and `speech1.clu`/`speech2.clu`. Verify
+   with `md5sum` before assuming a same-named file across discs is a
+   duplicate you can drop -- some genuinely are identical shared
+   resources, but not all. See GOTCHAS.md's "Packaging full multi-CD
+   retail games" section for the full walkthrough, including converting
+   raw `.mdf`/`.bin` disc images to ISO9660 first if that's what you're
+   starting from.
 
 Older SCUMM games (Maniac Mansion, Zak McKracken, Loom, Indiana Jones and
 the Last Crusade) use numbered `NN.LFL` files. Newer ones (Indiana Jones
 and the Fate of Atlantis, Day of the Tentacle) use a `<NAME>.000` /
 `<NAME>.001` / `MONSTER.SOU` container format -- both are handled
-transparently by the same ScummVM SCUMM engine and the same zip-flat
-convention.
+transparently by the same ScummVM SCUMM engine and the same packaging
+rules above.
 
 **Maniac Mansion note:** the original Day of the Tentacle CD release
 bundles a complete, separately-playable copy of Maniac Mansion as an
@@ -362,8 +388,23 @@ in-game easter egg (found on the original disk under a `MANIAC/`
 subfolder). If you don't have a standalone Maniac Mansion copy, that one
 works identically -- it's the real, complete game, not a demo.
 
-Game files (`test-page/*.scm`) are gitignored; this repo ships no
-copyrighted game data.
+### 3. Deploying the packaged zip
+
+Two options:
+
+- **Local test-page** (fastest for testing one game in isolation): drop
+  the zip in `test-page/` and point `EJS_gameUrl` at it in
+  `test-page/index.html` (the `.scm` extension is just this project's
+  own early convention, not a requirement -- see GOTCHAS.md, plain
+  `.zip` works identically). Game files here are gitignored; this repo
+  ships no copyrighted game data.
+- **A hosted ROMM instance** (the actual method used for the 102-engine
+  sweep, and the more realistic real-world deployment target): run
+  `build/deploy-to-romm.sh <path-to-romm-checkout>` to stage the built
+  core into a ROMM fork, then drop the packaged zip into that instance's
+  ScummVM platform ROM folder and let ROMM scan and serve it. See the
+  "Known limitations" section below for what's confirmed working this
+  way (including save states).
 
 ### Skipping autodetection with a `.scummvm` hook file
 
@@ -412,15 +453,13 @@ useful if you want faster, more precise startup for a specific game.
   separate bugs, two in ScummVM and one in RetroArch/EmulatorJS, that
   had to be fixed to make this work), and so does ScummVM's own in-game
   save-anywhere/load-anywhere menu. Both write to the same underlying
-  save slot mechanism.
-- What's *not* implemented is server-backed persistence -- EmulatorJS's
-  own documented hooks for this (`EJS_onSaveState`, `EJS_onLoadState`,
-  `EJS_loadStateURL`, and the equivalent save-file hooks) aren't wired up
-  anywhere in `test-page/`, since this is a local static-file test
-  harness with no backend to persist to. Hosting this core somewhere
-  with real save-state persistence (e.g. RomM) means wiring those hooks
-  up to that host's own backend -- a deployment-specific integration
-  step, not something this project's test page needs to do itself.
+  save slot mechanism. **Confirmed working end-to-end through a real
+  hosted ROMM instance** (`build/deploy-to-romm.sh`), not just the local
+  test-page -- ROMM's own EmulatorJS integration already implements
+  server-backed save/state persistence for any core, so once this
+  project's `retro_serialize()`/`retro_unserialize()` fix landed, saving
+  and loading through ROMM's UI worked with no extra wiring needed on
+  this project's side.
 - The exit-confirmation dialog only offers "Exit"/"Cancel" in the
   EmulatorJS release this project is pinned to (v4.2.3) -- no separate
   "Exit & Save" button. Confirmed by reading `emulator.min.js`'s dialog
