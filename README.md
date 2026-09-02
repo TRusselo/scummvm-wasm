@@ -22,7 +22,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **42 of 102 confirmed working as of this
+plays, not just compiles. **43 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -50,8 +50,8 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**42 of 102 confirmed** (plus the `agos2` subengine). 5 blocked on a
-shared crash, 9 deferred on sourcing/tooling, 11 waiting on a GL-core
+**43 of 102 confirmed** (plus the `agos2` subengine). 5 blocked on a
+shared crash, 8 deferred on sourcing/tooling, 11 waiting on a GL-core
 build that hasn't happened yet, 3 unidentified, the rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
@@ -103,7 +103,7 @@ table is the at-a-glance summary, kept in sync with it.
 | cryomni3d | ⬜ | |
 | darkseed | ✅ | Dark Seed |
 | dgds | ✅ | Via Heart of China |
-| director | ⏸️ | The Journeyman Project — detection confirmed (exact hash match, real "Start anyway?" dialog shown), but boot verification blocked by ROMM dev-server instability this session; needs retest |
+| director | ✅ | The Journeyman Project — plays normally past the `ADGF_UNSTABLE` "Start anyway?" warning dialog |
 | dragons | ⬜ | |
 | drascula | ✅ | Drascula: The Vampire Strikes Back |
 | dreamweb | ✅ | DreamWeb, freeware since 2011 |
