@@ -300,3 +300,37 @@ ROMM/EmulatorJS deployment) requires deploying the rebuilt core to the
 running unraid container, which is explicitly held for the user's
 go-ahead per their instruction. That verification is the natural next
 step once deployment is approved, but is not a task in this plan.
+
+## Post-plan verification (completed 2026-09-02)
+
+The user approved deployment. The new core was built on the Unraid box
+itself (via `/tmp/romm-build`, a checkout tracking the
+`emulatorjs-wasm-fixes` branch of the `TRusselo/romm` fork — the box's
+own Docker already has `buildx`, unlike this dev machine, whose
+`docker-buildx` package turned out to be a broken symlink), the
+`romm-scummvm:local` image was rebuilt from it, and the user force-updated
+the running `/romm` container to the new image
+(`sha256:926852616447...`).
+
+Verification: 8 test ROMs were built by stripping the bundled `.dat`
+file from otherwise-identical copies of existing ROMs (anchor entry order
+preserved; `Tony Tough`'s anchor was corrected to `TTFrontend.exe` since
+`fonts.dat` had been occupying entry 0 in the original):
+
+- **3 previously-confirmed engines, `.dat` stripped**: `ultima8.dat` from
+  Ultima VIII, `toon.dat` from Toonstruck, `fonts.dat` from Buried in
+  Time. **Result: all three play correctly** — confirms the embedded
+  `/engine-data` path is being found and used with zero bundled `.dat`
+  files in the ROM.
+- **5 fonts.dat-crash-blocked titles, `fonts.dat` stripped**: Dungeon
+  Master, Griffon Legend, Neverhood, Zork I, Tony Tough. **Result: all
+  five still hang on the ScummVM splash with the same out-of-bounds
+  memory access error** — confirms the crash is deterministic and
+  independent of which copy of `fonts.dat` is loaded (embedded vs.
+  previously-bundled), ruling out a corrupted/mismatched bundled copy as
+  an alternate explanation and reinforcing that it's a genuine WASM
+  rendering bug, not a packaging issue.
+
+Both outcomes match the spec's predictions exactly. The goal is achieved:
+the "engine forgot its `.dat` file" packaging failure class is
+permanently eliminated for every engine, tested and untested.

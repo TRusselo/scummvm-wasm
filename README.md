@@ -301,6 +301,15 @@ project, you may want to fork `scummvm-core` too and repoint
 
 ## Adding a game
 
+**You never need to bundle a ScummVM engine-data file** (`fonts.dat`,
+`toon.dat`, `nancy.dat`, `ultima8.dat`, etc.) into a ROM's zip. As of
+2026-09-02 the entire set is compiled directly into the core itself --
+see `docs/GOTCHAS.md`'s "ROMs no longer need to bundle their own ScummVM
+engine-data file" section if you're curious why this was ever necessary.
+If an engine reports "Could not locate engine data X," that means the
+game itself is genuinely missing a required *original* game file, not
+that you need to add one of ScummVM's own `.dat` files.
+
 ### 1. Already have a working ScummVM install of the game?
 
 If you already have a game folder that ScummVM itself can detect and

@@ -1067,6 +1067,48 @@ argument parsing and content-path handling
 loading code -- by the time JS hands off to `callMain`, EmulatorJS's job
 is basically done.
 
+## ROMs no longer need to bundle their own ScummVM engine-data file (fixed 2026-09-02)
+
+Many engines need one of ScummVM's own auxiliary "engine-data" files --
+`fonts.dat`, `toon.dat`, `nancy.dat`, `ultima8.dat`, `tony.dat`,
+`neverhood.dat`, `cryo.dat`, etc. -- containing resources the engine's
+reimplementation needs (fonts, string/version tables, translations) that
+aren't part of the original game's own files. This is a standard
+ScummVM requirement on every platform, not something specific to this
+project; on a desktop install, ScummVM's own installer drops its whole
+`dists/engine-data/` directory into a shared location once, and
+ScummVM's file-search system finds it automatically for every game,
+forever.
+
+Previously, this project's WASM/EmulatorJS deployment had no shared,
+persistent location the core could see across different ROM launches --
+each ROM's zip is the only thing the core can see -- so every engine
+that hit this needed its `.dat` file manually discovered (usually via a
+runtime crash) and bundled inside that specific ROM's own zip, every
+time.
+
+**This is now fixed at the core level, permanently, for every engine.**
+The full spec, architecture, and implementation are in
+`docs/superpowers/specs/2026-09-02-wasm-engine-data-embed-design.md` and
+`docs/superpowers/plans/2026-09-02-wasm-engine-data-embed.md`. Summary:
+ScummVM's entire `dists/engine-data/` directory (minus a few dev-only
+files) is now baked directly into the compiled WASM core itself via
+Emscripten's `--embed-file` (see `build/build-retroarch-core.sh`), and
+`OSystem_libretro::addSysArchivesToSearchSet()`
+(`libretro-os-utils.cpp`) registers that embedded path in ScummVM's
+search set so the engine's own unmodified `common/engine_data.cpp`
+lookup finds it automatically -- **no ROM needs to carry its own copy of
+any of these files anymore.** Verified end-to-end: `ultima8.dat`,
+`toon.dat`, and `fonts.dat` were stripped from already-confirmed ROMs
+(Ultima VIII, Toonstruck, Buried in Time) and all three still booted and
+played correctly.
+
+This does **not** fix the separate `fonts.dat`-rendering WASM crash
+below, and does **not** fix cases where a game needs an *original game
+file* that ScummVM's detector doesn't check (e.g. `groovie`'s
+`icons.ph`/`sample.AD`/`sample.OPL`) -- those still must be packaged
+into the ROM itself.
+
 ## Suspected shared bug: rendering text via `fonts.dat` crashes the WASM core (`RuntimeError: memory access out of bounds`)
 
 Four unrelated engines -- `griffon` (a real-time action RPG), `glk`
@@ -1131,6 +1173,17 @@ blank/hangs after the ScummVM splash," not "any engine that touches
 consumed safely by a different code path (direct TTF font rendering via
 `graphics/fonts/ttf.cpp`) without tripping the underlying bug that
 `griffon`/`glk`/`dm`/`tony`/`neverhood` hit.
+
+**Update -- confirmed independent of file delivery mechanism (2026-09-02):**
+once ScummVM's engine-data was embedded directly into the WASM core (see
+`docs/superpowers/specs/2026-09-02-wasm-engine-data-embed-design.md`),
+all five of `griffon`/`glk`/`dm`/`tony`/`neverhood` were retested with
+their bundled `fonts.dat` copy stripped out entirely, relying solely on
+the embedded one -- all five still hung on the splash with the identical
+out-of-bounds crash. This rules out a corrupted or mismatched bundled
+copy as an alternate explanation and confirms it's a deterministic bug in
+the font-rendering code itself, not something a different `fonts.dat`
+source could ever fix.
 
 ## `USE_HIGHRES`: a global compile-time engine gate, not just a canvas-size cosmetic flag
 
