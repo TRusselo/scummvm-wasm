@@ -27,6 +27,8 @@ writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
 
+<img width="1890" height="1180" alt="image" src="https://github.com/user-attachments/assets/860f20a3-a6f2-4d12-8f6b-e7d2b9f532ce" />
+
 This is not an official ScummVM or EmulatorJS project. It's a from-scratch
 wiring-together of two existing, independently-working projects
 ([libretro/scummvm](https://github.com/libretro/scummvm) and
