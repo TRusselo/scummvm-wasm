@@ -4,14 +4,14 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (40 of 102, + agos2 subengine bonus)
+## Confirmed working so far (41 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
 `toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`, `nancy`,
-`hopkins`, `mediastation`, `mtropolis`, `groovie`, `lastexpress`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`hopkins`, `mediastation`, `mtropolis`, `groovie`, `lastexpress`, `toon`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -130,7 +130,7 @@ friction.
 | adl | Mystery House | **Confirmed working** — bundled ScummVM freeware game | Yes | Already tested |
 | lastexpress | The Last Express | **Confirmed working** — full retail is 3 CDs (~3.8GB), way over the size limit with no lighter cut, so used the official English Interactive Demo instead. Initially misdiagnosed as hash-mismatched (full-file MD5 on `Demo.HPF` didn't match); re-checked with the correct 5000-byte-prefix hash (see GOTCHAS.md) and it matched exactly. The demo is a single self-contained `DEMO.HPF` archive — `lastexpress/data/archive.cpp` opens exactly that one filename for demo builds, no companion files needed. Booted straight to the real title/map screen (Fabergé-egg clock, Europe route line, Volume/Brightness/Quit menu) | Yes | archive.org (`LASTEXPR`/`Last_Express_demo`, byte-identical mirrors), already tested |
 | ags | (actively used indie engine — Blackwell, Unavowed, etc.) | **Confirmed working** via 5 Days a Stranger (Chzo Mythos) — a bare freeware `.exe`, no companion files, no subdirectories | Yes | archive.org (`5_Days_a_Stranger`), already tested |
-| toon | Toonstruck | Same | Yes | archive.org Virgin Interactive collections |
+| toon | Toonstruck | **Confirmed working** — full retail is 2 CDs (~1.2GB combined 7z downloads, over the size limit), and the only demo dump found (`toonstruck-subspace-demo`, archive.org) has a `local.pak` that's 1KB off the demo detection entry's size (different revision, doesn't hash-match, not pursued further). Instead used just **CD1** of the English "2-CD Sold Out re-release" (`toonstruck` item, `TOONCD1.7z`) — this budget re-release's detection entry only requires `local.pak`+`generic.svl` (not the four-file `arcaddbl.svl`/`study.svl` set the original release needs), and both files matched the entry's size and 5000-byte hash exactly. CD1 alone (Act 1 + Misc, ~530MB) is under 1GB and self-contained detection-wise. Needed ScummVM's own `toon.dat` companion file (from `scummvm-core/dists/engine-data/`, not present in the game data) added to the zip — without it, get "Unable to locate the 'toon.dat' engine data file". Subdirectory structure (`MISC/`, `ACT1/...`) must be preserved per the engine's `directoryGlobs`; `MISC/LOCAL.PAK` kept as the first zip entry. Booted straight into the real animated title screen (spinning-propeller-hat clown, confirmed live via repeated screenshots) with audio confirmed live via engine state (`started:true`, `muted:false`). Menu-button clicks couldn't be verified in this session — `requestPointerLock()` threw `WrongDocumentError` in the browser-automation tab, leaving the in-game software cursor frozen; this reads as an automation-environment limitation (relative-mouse-without-lock), not a packaging or engine defect — see GOTCHAS.md's "Mouse input and pointer lock" section | Yes | archive.org (`toonstruck` item, CD1 only), 7z+bchunk extracted |
 | startrek | Star Trek: 25th Anniversary | Same | Yes | Deferred — archive.org only has raw floppy disk images (`.7z` of `.img` files) for the DOS release, needing disk-image extraction rather than a plain data zip; skipped for now |
 
 ## Genre-Notable
