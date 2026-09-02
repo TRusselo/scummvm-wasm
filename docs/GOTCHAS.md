@@ -741,6 +741,30 @@ This confirms or rules out "did the zip actually extract" independent of
 whatever ScummVM's own UI shows, separating a packaging/extraction
 problem from a detection-logic problem.
 
+### An exact byte-size match to a detection-table entry doesn't guarantee detection succeeds -- it's necessary, not sufficient
+
+This session established a working assumption -- confirmed repeatedly --
+that a file matching a detection entry's declared *size* exactly, even
+with a mismatched MD5, is usually a legitimately complete dump just
+missing from ScummVM's hash table, and boots fine. `hopkins`'s "Win95
+UK" English variant broke that pattern: `RES_VAN.RES` from a
+MyAbandonware-packaged installer matched the table's declared English
+Windows size (38296346 bytes) exactly, the zip had a proper root-level
+anchor file, and a full IndexedDB/localStorage clear ruled out stale
+cache -- yet ScummVM's launcher still came up with an empty game list on
+every attempt. Root cause not identified in the time available (possibly
+a companion file silently missing or altered by the installer's own
+7z/NSIS repacking, possibly something ScummVM's hash check is stricter
+about for this specific engine). Reverted to a different disc (the
+official Linux port) that detects and plays correctly, accepting its
+known caveat (French voice audio despite an `EN_ANY` table tag) rather
+than sink more time chasing the second file.
+
+Takeaway: treat "exact size match" as a good sign worth trying, not a
+guarantee -- if it still fails, use the `Module.FS.readdir()` walk
+technique from the previous section to confirm the file actually
+extracted where expected before assuming the file itself is bad.
+
 ### Multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
 
 Found live-debugging user reports of specific SCUMM titles failing:

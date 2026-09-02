@@ -4,13 +4,14 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (35 of 102, + agos2 subengine bonus)
+## Confirmed working so far (36 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
-`toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`, `nancy`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`, `nancy`,
+`hopkins`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -153,7 +154,7 @@ friction.
 | drascula | Drascula: The Vampire Strikes Back | **Confirmed working** — needed `drascula.dat` companion file | Yes | Already tested |
 | dreamweb | DreamWeb | **Confirmed working** — legally freeware since 2011 | Yes | Already tested |
 | griffon | The Griffon Legend | **Blocked** — official freeware zip from scummvm.org works fine as packaged (its `data/`/`mapdb/`/`music/`/`sfx/`/`art/` sibling subdirectories must NOT be flattened, unlike most engines — see GOTCHAS.md); needed `fonts.dat` companion file (now fixed), but the compiled WASM core crashes with a `RuntimeError: memory access out of bounds` inside the engine's own code once gameplay starts. Genuine engine bug, not a packaging issue — needs debug-build investigation, deferred by user decision | Yes | scummvm.org freeware games page (`griffon-1.0.zip`) |
-| hopkins | Hopkins FBI | Same | Yes (has English translation) | archive.org French-adventure collections |
+| hopkins | Hopkins FBI | Same | Yes (has English translation) | **Confirmed working** — officially freeware since 2007, ScummVM-provided open-source Linux port (`RES_VAN.RES`, exact size match to the table's declared Linux English entry, MD5 mismatch harmless as usual for this session). Engine's `directoryGlobs` covers all the disc's original subdirectories (`SYSTEM`/`LINK`/`BUFFER`/`ANIM`/`ANM`/`MUSIC`/`SEQ`/`SAVE`/`SOUND`/`SVGA`/`VOICE`/`TSVGA`), so no flattening needed. Booted straight into the publisher intro cinematic and a real in-engine cutscene. **Caveat:** despite this build's `EN_ANY` classification in ScummVM's own detection table (presumably referring to on-screen text/subtitles), the voice audio is actually French — confirmed by ear. A separate "Hopkins FBI Win95 UK" release exists in ScummVM's table with a different exact-size match, sourced from a MyAbandonware-packaged installer, but repackaging it hit a *second* detection failure (empty launcher, even after fixing the root-anchor-file issue and a full IndexedDB/localStorage clear) that wasn't resolved in the time available — reverted to the working Linux disc rather than leave the engine unconfirmed. Worth revisiting with more time if English audio matters | Yes | archive.org (`HopkinsFbi-AdventureGamelinuxVersion`), already tested |
 | hugo | Hugo's House of Horrors | **Confirmed working** — needed `hugo.dat` companion file (straight append, no collision this time) | Yes | archive.org (`msdos_Hugos_House_of_Horrors_1990`), already tested |
 | icb | In Cold Blood | Same | Yes | archive.org, "In Cold Blood PC game" |
 | immortal | The Immortal | Same (small floppy-era game) | Yes | Deferred — this engine only supports the **Apple IIgs** release (single `IMMORTAL.dsk`, 819200 bytes, `kPlatformApple2GS`); every archive.org copy found is either a `.woz` raw-flux dump (needs specialized flux-to-sector conversion tooling) or a `.po` ProDOS-order image whose exact-size-match (819200) still failed real detection (unlike this session's other "size matches, hash doesn't" cases, this one is a genuine wrong/mismatched disk, confirmed by ScummVM's launcher list staying empty) — same disk-image-tooling complexity class as `lab`/`startrek`/`twine`/`macventure`/`mads` |
