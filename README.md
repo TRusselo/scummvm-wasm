@@ -301,13 +301,10 @@ project, you may want to fork `scummvm-core` too and repoint
 
 ## Adding a game
 
-ScummVM's file-based auto-detection expects a game's data files sitting
-directly in one directory (no subfolder). EmulatorJS's generic
-zip-extraction writes every zip entry to the filesystem root by basename,
-regardless of the path recorded inside the zip -- so the safest approach,
-proven across all six target games, is to **zip the contents of the
-game's data folder directly (`cd` into it first), never the folder
-itself**:
+For the six original SCUMM target games, flat packaging is enough:
+**zip the contents of the game's data folder directly (`cd` into it
+first), never the folder itself**, so every file sits at the zip's root
+with no subdirectory:
 
 ```bash
 cd "/path/to/Game Folder"
@@ -325,8 +322,32 @@ mv /tmp/game.zip path/to/scummvm-wasm/test-page/game.scm
 
 (A plain `zip` binary wasn't available in the environment this was
 developed in -- Python's `zipfile` module works identically and is always
-available. Either works; the flat-structure requirement is what matters,
-not the tool.)
+available.)
+
+**The 102-engine sweep surfaced a fuller picture than "always flatten,"
+though.** The real constraint, and three things that follow from it:
+
+- **All files need to sit at one directory level -- flat-at-root or a
+  single wrapper folder both work.** What actually breaks is *multiple
+  sibling subdirectories* in the same zip (e.g. a `DATA/` folder next to
+  a `VIDEO/` folder): this intermittently crashes EmulatorJS's own
+  bundled decompression worker (`Uncaught ErrnoError {errno: 20}`,
+  `ENOTDIR`) before ScummVM's code ever runs. This is a real, confirmed
+  bug in EmulatorJS's own vendored code (likely a race during heap
+  growth mid-extraction), not something this project introduced or has
+  fixed -- collapsing to one directory level is a packaging workaround,
+  not a fix. See [docs/GOTCHAS.md](docs/GOTCHAS.md)'s "Multiple sibling
+  subdirectories" section for the full investigation.
+- **Some engines need their subdirectory structure preserved, not
+  flattened.** `griffon` is the known example -- its own source hardcodes
+  relative paths like `"music/boss.ogg"`, so flattening its zip breaks
+  every one of those lookups. Check an engine's source for hardcoded
+  relative paths before assuming flat is always correct.
+- **A zip that keeps subdirectory structure still needs at least one
+  file at the true root level**, or ScummVM's own auto-detection can
+  silently produce an empty game list (a different failure than the
+  crash above -- no error, just nothing detected). See GOTCHAS.md's
+  "Zips with subdirectories but no file at the true root" section.
 
 Older SCUMM games (Maniac Mansion, Zak McKracken, Loom, Indiana Jones and
 the Last Crusade) use numbered `NN.LFL` files. Newer ones (Indiana Jones
