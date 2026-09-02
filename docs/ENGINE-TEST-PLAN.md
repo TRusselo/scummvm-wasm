@@ -12,7 +12,7 @@ candidate ROM for the actual test. Phase 2 (testing) is now underway.
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
 `toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`, `nancy`,
 `hopkins`, `mediastation`, `mtropolis`, `groovie`, `lastexpress`, `toon`,
-`ultima` (via `ultima8`). Marked **Confirmed working** in their table row below — search this file for that phrase to
+`ultima` (via `ultima8`), `director`, `voyeur`, `asylum`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
