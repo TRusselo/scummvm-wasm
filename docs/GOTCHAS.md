@@ -1483,3 +1483,51 @@ specific to this integration.
   successfully by wrapping `window.requestAnimationFrame` to log frame
   timing, with zero risk to the running instance) or add the export at
   build time and verify it landed before relying on it.
+
+## Subdirectory-structured engines: the anchor file's own directory is scanned, not the zip root
+
+For engines that need their original subdirectory structure preserved
+(`griffon`, `toon`, `ultima8`, etc. -- see "Zips with subdirectories but
+no file at the true root" above for the general rule), there's a second,
+narrower trap specific to *multi-subdirectory* detection entries: the
+anchor file you choose determines which single directory ScummVM's
+autodetect scan actually looks in -- not the zip's top level.
+
+Traced end to end while packaging `ultima8` (Ultima VIII: Pagan): a GOG
+repack's `usecode/eusecode.flx` hash-matched the "Gold Edition" detection
+entry in `engines/ultima/detection_tables.h` exactly, but that entry also
+requires `static/eintro.skf` -- a sibling directory. Packaging with
+`usecode/eusecode.flx` as the anchor (first zip entry) produced an empty
+ScummVM launcher with no error at all, not a "file not found" message.
+The cause is in `backends/platform/libretro/src/libretro-core.cpp`'s
+`retro_load_game()`:
+
+```cpp
+Common::FSNode detect_target = Common::FSNode(game->path);
+Common::FSNode parent_dir = detect_target.getParent();
+...
+test_game_status = LIBRETRO_G_SYSTEM->testGame(parent_dir.getPath().toString().c_str(), true);
+```
+
+`game->path` is EmulatorJS's chosen anchor file (`fileNames[0]`, per the
+zip-entry-order rule documented elsewhere in this file). `testGame()`
+then calls `dir.getChildren(files, ...)` on `parent_dir` -- the anchor
+file's *own* folder, not the archive root. With the anchor nested inside
+`usecode/`, ScummVM's scan never sees anything in `static/`, so the
+two-file entry can never match, silently. (`toon` and `griffon` didn't
+hit this because their required companion files all happened to live in
+the same folder as their anchor.)
+
+Fix: use a genuine root-level file as the anchor (e.g. `u8.exe` sitting
+next to the `usecode/`, `static/`, `sound/` folders) so `parent_dir` is
+the actual top-level directory. Note this only helps if the engine's own
+`_directoryGlobs` (in its `detection.cpp`) lists every subdirectory the
+matching entry touches -- `composeFileHashMap()` in
+`engines/advancedDetector.cpp` only recurses into a subdirectory whose
+name appears in that engine's glob list (`ultima8`'s is `{"usecode", 0}`
+only). A detection entry that spans a subdirectory absent from the
+engine's own glob list (like Ultima VIII's Gold Edition entry needing
+both `usecode/` and `static/`) is undetectable via directory-scan
+autodetect no matter how the zip is packaged -- switch to a different
+dump whose hash matches a single-subdirectory (or single-file) detection
+entry instead of sinking time into repackaging.
