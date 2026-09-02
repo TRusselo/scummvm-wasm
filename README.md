@@ -22,7 +22,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **40 of 102 confirmed working as of this
+plays, not just compiles. **42 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -50,8 +50,8 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**40 of 102 confirmed** (plus the `agos2` subengine). 5 blocked on a
-shared crash, 8 deferred on sourcing/tooling, 11 waiting on a GL-core
+**42 of 102 confirmed** (plus the `agos2` subengine). 5 blocked on a
+shared crash, 9 deferred on sourcing/tooling, 11 waiting on a GL-core
 build that hasn't happened yet, 3 unidentified, the rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
@@ -70,7 +70,7 @@ table is the at-a-glance summary, kept in sync with it.
 | sword2 | ✅ | Broken Sword II — full game, both CDs merged |
 | sci | ✅ | King's Quest V |
 | bladerunner | ⬜ | Only realistic candidate is CD-heavy, no smaller alt |
-| ultima | ⬜ | Via `ultima8` subengine (Ultima VIII) |
+| ultima | ✅ | Ultima VIII: Pagan via `ultima8` (a GOG dump's own detection entry is structurally undetectable — libretro only scans the anchor's own directory, not the zip root; used a single-subdirectory dump instead) |
 | twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
 | mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
 | mediastation | ✅ | Via Beatrix Potter (size-limit swap for Muppet Treasure Island); not kept in the live library by user preference |
@@ -80,7 +80,7 @@ table is the at-a-glance summary, kept in sync with it.
 | adl | ✅ | Mystery House, bundled ScummVM freeware |
 | lastexpress | ✅ | Via official Interactive Demo (full retail is 3 CDs, over size limit) |
 | ags | ✅ | Via 5 Days a Stranger (Chzo Mythos), freeware |
-| toon | ⬜ | |
+| toon | ✅ | Toonstruck CD1 only (2-CD Sold Out budget release; full retail exceeds size limit) |
 | startrek | ⏸️ | Only raw floppy disk images found, needs disk-image tooling |
 
 </details>
@@ -103,7 +103,7 @@ table is the at-a-glance summary, kept in sync with it.
 | cryomni3d | ⬜ | |
 | darkseed | ✅ | Dark Seed |
 | dgds | ✅ | Via Heart of China |
-| director | ⬜ | |
+| director | ⏸️ | The Journeyman Project — detection confirmed (exact hash match, real "Start anyway?" dialog shown), but boot verification blocked by ROMM dev-server instability this session; needs retest |
 | dragons | ⬜ | |
 | drascula | ✅ | Drascula: The Vampire Strikes Back |
 | dreamweb | ✅ | DreamWeb, freeware since 2011 |
