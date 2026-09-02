@@ -687,11 +687,11 @@ nothing at all. Confirmed via direct filesystem inspection
 (`Module.FS.readdir()`, see below) that every file *had* extracted
 correctly -- this is not the extraction-crash bug described next.
 
-Root cause, traced through
-`backends/platform/libretro/src/libretro-core.cpp`'s `retro_load_game()`:
-the frontend (RetroArch/EmulatorJS) hands the core a single file path as
-"the" content reference for a multi-file zip -- for a directory-based
-game, whichever file that turns out to be. The core then calls
+Root cause, traced fully through both sides now:
+
+**ScummVM side** (`backends/platform/libretro/src/libretro-core.cpp`'s
+`retro_load_game()`): the frontend hands the core a single file path as
+"the" content reference for a multi-file zip. The core calls
 `Common::FSNode(game->path).getParent()` and passes *that directory* to
 `testGame()` for autodetection. If the picked file lives inside
 `CLUSTERS/`, the effective scan root becomes `/CLUSTERS`, not the true
@@ -700,47 +700,59 @@ directories (`clusters/scripts.clu` *and* `smackshi/intro.smk`, both
 relative to the same root) can never match, because from `/CLUSTERS`'s
 own perspective, `smackshi/` doesn't exist as a child.
 
+**EmulatorJS side -- the actual selection rule, traced through
+`test-page/ejs/data/src/emulator.js`'s `downloadRom()` (~lines 777-870),
+and this is fully deterministic, not probabilistic:** each extracted zip
+entry gets pushed onto a `fileNames` array in the order the
+decompression worker emits them -- that's the zip's own central
+directory order (whatever order the archive's creator wrote entries in,
+via `zipfile.write()`/`zf.writestr()` calls or equivalent), **not**
+alphabetical, and **not** any "prefer the root" logic. After extraction:
+
+```js
+if (supportedFile !== null) {
+    this.fileName = supportedFile;
+} else {
+    this.fileName = fileNames[0];
+}
+```
+
+`supportedFile` is the first-in-order file whose extension appears in
+`this.extensions` -- but `this.extensions` only gets populated from a
+core's own `core.json` (`this.extensions = core.extensions`), and **this
+project's `package-core.sh` never generates a `core.json`.** So for this
+core, `this.extensions` stays empty for the entire session,
+`supportedFile` stays `null` forever, and selection falls through
+unconditionally to `fileNames[0]` -- **literally whichever file was
+written first into the zip, every time, no exceptions.**
+
+This is also an acknowledged, unfixed upstream EmulatorJS limitation, not
+something specific to this project: [EmulatorJS issue
+#884](https://github.com/EmulatorJS/EmulatorJS/issues/884) ("Download
+functions to retain directory structure," open, no fix) describes the
+identical behavior verbatim: *"there is no way to know which one to send
+to the core... EmulatorJS will just send the first one it finds."*
+
 For every previously-working flat game (no subdirectories at all), this
-never surfaces: whatever single file gets picked as "content" is
-necessarily a sibling of every other file, so its parent *is* the
-correct root by construction. It only becomes visible for
-directory-structured games once every root-level file has been removed.
+never surfaces: whatever file happens to be first is necessarily a
+sibling of every other file, so its parent *is* the correct root by
+construction. It only becomes visible for directory-structured games.
 
-Fix: keep the game's own original root-level files in the zip rather
-than cleaning them all out. Practically, don't over-clean these zips --
-dropping genuinely unneeded subdirectories (e.g. a Windows installer's
-`DIRECTX/`/`INSTALL/` folders) is fine and reduces size/crash-surface,
-but leave loose root-level files alone even if they look like installer
-artifacts.
-
-**This is not a guaranteed fix, and adding an arbitrary dummy file does
-not reliably work -- confirmed by a direct test, not assumed.** An
-earlier version of this note suggested "the specific file doesn't
-matter, it just needs to exist at that level." Tested directly: took a
-confirmed-working directory-structured zip (`sword1`'s full game, which
-has real root-level installer files making it work), stripped every
-original root-level file, and added nothing but a single fabricated
-0-byte `ANCHOR_DUMMY.txt` at the true root. Result: **detection still
-failed** (empty ScummVM launcher, identical symptom to having no root
-file at all). Confirmed via the in-memory filesystem inspection
-technique below that `ANCHOR_DUMMY.txt` genuinely was sitting at `/`
-alongside the subdirectories -- and separately confirmed ScummVM had
-written its own `scummvm.ini` *inside* `/SMACKSHI/`, proving the
-frontend's content-reference file-selection picked a file inside that
-subdirectory instead of the root-level dummy, even though the dummy
-existed. So the frontend's selection isn't "prefer a root-level file if
-one exists" -- it picked a subdirectory file anyway, dummy or not. Every
-previously-documented case where "keep a root file" fixed detection used
-a real, original file that happened to already be there (an installer
-leftover) -- it's not established that the file being *original* rather
-than fabricated is what mattered, only that fabricating one is
-confirmed **not sufficient** on its own. What actually determines which
-file the frontend picks as its content reference is still unknown --
-treat "keep original root files, don't add a synthetic one and expect it
-to work" as the current safe practice until that selection logic is
-actually traced (e.g. reading through EmulatorJS's own zip-handling
-code, or RetroArch's content-loading path, for whatever rule orders or
-picks among a multi-file archive's entries).
+**The fix, now deterministic instead of "keep some root file and hope":
+write the intended anchor file as the literal first entry added to the
+zip, before any subdirectory files, regardless of its name or
+extension.** An earlier version of this note suggested any root-level
+file would do, and separately that a fabricated dummy file didn't
+reliably work -- both observations are now fully explained: a "kept"
+original root file only helped when it happened to already be earlier in
+the source archive's own internal ordering than the subdirectory files;
+a fabricated dummy appended at zip-build time (after the subdirectories
+had already been written) simply wasn't first in the resulting zip's
+entry order, so it was never picked. **Entry order is the entire
+mechanism.** When packaging, add root-level files to the zip archive
+*first*, then subdirectories -- with Python's `zipfile`, that just means
+calling `zf.write()`/`zf.writestr()` for the intended anchor file before
+looping over the subdirectory contents.
 
 **Diagnostic technique used to rule out the extraction-crash bug**: from
 the browser console, inspect the emulator's actual in-memory filesystem

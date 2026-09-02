@@ -354,16 +354,23 @@ The packaging rule, in order of how often you'll need each part:
    engine's source for hardcoded relative paths before assuming flat is
    always correct.
 
-4. **If you do keep subdirectory structure, keep the game's own original
-   root-level files too** (don't strip them out as "installer clutter")
-   -- a zip with nothing at the true root silently produces an empty
-   ScummVM game list, no crash, no error, just nothing detected. This is
-   necessary but **not sufficient on its own**: a fabricated placeholder
-   file at the root has been directly tested and does *not* reliably fix
-   detection (the frontend can still pick a subdirectory file as its
-   scan-root reference regardless). See GOTCHAS.md's "Zips with
-   subdirectories but no file at the true root" section for the full
-   finding.
+4. **If you keep subdirectory structure, add the intended root-level
+   anchor file to the zip *first* -- before any subdirectory entries.**
+   A zip with nothing at the true root silently produces an empty
+   ScummVM game list (no crash, no error, just nothing detected), and
+   EmulatorJS's own file-selection for a multi-file zip is fully
+   deterministic: it always picks whichever file was written **first**
+   into the zip's own entry order, full stop -- confirmed by tracing
+   EmulatorJS's source directly (`downloadRom()` in `emulator.js`) and
+   independently corroborated by [EmulatorJS issue
+   #884](https://github.com/EmulatorJS/EmulatorJS/issues/884), an
+   acknowledged, unfixed upstream limitation ("EmulatorJS will just send
+   the first one it finds"). So it's not enough to *have* a root file
+   somewhere in the zip -- it must be the first entry added. With
+   Python's `zipfile`, that just means calling
+   `zf.write()`/`zf.writestr()` for the anchor file before looping over
+   the subdirectory contents. See GOTCHAS.md's "Zips with subdirectories
+   but no file at the true root" section for the full trace.
 
 5. **Multi-disc games: merge all discs into one zip, not one zip per
    disc.** When both discs ship a file with the *same name* but
