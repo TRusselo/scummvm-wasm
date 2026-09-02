@@ -4,7 +4,7 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (45 of 102, + agos2 subengine bonus)
+## Confirmed working so far (46 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
@@ -12,7 +12,7 @@ candidate ROM for the actual test. Phase 2 (testing) is now underway.
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
 `toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`, `nancy`,
 `hopkins`, `mediastation`, `mtropolis`, `groovie`, `lastexpress`, `toon`,
-`ultima` (via `ultima8`), `director`, `voyeur`, `asylum`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`ultima` (via `ultima8`), `director`, `voyeur`, `asylum`, `buried`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -168,7 +168,7 @@ friction.
 | neverhood | The Neverhood | **Blocked** — same shared `fonts.dat` engine bug as `griffon`/`glk`/`dm`/`tony` (fifth confirmation of the identical `RuntimeError: memory access out of bounds` crash signature, see GOTCHAS.md). Packaging itself succeeded: `hd.blb`/`a.blb`/`c.blb`/`i.blb`/`m.blb`/`s.blb`/`t.blb` flat at root from a converted raw `.bin`/`.cue` CD image (Mode 1), plus ScummVM's own `neverhood.dat` companion file; `hd.blb` matched the English detection entry's declared size exactly but not its MD5 (worked anyway). Detection and companion-file loading succeeded fine — crash only hits once `fonts.dat` is added, same as the other four. Moved to `non-running/` | Yes | archive.org (`TheNeverhoodUSA`), raw `.bin`/`.cue` converted to ISO9660 by hand, ~638 MiB |
 | parallaction | The Big Red Adventure | **Confirmed working** (via Nippon Safes Inc., official freeware, English language-select confirmed) | Yes | Already tested |
 | pegasus | The Journeyman Project: Pegasus Prime | Same (only Pegasus-engine title) | Yes | archive.org CD release |
-| buried | The Journeyman Project 2: Buried in Time | Same | Yes | archive.org Presto Studios collections |
+| buried | The Journeyman Project 2: Buried in Time | **Confirmed working** — used the official US Gold (UK) English Windows demo instead of full retail (a 3-CD set), since `buried`'s detection table has dedicated demo entries needing only `BIT816.EXE` (8BPP) or `BIT2416.EXE` (24BPP) alone — no companion DLL required, unlike the full retail's `AD_ENTRY2s` entries. Sourced the demo installer from archive.org (`BuriedInTimeDemo`, a self-extracting `.exe`), extracted with `7z` to reveal `Data/bitdata/` containing `BIT816.EXE`+`BIT2416.EXE` alongside `CASTLE`/`COMMON`/`MISC` asset subdirectories (~124MB total, well under the size limit). Both EXEs' 5000-byte-prefix MD5s matched the "US Gold (UK)" demo entries exactly. Packaged the whole `bitdata` folder flat with `BIT816.EXE` as the first zip entry (anchor); no `directoryGlobs` subdirectory requirement applies since detection only needs the root-level EXE, and the asset subdirectories are read directly by the exe at runtime, not via ScummVM's own directory scan. Initially missed ScummVM's own `fonts.dat` companion file (not part of the game's own data, needed separately like `toon.dat`/`ultima8.dat`) — without it, the interactive main menu displayed fine, but clicking "Interactive Demo" crashed with `error("Failed to load Arial font")` (`engines/buried/graphics.cpp:128`, `GraphicsManager::createArialFont()` falling through to `loadTTFFontFromArchive("LiberationSans-Regular.ttf", ...)` which needs `fonts.dat` to resolve). Adding `fonts.dat` from `scummvm-core/dists/engine-data/` fixed it — booted through the real Presto Studios intro, into the interactive main menu, and confirmed the actual "Interactive Demo" gameplay screen (rendered 3D barn/farm scene, working Biochip Display/Navigation UI, inventory items). Engine state confirmed live (`started:true`, `muted:false`), no Arial/exit errors after the fix | Yes | archive.org (`BuriedInTimeDemo`), self-extracting `.exe` extracted with `7z` |
 | plumbers | Plumbers Don't Wear Ties | Same (already tiny, mostly static slides) | Yes | archive.org FMV/CD-ROM collections |
 | private | Private Eye | Same (compact, short FMV mystery) | Yes | archive.org CD-ROM FMV collections |
 | saga | I Have No Mouth, and I Must Scream | **Confirmed working** — tested the flagship title directly rather than the lighter alternative, ~461 MiB after excluding a redundant CD-bonus subfolder. Shows a non-fatal "missing SAMPLE.AD/SAMPLE.OPL" AdLib warning (cosmetic — different synth used, not a functional issue); the OK dialog needed a canvas-focus click first (see GOTCHAS.md) | Yes | archive.org (`msdos_I_Have_No_Mouth_and_I_Must_Scream_1995`), already tested |

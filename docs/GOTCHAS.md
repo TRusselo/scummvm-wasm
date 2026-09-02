@@ -1116,6 +1116,22 @@ consumes `fonts.dat`. Deferred by user decision; engines that hit it get
 marked **blocked** (not "deferred" or "needs different packaging") in
 `docs/ENGINE-TEST-PLAN.md`.
 
+**Update -- needing `fonts.dat` does NOT guarantee this crash:** `buried`
+(The Journeyman Project 2) also needs `fonts.dat`
+(`GraphicsManager::createArialFont()` in `engines/buried/graphics.cpp`
+falls through to `Graphics::loadTTFFontFromArchive("LiberationSans-Regular.ttf",
+...)` when the game's own `arial.ttf`/`arialbd.ttf` aren't present) but
+does **not** hit the WASM crash -- it throws a clean, catchable
+`error("Failed to load Arial font")` (dropping into ScummVM's own
+in-browser debug console) when `fonts.dat` is missing, and once supplied,
+renders text and boots into real gameplay with no crash at all. So the
+"high-risk" warning above should be read as "if the game's screen goes
+blank/hangs after the ScummVM splash," not "any engine that touches
+`fonts.dat` is doomed" -- `buried` is proof the same companion file can be
+consumed safely by a different code path (direct TTF font rendering via
+`graphics/fonts/ttf.cpp`) without tripping the underlying bug that
+`griffon`/`glk`/`dm`/`tony`/`neverhood` hit.
+
 ## `USE_HIGHRES`: a global compile-time engine gate, not just a canvas-size cosmetic flag
 
 `USE_HIGHRES` (`backends/platform/libretro/Makefile.common`) is a
