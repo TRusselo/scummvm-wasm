@@ -1,12 +1,14 @@
 # scummvm-wasm
 
-A WebAssembly build of [ScummVM](https://www.scummvm.org/)'s SCUMM engine,
-packaged as an [EmulatorJS](https://emulatorjs.org/) libretro core, so
-LucasArts SCUMM adventure games can be played directly in a browser.
+A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
+non-OpenGL engines it supports, not just SCUMM — packaged as an
+[EmulatorJS](https://emulatorjs.org/) libretro core, so ScummVM-supported
+adventure games can be played directly in a browser.
 
-**Status: work in progress, but functional.** All six original target
-games boot and play (video, audio, mouse, and gamepad input all
-confirmed working):
+**Status: work in progress, but functional.** The project started as a
+SCUMM-only build; that scope is now the most thoroughly validated part of
+it. All six original target games boot and play (video, audio, mouse, and
+gamepad input all confirmed working):
 
 - Maniac Mansion
 - Zak McKracken and the Alien Mindbenders (EGA and FM TOWNS VGA)
@@ -15,6 +17,15 @@ confirmed working):
 - Indiana Jones and the Fate of Atlantis (including the CD/talkie version,
   with full voice acting)
 - Day of the Tentacle (including the CD/talkie version)
+
+Since then the build itself was widened to include every other ScummVM
+engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
+more — see `build/engine-lists/all-engines.list`), and a systematic sweep
+is underway to source a real game and confirm each one actually boots and
+plays, not just compiles. **34 of 102 confirmed working as of this
+writing** — see the full status table below, or
+[docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
+per-engine sourcing notes and packaging quirks behind each result.
 
 This is not an official ScummVM or EmulatorJS project. It's a from-scratch
 wiring-together of two existing, independently-working projects
@@ -27,6 +38,179 @@ Most of the value here isn't the code -- it's the accumulated knowledge of
 [docs/GOTCHAS.md](docs/GOTCHAS.md) if you're extending this project;
 almost everything non-obvious in the build scripts is explained there,
 not just asserted.
+
+## Engine Status
+
+Legend: ✅ confirmed working (a real game boots and plays) · 🚫 blocked
+(packaged correctly, blocked by an engine/core bug) · ⏸️ deferred
+(sourcing/tooling blocker, not yet worked around) · 🔒 blocked on a
+separate OpenGL core build that doesn't exist yet · ❓ engine not
+confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
+purpose
+
+**34 of 102 confirmed** (plus the `agos2` subengine). 4 blocked on a
+shared crash, 6 deferred on sourcing/tooling, 11 waiting on a GL-core
+build that hasn't happened yet, 3 unidentified, the rest untested. Full
+narrative detail (what game, what source, what broke, how it was fixed)
+lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
+table is the at-a-glance summary, kept in sync with it.
+
+<details>
+<summary><strong>Widely Known</strong> (20 engines)</summary>
+
+| Engine | Status | Notes |
+|---|---|---|
+| agi | ✅ | King's Quest I; also Leisure Suit Larry 1-3, Space Quest I-III |
+| glk | 🚫 | `fonts.dat`-related WASM crash, shared with `griffon`/`dm`/`tony` |
+| awe | ✅ | Another World |
+| dm | 🚫 | Same shared `fonts.dat` WASM crash |
+| sword1 | ✅ | Broken Sword — full game, both CDs merged |
+| sword2 | ✅ | Broken Sword II — full game, both CDs merged |
+| sci | ✅ | King's Quest V |
+| bladerunner | ⬜ | Only realistic candidate is CD-heavy, no smaller alt |
+| ultima | ⬜ | Via `ultima8` subengine (Ultima VIII) |
+| twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
+| mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
+| mediastation | ⬜ | |
+| nancy | ⬜ | |
+| groovie | ⬜ | |
+| sky | ✅ | Beneath a Steel Sky, official freeware |
+| adl | ✅ | Mystery House, bundled ScummVM freeware |
+| lastexpress | ⬜ | |
+| ags | ✅ | Via 5 Days a Stranger (Chzo Mythos), freeware |
+| toon | ⬜ | |
+| startrek | ⏸️ | Only raw floppy disk images found, needs disk-image tooling |
+
+</details>
+
+<details>
+<summary><strong>Genre-Notable</strong> (43 engines)</summary>
+
+| Engine | Status | Notes |
+|---|---|---|
+| kyra | ✅ | Legend of Kyrandia: Book One |
+| mm | ⬜ | Parent engine, no standalone game of its own (see `xeen`) |
+| tsage | ⬜ | Parent engine, no standalone game of its own (see `ringworld2`) |
+| sherlock | ✅ | The Case of the Serrated Scalpel |
+| queen | ✅ | Flight of the Amazon Queen, official freeware |
+| lure | ✅ | Lure of the Temptress, freed by Revolution Software |
+| gob | ✅ | Gobliiins, with music |
+| cine | ✅ | Future Wars |
+| cruise | ✅ | Cruise for a Corpse |
+| cryo | ⬜ | |
+| cryomni3d | ⬜ | |
+| darkseed | ✅ | Dark Seed |
+| dgds | ✅ | Via Heart of China |
+| director | ⬜ | |
+| dragons | ⬜ | |
+| drascula | ✅ | Drascula: The Vampire Strikes Back |
+| dreamweb | ✅ | DreamWeb, freeware since 2011 |
+| griffon | 🚫 | Same shared `fonts.dat` WASM crash |
+| hopkins | ⬜ | |
+| hugo | ✅ | Hugo's House of Horrors |
+| icb | ⬜ | |
+| immortal | ⏸️ | Apple IIgs-only engine, no clean disk dump found |
+| lab | ⏸️ | No usable DOS/Windows package found |
+| macventure | ⏸️ | Mac/Apple IIgs-only engine, needs HFS disk-image tooling |
+| made | ✅ | Via Rodney's Funscreen |
+| mads | ⏸️ | Only raw floppy disk images found |
+| mtropolis | ⬜ | |
+| neverhood | ⬜ | |
+| parallaction | ✅ | The Big Red Adventure, official freeware |
+| pegasus | ⬜ | |
+| buried | ⬜ | |
+| plumbers | ⬜ | |
+| private | ⬜ | |
+| saga | ✅ | I Have No Mouth, and I Must Scream |
+| sludge | ⚠️ | Worked (The Interview) but excluded — unsigned `.exe`, engine marked unstable/WIP by ScummVM itself |
+| titanic | ⬜ | |
+| tony | 🚫 | Same shared `fonts.dat` WASM crash |
+| touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
+| voyeur | ⬜ | |
+| zvision | ⬜ | |
+| asylum | ⬜ | |
+| sword25 | ✅ | Broken Sword 2.5, official freeware fan game |
+| agos | ✅ | Simon the Sorcerer (base + `agos2` subengine via Simon 2) |
+
+</details>
+
+<details>
+<summary><strong>Niche/Obscure</strong> (36 engines)</summary>
+
+| Engine | Status | Notes |
+|---|---|---|
+| access | ⬜ | |
+| agds | ⬜ | |
+| alg | ⬜ | |
+| avalanche | ⬜ | |
+| bagel | ⬜ | |
+| bbvs | ⬜ | |
+| cge | ✅ | Soltys, bundled ScummVM freeware |
+| cge2 | ✅ | Sfinx, official English release |
+| chamber | ⬜ | |
+| chewy | ⬜ | No official English release |
+| composer | ⬜ | |
+| draci | ⬜ | Community English translation exists |
+| efh | ⬜ | |
+| gnap | ⬜ | Low confidence on title identification |
+| hadesch | ⬜ | Low confidence on title identification |
+| hdb | ⬜ | |
+| hypno | ⬜ | Low confidence on title identification |
+| illusions | ⬜ | |
+| kingdom | ⬜ | |
+| lilliput | ⬜ | |
+| m4 | ⬜ | |
+| mortevielle | ⬜ | French-origin, English availability unclear |
+| mutationofjb | ⬜ | Commercial Slovak/German-only release, no legitimate free English source |
+| ngi | ⬜ | Russian-primary |
+| petka | ⬜ | Russian-only |
+| pink | ⬜ | English availability unclear |
+| prince | ⬜ | Polish-only, fan patch unverified |
+| qdengine | ⬜ | Russian-origin |
+| saga2 | ⬜ | |
+| supernova | ⬜ | German-origin, translation unverified |
+| teenagent | ✅ | TeenAgent, official freeware |
+| toltecs | ✅ | 3 Skulls of the Toltecs |
+| got | ✅ | God of Thunder, official freeware |
+| trecision | ⬜ | |
+| tucker | ✅ | Bud Tucker in Double Trouble |
+| wage | ✅ | Via "Magic Rings" (WAGE Collection freeware bundle) |
+
+</details>
+
+<details>
+<summary><strong>Unclear / Unidentified</strong> (3 engines)</summary>
+
+| Engine | Status | Notes |
+|---|---|---|
+| crab | ❓ | Could not confidently identify |
+| tot | ❓ | Could not confidently identify ("ToT") |
+| vcruise | ❓ | Could not confidently identify |
+
+</details>
+
+<details>
+<summary><strong>Deferred — needs the separate GL-core build</strong> (11 engines)</summary>
+
+These need `build/engine-lists/gl-core.list`'s dedicated OpenGL-enabled
+core (`FORCE_OPENGLES2=1`), which hasn't been built yet — none are
+testable until it exists.
+
+| Engine | Most Popular Game |
+|---|---|
+| grim | Grim Fandango |
+| myst3 | Myst III: Exile |
+| stark | The Longest Journey |
+| twp | Thimbleweed Park |
+| tinsel | Discworld |
+| freescape | Driller |
+| tetraedge | Syberia (franchise) |
+| hpl1 | Penumbra: Overture |
+| alcachofa | Yesterday |
+| watchmaker | The Watchmaker |
+| wintermute | Helga Deep In Trouble (freeware, ready to test once the core exists) |
+
+</details>
 
 ## Quickstart
 

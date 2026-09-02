@@ -1,9 +1,23 @@
 # Adding Another ScummVM Engine
 
-This project currently ships only ScummVM's SCUMM engine (LucasArts
-adventure games). ScummVM itself supports roughly 25 other engines
-(AGI, SCI, Wintermute, Grim, TeenAgent, and many more). This doc is a
-head start for extending this project to one of them -- what's actually
+This project started out shipping only ScummVM's SCUMM engine
+(LucasArts adventure games), but the build has since been widened to
+include every other ScummVM engine that doesn't require OpenGL --
+`build/engine-lists/all-engines.list` currently lists 103 (SCUMM plus
+102 more), and a systematic testing sweep confirming each one with a
+real game is underway (see [ENGINE-TEST-PLAN.md](ENGINE-TEST-PLAN.md)
+and the README's status table for current results). So for any engine
+already in `all-engines.list`, the build-side work described below is
+already done -- what's actually still per-engine work is packaging a
+real game for it and confirming it boots, which is what the testing
+sweep is doing.
+
+This doc is still useful for two other cases: building a *smaller*
+core scoped to one or a few engines instead of the full 103-engine
+build (e.g. for a lighter release, or isolating an engine for
+debugging), or adding an engine that needs the separate OpenGL-enabled
+core (`build/engine-lists/gl-core.list`, 11 engines, not built by
+default -- see the README). Either way, this covers what's actually
 SCUMM-specific in this repo (very little) vs. generic (almost
 everything), and what to expect to hit.
 
@@ -15,11 +29,12 @@ is SCUMM-specific.
 
 ## What's actually SCUMM-specific in this repo
 
-Surprisingly little. The entire engine-scoping mechanism is one line, in
-`build/build-core.sh`:
+Surprisingly little. The entire engine-scoping mechanism is one file,
+copied into place by `build/build-core.sh`:
 
 ```bash
-echo "scumm" > scummvm-core/backends/platform/libretro/lite_engines.list
+ENGINES_LIST_FILE="${ENGINES_LIST_FILE:-build/engine-lists/all-engines.list}"
+cp "$ENGINES_LIST_FILE" scummvm-core/backends/platform/libretro/lite_engines.list
 ```
 
 `lite_engines.list` is ScummVM's libretro-port mechanism for building a
@@ -27,22 +42,24 @@ subset of engines instead of everything (see
 `scummvm-core/backends/platform/libretro/Makefile`'s `LITE=1` handling).
 One engine name per line, using ScummVM's own internal engine ID (the
 same IDs used in `scummvm-core/engines/*/`, e.g. `scumm`, `sci`, `agi`,
-`wintermute`). To build SCUMM alongside another engine, both in one core,
-just list both:
+`wintermute`). The default, `all-engines.list`, already lists 103 engines
+-- so unless you're deliberately scoping down, there's nothing to add
+here for an engine that's already in it.
+
+To build a *smaller* core instead (recommended if you want independent
+testing/release cycles for one engine, since the full 103-engine `.bc` is
+one large monolithic build), point `ENGINES_LIST_FILE` at a different
+file with just the engine(s) you want, one per line, e.g.:
 
 ```
 scumm
 sci
 ```
 
-To build a *separate* core for a different engine instead (recommended if
-you want independent testing/release cycles, since a multi-engine `.bc`
-is one large monolithic build), branch the whole pipeline: copy
-`build-core.sh` to something like `build-core-sci.sh`, change the engine
-list line, and give the output a different name so it doesn't clobber
-`scummvm_libretro_emscripten.bc`. `build-retroarch-core.sh` and
-`package-core.sh` would need matching copies (or parameterization) so the
-two cores' output filenages don't collide in `retroarch/` and
+and either export `ENGINES_LIST_FILE` before running `build-core.sh`, or
+copy the whole pipeline (`build-core.sh` plus matching copies of
+`build-retroarch-core.sh` and `package-core.sh`) so the smaller core's
+output filenames don't collide with the full build's in `retroarch/` and
 `test-page/ejs/data/cores/`.
 
 Nothing else in `build/`, `retroarch/`, or `test-page/` (besides the game
@@ -115,6 +132,14 @@ ships:
 2. Point `EJS_gameUrl` at it in `test-page/index.html`.
 3. Serve via `test-page/serve-coop-coep.py`, load the page, click into
    the canvas once (audio-autoplay + pointer-lock gate).
+
+(The 34-engine testing sweep tracked in
+[ENGINE-TEST-PLAN.md](ENGINE-TEST-PLAN.md) instead deploys each
+candidate ROM to a hosted ROMM/EmulatorJS instance and uses its Play
+button -- functionally the same verification, just against a real
+multi-platform frontend instead of this repo's local single-game test
+harness. Either approach works; the local harness above is the
+lower-setup option if you're just testing one new engine in isolation.)
 4. **Read the browser console directly and unfiltered** rather than
    guessing from symptoms alone (see GOTCHAS.md's debugging-technique
    notes) -- both for a clean boot confirmation and, if something's
