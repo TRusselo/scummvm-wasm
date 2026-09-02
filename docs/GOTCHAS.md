@@ -887,11 +887,16 @@ is basically done.
 
 ## Suspected shared bug: rendering text via `fonts.dat` crashes the WASM core (`RuntimeError: memory access out of bounds`)
 
-Two unrelated engines -- `griffon` (a real-time action RPG) and `glk`
-(text-adventure interpreter, tested via Zork I) -- both crash with the
+Four unrelated engines -- `griffon` (a real-time action RPG), `glk`
+(text-adventure interpreter, tested via Zork I), `dm` (Dungeon Master),
+and `tony` (Tony Tough, a point-and-click adventure) -- all crash with the
 byte-for-byte **identical** stack trace, once each had its missing
 `fonts.dat` companion file supplied (see the companion-file-collision
-entry above for why that file is needed at all):
+entry above for why that file is needed at all). `tony` is notable
+because its own source has no static reference to `"fonts.dat"` at all --
+it hit the crash purely through the generic engine-data loader, confirming
+the "any engine could hit it at runtime even without a source grep match"
+warning below wasn't just theoretical:
 
 ```
 RuntimeError: memory access out of bounds

@@ -4,22 +4,22 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (33 of 102, + agos2 subengine bonus)
+## Confirmed working so far (34 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
-`toltecs`, `tucker`, `mohawk`, `made`, `dgds`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
 removed and skipped per user caution (unsigned/unverified `.exe`, low
 value anyway since ScummVM itself marks SLUDGE unstable/WIP).
 
-`griffon`, `glk`, and `dm` **blocked** on the same shared bug, not a
-packaging problem: all three needed their `fonts.dat` companion file
-(found and fixed), but all three then crash with the **identical**
+`griffon`, `glk`, `dm`, and now `tony` **blocked** on the same shared bug,
+not a packaging problem: all four needed their `fonts.dat` companion file
+(found and fixed), but all four then crash with the **identical**
 `RuntimeError: memory access out of bounds` stack trace once that file
 is supplied (same wasm function indices and byte offsets — see
 GOTCHAS.md's "Suspected shared bug" section). This looks like a bug in
@@ -146,7 +146,7 @@ friction.
 | cruise | Cruise for a Corpse | **Confirmed working** — flat single-wrapper-folder zip, no companion files needed | Yes | archive.org (`msdos_Cruise_for_a_Corpse_1991`), already tested |
 | cryo | Dracula: The Resurrection | Same | Yes | archive.org Cryo Interactive collections |
 | cryomni3d | Atlantis: The Second Age | Versailles 1685 (smaller scope) | Yes | archive.org Cryo back-catalog |
-| darkseed | Dark Seed | Same | Yes | archive.org Cyberdreams collections |
+| darkseed | Dark Seed | **Confirmed working** — the archive.org floppy-disk dump (`000834-Darkseed`) was a genuine installer-seed case needing raw-floppy tooling; instead sourced an already-installed CD release whose root also contained clutter (a nested `cd/DARKSEED/` install-disc-plus-clutter layout), extracted just the `cd/DARKSEED/` subtree (~28 MiB, includes ART/PICTURE/ROOM/SOUND/SPEECH). `TOS.EXE` matched the CD English entry's exact size (168480 bytes) but not its MD5 — detected and ran anyway | Yes | archive.org (`msdos_Dark_Seed_1992`), already tested |
 | dgds | Rise of the Dragon | **Confirmed working** — tested Heart of China instead, per this row's own recommendation. The raw floppy-disk archive.org dump (`heart-of-china-1991`, `.IMG`/`.IMA` FAT12 images) is a genuine **installer-seed** case (third time this batch's family of gotchas showed up, though not yet documented as its own GOTCHAS.md entry): the floppies only contain `VOLUME.000`-`006` chunks plus `INSTALL.COM`, not the installed `VOLUME.RMF` the engine's detection requires. Found an already-installed copy instead (`msdos_Heart_of_China_1991`, archive.org's standard pre-installed MS-DOS-collection format) with `VOLUME.RMF` + `VOLUME.001`-`007` sitting flat, ~8.3 MiB total. `VOLUME.RMF`'s size matched a known detection-table entry exactly but its MD5 didn't (same harmless pattern as `mohawk`/`made` this batch) — booted through the Dynamix splash and end credits straight into a real playable scene with an interactive dialogue menu | Yes | archive.org (`msdos_Heart_of_China_1991`), already-installed copy (avoided a separate raw-floppy dump that only contained the DOS installer, not the installed game) |
 | director | (varies — CD-ROM Director-based titles) | Small Director-based demo/shareware title | Likely yes | archive.org "Macromedia Director games" |
 | dragons | Blazing Dragons | Same | Yes | archive.org PS1/DOS collections |
@@ -156,7 +156,7 @@ friction.
 | hopkins | Hopkins FBI | Same | Yes (has English translation) | archive.org French-adventure collections |
 | hugo | Hugo's House of Horrors | **Confirmed working** — needed `hugo.dat` companion file (straight append, no collision this time) | Yes | archive.org (`msdos_Hugos_House_of_Horrors_1990`), already tested |
 | icb | In Cold Blood | Same | Yes | archive.org, "In Cold Blood PC game" |
-| immortal | The Immortal | Same (small floppy-era game) | Yes | archive.org EA classics |
+| immortal | The Immortal | Same (small floppy-era game) | Yes | Deferred — this engine only supports the **Apple IIgs** release (single `IMMORTAL.dsk`, 819200 bytes, `kPlatformApple2GS`); every archive.org copy found is either a `.woz` raw-flux dump (needs specialized flux-to-sector conversion tooling) or a `.po` ProDOS-order image whose exact-size-match (819200) still failed real detection (unlike this session's other "size matches, hash doesn't" cases, this one is a genuine wrong/mismatched disk, confirmed by ScummVM's launcher list staying empty) — same disk-image-tooling complexity class as `lab`/`startrek`/`twine`/`macventure`/`mads` |
 | lab | Labyrinth: The Computer Game | Same | Yes | Deferred — couldn't find a clean DOS/Windows package on archive.org (only Apple II/C64 floppy images turned up, platforms `lab` doesn't support); worth another search pass later |
 | macventure | Shadowgate | Same | Yes | Deferred — correction: ScummVM's `macventure` engine only supports the **Macintosh** and **Apple IIgs** releases (`detection.cpp`'s `MACGAME`/`IIGSGAME` macros hard-code `kPlatformMacintosh`/`kPlatformApple2GS`), not the MS-DOS version; a packaged DOS copy failed to detect for exactly this reason. Sourcing a Mac release means extracting from a `.moof`/HFS floppy disk image — same disk-image-tooling complexity class as `startrek`/`twine`, deferred alongside them |
 | made | Return to Zork | **Confirmed working** — tested the lighter Rodney's Funscreen instead, per this row's own recommendation. Tiny (~2.3 MiB), flat file layout, no subdirectories. `RODNEYS.DAT` size matched the detection table's entry (92990 bytes) but its MD5 didn't (yet another size-match/hash-mismatch case, harmless — same as `mohawk`/Myst this batch) — detected and ran straight into the interactive main menu (kids' edutainment minigame hub) | Yes | archive.org (`msdos_Rodneys_Funscreen_1992`), already tested |
@@ -171,7 +171,7 @@ friction.
 | saga | I Have No Mouth, and I Must Scream | **Confirmed working** — tested the flagship title directly rather than the lighter alternative, ~461 MiB after excluding a redundant CD-bonus subfolder. Shows a non-fatal "missing SAMPLE.AD/SAMPLE.OPL" AdLib warning (cosmetic — different synth used, not a functional issue); the OK dialog needed a canvas-focus click first (see GOTCHAS.md) | Yes | archive.org (`msdos_I_Have_No_Mouth_and_I_Must_Scream_1995`), already tested |
 | sludge | Out of Order | **Tested and worked** (via The Interview, official freeware) but removed and skipped per user caution — unsigned/unverified `.exe`, low priority anyway (ScummVM marks SLUDGE unstable/WIP) | Yes | Skipped, not kept |
 | titanic | Starship Titanic | Same | Yes | archive.org, multi-CD, larger download |
-| tony | Tony Tough and the Night of the Roasted Moths | Same | Yes | archive.org DOS/Win collections |
+| tony | Tony Tough and the Night of the Roasted Moths | **Blocked** — same shared `fonts.dat` engine bug as `griffon`/`glk`/`dm` (fourth confirmation of the identical crash signature, see GOTCHAS.md). Packaging itself succeeded: sourced a raw `.bin`/`.cue` CD image, converted via `bchunk`, needed a root-level anchor file kept alongside the `Roasted`/`Voices` directoryGlobs subfolders (all files matched the English detection entry's exact sizes but not its MD5s) plus `tony.dat`; detection then succeeded but the WASM crash hits once `fonts.dat` is added. Moved to `non-running/` | Yes | archive.org (`tony-tough-and-the-night-of-roasted-moths-usa`), already tested |
 | touche | Touché: The Adventures of the Fifth Musketeer | **Confirmed working** — real game data was in a bundled CD-variant subfolder (already-extracted plain files, not a raw disc image this time), ~385 MiB total | Yes | archive.org (`msdos_Touche_-_The_Adventures_of_the_Fifth_Musketeer_1995`), already tested |
 | voyeur | Voyeur | Same (note: mature content) | Yes | archive.org CD-i/DOS FMV collections |
 | zvision | Zork: Grand Inquisitor | Zork Nemesis (only other title on this engine, similar size) | Yes | archive.org Activision/Zork collections |
