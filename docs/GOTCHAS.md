@@ -866,6 +866,36 @@ copy found is a real, complete game, just not one of the specific
 releases ScummVM's `icb` engine has hash signatures for. Fixing it means
 finding a different dump, not repackaging this one further.
 
+### Some engines do their own additional file lookup after detection succeeds -- `mtropolis` needs a `.exe` present even though it isn't part of the hash check
+
+`mtropolis` (Muppet Treasure Island, game ID `mti`) passed initial
+`AdvancedDetector` hash-based detection fine with just `MTI1.MPL` +
+`MTI2.MPX` present (the two files the detection table actually checks) --
+but then threw `ERROR: No executable files were found!` from inside its
+own debugger console at boot. Traced to
+`engines/mtropolis/boot.cpp`'s `findWindowsPlayer()`:
+
+```cpp
+fs.listMatchingMembers(executableFiles, "*.exe", true);
+if (executableFiles.size() == 0)
+    error("No executable files were found");
+```
+
+This runs *after* detection, during the engine's own boot sequence, to
+find a `.exe` containing a `"mTropolis Windows Player"` signature string
+-- used to determine which player/boot configuration (`MTBOOT_*`) to
+use. It's a completely separate check from the detection table's file
+list, so a zip built to satisfy detection alone isn't necessarily enough
+to actually boot. Fix: include the actual player executable
+(`MTPLAY32.EXE` for Windows -- 840192 bytes here, matching the size
+noted in a commented-out detection-table reference even though that
+file isn't part of the active hash check) alongside the detection files.
+Takeaway that generalizes beyond this one engine: passing detection is
+necessary but not always sufficient -- some engines validate additional
+files at boot time that never show up in `detection_tables.h` at all, so
+a "No X found" error after a clean detection is worth grepping the
+engine's own source for, not just re-checking the detection table.
+
 ### Multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
 
 Found live-debugging user reports of specific SCUMM titles failing:

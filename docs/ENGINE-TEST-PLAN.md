@@ -4,14 +4,14 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (37 of 102, + agos2 subengine bonus)
+## Confirmed working so far (38 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
 `toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`, `nancy`,
-`hopkins`, `mediastation`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`hopkins`, `mediastation`, `mtropolis`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -162,7 +162,7 @@ friction.
 | macventure | Shadowgate | Same | Yes | Deferred — correction: ScummVM's `macventure` engine only supports the **Macintosh** and **Apple IIgs** releases (`detection.cpp`'s `MACGAME`/`IIGSGAME` macros hard-code `kPlatformMacintosh`/`kPlatformApple2GS`), not the MS-DOS version; a packaged DOS copy failed to detect for exactly this reason. Sourcing a Mac release means extracting from a `.moof`/HFS floppy disk image — same disk-image-tooling complexity class as `startrek`/`twine`, deferred alongside them |
 | made | Return to Zork | **Confirmed working** — tested the lighter Rodney's Funscreen instead, per this row's own recommendation. Tiny (~2.3 MiB), flat file layout, no subdirectories. `RODNEYS.DAT` size matched the detection table's entry (92990 bytes) but its MD5 didn't (yet another size-match/hash-mismatch case, harmless — same as `mohawk`/Myst this batch) — detected and ran straight into the interactive main menu (kids' edutainment minigame hub) | Yes | archive.org (`msdos_Rodneys_Funscreen_1992`), already tested |
 | mads | Rex Nebular and the Cosmic Gender Bender | Same | Yes | Deferred — only accessible copy found is 9 raw floppy `.img` disk images, same disk-image tooling complexity class as `lab`/`startrek`/`twine`; not attempted this pass |
-| mtropolis | Obsidian | Same (no smaller mTropolis title known) | Yes | archive.org, note multi-CD |
+| mtropolis | Obsidian | **Confirmed working** — tested Muppet Treasure Island instead (also on this engine, `mti` game ID, `ADGF_NO_FLAGS` fully implemented), per the size-limit swap rule since Obsidian is multi-CD with no smaller cut. Needed `MTI1.MPL` (anchor file, first in zip write order) + `MTI2.MPX` (bulk data) + `MTPLAY32.EXE` (mTropolis Windows Player executable — the engine's own `boot.cpp` scans `*.exe` files for a "mTropolis Windows Player" signature to determine boot configuration, separately from the initial hash-based detection; omitting it throws "No executable files were found" even after detection succeeds). `MTI1.MPL`/`MTI2.MPX` matched the Windows Retail entry's declared sizes exactly but not the MD5 (yet another size-match/hash-mismatch case that still worked, unlike `icb`) | Yes | archive.org (`mti-1_202606`, 3-disc CD set), disc 1 only sufficient (~461 MiB) |
 | neverhood | The Neverhood | Same; check for an official demo | Yes | archive.org DOS CD release |
 | parallaction | The Big Red Adventure | **Confirmed working** (via Nippon Safes Inc., official freeware, English language-select confirmed) | Yes | Already tested |
 | pegasus | The Journeyman Project: Pegasus Prime | Same (only Pegasus-engine title) | Yes | archive.org CD release |
