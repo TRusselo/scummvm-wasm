@@ -256,11 +256,19 @@ Expected: both files are roughly 70-80MB larger than their pre-change
 size (the staged engine-data is ~74MB; some variance is expected from
 Emscripten's own packaging overhead).
 
-- [ ] **Step 3: Confirm embedded files are present in the built JS glue via string search**
+- [ ] **Step 3: Confirm embedded files are present via string search**
+
+`--embed-file` bakes content directly into the compiled `.wasm` binary's
+data section, not the `.js` glue file (confirmed by isolated testing
+during implementation) — check the `.wasm`:
 
 ```bash
-grep -c "engine-data" retroarch/scummvm_libretro.js
+strings retroarch/scummvm_libretro.wasm | grep -oE "/engine-data/[a-zA-Z0-9_.-]+" | sort -u
 ```
+
+Expected: one line per embedded file (`/engine-data/fonts.dat`,
+`/engine-data/toon.dat`, etc.) — cross-check against the staged directory
+listing from Task 2 Step 2.
 
 Expected: non-zero (Emscripten's generated `--embed-file` loader code
 references the embed path by name).
