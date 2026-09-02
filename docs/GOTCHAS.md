@@ -804,6 +804,68 @@ guarantee -- if it still fails, use the `Module.FS.readdir()` walk
 technique from the previous section to confirm the file actually
 extracted where expected before assuming the file itself is bad.
 
+### A `.scummvm` hook file only works if it's the literal first entry in the zip -- and even then, it only bypasses the launcher's ID lookup, not the engine's own hash-based startup detection
+
+`icb`'s "The Road to El Dorado" (game ID `eldorado`) hit this end to end.
+The archive.org dump's `g/speech.clu` (1927072 bytes) and `g/g` (17704
+bytes) matched the English Windows detection entry's declared *sizes*
+exactly but neither's MD5 matched -- nor did either match any of icb's
+other 9 known-hash variants (Spanish/Italian/Polish/Brazilian
+Portuguese/English demo/4 PS1 regions). Plain autodetection came up with
+an empty launcher, the same symptom as a missing root anchor.
+
+Tried the `.scummvm` hook file (documented in the README) to skip
+autodetection and launch by game ID directly instead. First attempt
+appended `eldorado.scummvm` to the *end* of the zip -- no effect,
+launcher still empty. Root cause, traced through
+`retro_load_game()` in `libretro-core.cpp`: the hook-file branch only
+activates if `game->path` *itself* ends in `.scummvm` --
+```cpp
+const char *target_file_ext = ".scummvm";
+int target_file_ext_pos = strlen(game->path) - strlen(target_file_ext);
+if (!(target_file_ext_pos < 0) && strstr(game->path + target_file_ext_pos, target_file_ext) != NULL) {
+    // hook-file branch
+}
+```
+and `game->path` is set by EmulatorJS to whichever file was written
+*first* into the zip (the same deterministic `fileNames[0]` rule as the
+root-anchor issue -- see the "Zips with subdirectories" section above).
+An appended-last hook file is never `fileNames[0]`, so this branch never
+triggers and the code falls straight through to normal autodetection
+with zero error or warning. Rebuilding the zip with `eldorado.scummvm`
+written *first* fixed this part: the game ID lookup succeeded (confirmed
+via a new, different, more specific error appearing).
+
+**But that only gets past `testGame()`'s ID lookup, not the actual
+engine startup.** Traced through `OSystem_libretro::testGame()` in
+`libretro-os-utils.cpp`: the non-autodetect path calls
+`EngineMan.findGamesMatching(engine_id, game_id)`, a lookup against the
+static `PlainGameDescriptor` table -- purely a name match, no file
+hashing involved, so it succeeds regardless of which specific dump you
+have. But the actual launch (`-p "<dir>" eldorado`) still goes through
+ScummVM's normal engine startup, which calls each engine's
+`MetaEngine::createInstance(OSystem*, Engine**, const XxxGameDescription
+*gd)` -- and `gd` has to come from somewhere. For `icb` (and most
+AdvancedMetaEngine-based engines), that descriptor can only be produced
+by the *same* hash-based `AdvancedDetector` scan the hook file was
+meant to skip. If no detection-table entry's hash matches the actual
+files on disk, that internal scan fails, `gd` never gets built, and
+ScummVM reports the generic `Common::kNoGameDataFoundError`
+("Game data not found") -- a different, more specific error than the
+empty-launcher symptom, but still ultimately caused by the same
+underlying problem: **this specific dump doesn't match any release
+ScummVM has ever catalogued.** The `.scummvm` hook file only helps when
+the underlying data would have autodetected fine anyway and you just
+want to skip the (slow, or ambiguous) directory scan -- it is not a way
+to force an engine to accept an unrecognized dump.
+
+Conclusion for this specific case: not a packaging bug at all (the
+anchor-file and hook-file mechanics both work correctly once you know
+the zip-entry-order rule) -- it's a sourcing problem. The archive.org
+copy found is a real, complete game, just not one of the specific
+releases ScummVM's `icb` engine has hash signatures for. Fixing it means
+finding a different dump, not repackaging this one further.
+
 ### Multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
 
 Found live-debugging user reports of specific SCUMM titles failing:

@@ -51,7 +51,7 @@ confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
 **37 of 102 confirmed** (plus the `agos2` subengine). 4 blocked on a
-shared crash, 7 deferred on sourcing/tooling, 11 waiting on a GL-core
+shared crash, 8 deferred on sourcing/tooling, 11 waiting on a GL-core
 build that hasn't happened yet, 3 unidentified, the rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
@@ -110,7 +110,7 @@ table is the at-a-glance summary, kept in sync with it.
 | griffon | 🚫 | Same shared `fonts.dat` WASM crash |
 | hopkins | ✅ | Hopkins FBI (freeware Linux port; audio is French despite `EN_ANY` tag) |
 | hugo | ✅ | Hugo's House of Horrors |
-| icb | ⬜ | |
+| icb | ⏸️ | Tried El Dorado (also on this engine); dump doesn't match any known hash signature, not a packaging issue |
 | immortal | ⏸️ | Apple IIgs-only engine, no clean disk dump found |
 | lab | ⏸️ | No usable DOS/Windows package found |
 | macventure | ⏸️ | Mac/Apple IIgs-only engine, needs HFS disk-image tooling |
@@ -443,6 +443,24 @@ per-file detection scan (see GOTCHAS.md's debugging-technique note) that
 a plain autodetected zip goes through. Not required -- plain autodetection
 (no hook file) already works for every game this project ships -- but
 useful if you want faster, more precise startup for a specific game.
+
+**This is subject to the same zip-entry-order rule as the root-anchor
+issue above -- the hook file must be the literal first entry written
+into the zip, not merely present somewhere in it.** ScummVM's own
+`retro_load_game()` only takes the hook-file branch if the specific path
+EmulatorJS hands it as `game->path` itself ends in `.scummvm` -- and per
+the traced rule, that path is always whichever file was written first
+into the zip. A `.scummvm` file added anywhere else in write order is
+silently ignored with no error, falling through to normal (and possibly
+failing) autodetection instead. Confirmed by direct test: appending the
+hook file last did nothing; writing it first made ScummVM's own launcher
+correctly recognize the game ID. Note this only gets you past the
+launcher-level ID lookup -- the engine's actual startup still runs
+ScummVM's normal hash-based detection internally to build the
+game-specific descriptor most engines' `createInstance()` requires, so a
+dump that doesn't match any of an engine's known hash-verified releases
+will still fail at that later stage with a generic "Game data not
+found," even with a correctly-placed hook file.
 
 ## Known limitations
 
