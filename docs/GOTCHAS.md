@@ -804,6 +804,33 @@ guarantee -- if it still fails, use the `Module.FS.readdir()` walk
 technique from the previous section to confirm the file actually
 extracted where expected before assuming the file itself is bad.
 
+### ScummVM's detection MD5 only hashes the first 5000 bytes of a file -- computing a full-file MD5 to "verify" a dump produces false negatives
+
+Several "exact size match, MD5 mismatch" cases across this sweep (this
+section's `hopkins` case, `icb`'s El Dorado, and this session's initial
+read on `groovie`/`lastexpress`) were diagnosed using a full-file MD5.
+That's the wrong check: `AdvancedMetaEngineDetection::AdvancedMetaEngineDetection()`
+sets `_md5Bytes = 5000` (`engines/advancedDetector.cpp:960`), and
+ScummVM's detector hashes only the first 5000 bytes of each file listed
+in an `AD_ENTRY`/`AD_ENTRY2s` tuple -- for any file over 5000 bytes, a
+full-file MD5 will not match the table even when the file is a byte-for-
+byte-correct, fully-detectable dump.
+
+Concretely: `groovie`'s 11th Hour Interactive Demo (`demo.grv`, 15991
+bytes; `dvmod1a.gjd`, 8068568 bytes) and `lastexpress`'s demo
+(`Demo.HPF`, 58191872 bytes) were both initially written off as
+hash-mismatched based on `md5sum` over the whole file. Recomputing with
+`head -c 5000 <file> | md5sum` matched the detection table exactly in
+both cases -- these were correct, working dumps the whole time. Verify
+against ScummVM's actual algorithm before concluding a dump doesn't
+hash-match: `head -c 5000 <file> | md5sum`, not `md5sum <file>`.
+
+This likely also affects some already-deferred results from earlier in
+this sweep (`hopkins`'s Win95 UK case above, `icb`'s El Dorado) that were
+diagnosed with full-file hashes and never re-checked against the 5000-
+byte rule -- worth a second look before assuming those dumps are
+genuinely bad.
+
 ### A `.scummvm` hook file only works if it's the literal first entry in the zip -- and even then, it only bypasses the launcher's ID lookup, not the engine's own hash-based startup detection
 
 `icb`'s "The Road to El Dorado" (game ID `eldorado`) hit this end to end.
