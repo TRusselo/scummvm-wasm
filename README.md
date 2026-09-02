@@ -22,7 +22,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **43 of 102 confirmed working as of this
+plays, not just compiles. **45 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -50,8 +50,8 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**43 of 102 confirmed** (plus the `agos2` subengine). 5 blocked on a
-shared crash, 8 deferred on sourcing/tooling, 11 waiting on a GL-core
+**45 of 102 confirmed** (plus the `agos2` subengine). 5 blocked on a
+shared crash, 9 deferred on sourcing/tooling, 11 waiting on a GL-core
 build that hasn't happened yet, 3 unidentified, the rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
@@ -125,12 +125,12 @@ table is the at-a-glance summary, kept in sync with it.
 | private | ⬜ | |
 | saga | ✅ | I Have No Mouth, and I Must Scream |
 | sludge | ⚠️ | Worked (The Interview) but excluded — unsigned `.exe`, engine marked unstable/WIP by ScummVM itself |
-| titanic | ⬜ | |
+| titanic | ⏸️ | Starship Titanic — GOG version hash-matches exactly, but `Assets/` alone is 1.19GiB (over size limit); single-game engine, no alt title |
 | tony | 🚫 | Same shared `fonts.dat` WASM crash |
 | touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
-| voyeur | ⬜ | |
+| voyeur | ✅ | Perfect hash match to full-game detection entry, no ambiguity |
 | zvision | ⏸️ | Full retail (3 CDs) exceeds 1GB; only lighter alt found fails detection |
-| asylum | ⬜ | |
+| asylum | ✅ | Sanitarium CD1 only (full retail's 3 CDs exceed size limit; demo installer couldn't be unpacked) |
 | sword25 | ✅ | Broken Sword 2.5, official freeware fan game |
 | agos | ✅ | Simon the Sorcerer (base + `agos2` subengine via Simon 2) |
 
