@@ -3,3 +3,4 @@ toolchain/emsdk/
 test-page/ejs/
 test-page/ejs.7z
 test-page/ejs/data/cores/*.data
+build/embed-staging/
