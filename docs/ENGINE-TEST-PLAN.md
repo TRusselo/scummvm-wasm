@@ -4,14 +4,14 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (39 of 102, + agos2 subengine bonus)
+## Confirmed working so far (40 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
 `toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`, `nancy`,
-`hopkins`, `mediastation`, `mtropolis`, `groovie`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`hopkins`, `mediastation`, `mtropolis`, `groovie`, `lastexpress`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -128,7 +128,7 @@ friction.
 | groovie | The 7th Guest | **Confirmed working** — swapped to The 11th Hour (Interactive Demo) after two independent 7th Guest DOS/Windows dumps both matched detection's file sizes exactly but failed MD5 (see GOTCHAS.md's "5000-byte detection hash" note — these may actually be valid dumps, not re-checked). The 11th Hour's official Interactive Demo (cited directly in `groovie/detection.cpp`'s own source comment as sourced from `archive.org/details/11th_Hour_demo`) matched exactly once verified correctly. Needed `icons.ph` (cursor resource) and `sample.AD`/`sample.OPL` (AdLib timbre files) from the disc's `SYSTEM/` folder alongside the `GROOVIE/`+`MEDIA/` game files — none of these are part of the detection entry's two hashed files, so their absence produces a runtime crash-to-debugger (`Couldn't open icons.ph or icons.bin`, then `MILES-ADLIB: could not open timbre file`) rather than a detection failure. Booted into the real FMV brightness-calibration screen; engine state checked directly (`started:true`, `muted:false`, `volume:0.5`, no errors) to confirm audio pipeline is live, not just the visual | Yes | archive.org (`11th_Hour_demo`), ISO extracted with `7z` |
 | sky | Beneath a Steel Sky | **Confirmed working** — officially freeware | Yes | Already tested |
 | adl | Mystery House | **Confirmed working** — bundled ScummVM freeware game | Yes | Already tested |
-| lastexpress | The Last Express | Same (only title, CD-ROM) | Yes | archive.org, "The Last Express 1997 CD-ROM" |
+| lastexpress | The Last Express | **Confirmed working** — full retail is 3 CDs (~3.8GB), way over the size limit with no lighter cut, so used the official English Interactive Demo instead. Initially misdiagnosed as hash-mismatched (full-file MD5 on `Demo.HPF` didn't match); re-checked with the correct 5000-byte-prefix hash (see GOTCHAS.md) and it matched exactly. The demo is a single self-contained `DEMO.HPF` archive — `lastexpress/data/archive.cpp` opens exactly that one filename for demo builds, no companion files needed. Booted straight to the real title/map screen (Fabergé-egg clock, Europe route line, Volume/Brightness/Quit menu) | Yes | archive.org (`LASTEXPR`/`Last_Express_demo`, byte-identical mirrors), already tested |
 | ags | (actively used indie engine — Blackwell, Unavowed, etc.) | **Confirmed working** via 5 Days a Stranger (Chzo Mythos) — a bare freeware `.exe`, no companion files, no subdirectories | Yes | archive.org (`5_Days_a_Stranger`), already tested |
 | toon | Toonstruck | Same | Yes | archive.org Virgin Interactive collections |
 | startrek | Star Trek: 25th Anniversary | Same | Yes | Deferred — archive.org only has raw floppy disk images (`.7z` of `.img` files) for the DOS release, needing disk-image extraction rather than a plain data zip; skipped for now |
