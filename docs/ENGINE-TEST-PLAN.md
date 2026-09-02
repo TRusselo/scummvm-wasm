@@ -18,24 +18,25 @@ jump to them.
 removed and skipped per user caution (unsigned/unverified `.exe`, low
 value anyway since ScummVM itself marks SLUDGE unstable/WIP).
 
-`griffon`, `glk`, `dm`, and now `tony` **blocked** on the same shared bug,
-not a packaging problem: all four needed their `fonts.dat` companion file
-(found and fixed), but all four then crash with the **identical**
-`RuntimeError: memory access out of bounds` stack trace once that file
-is supplied (same wasm function indices and byte offsets — see
-GOTCHAS.md's "Suspected shared bug" section). This looks like a bug in
-ScummVM's common font-rendering codepath in this WASM build, not
-something fixable by repackaging. Any other untested engine that reports
-"Could not locate the 'fonts.dat' engine data file" should be treated as
-high-risk for this same crash. Deferred by user decision rather than
-investigated further tonight.
+`griffon`, `glk`, `dm`, `tony`, and now `neverhood` **blocked** on the
+same shared bug, not a packaging problem: all five needed their
+`fonts.dat` companion file (found and fixed), but all five then crash
+with the **identical** `RuntimeError: memory access out of bounds` stack
+trace once that file is supplied (same wasm function indices and byte
+offsets — see GOTCHAS.md's "Suspected shared bug" section). This looks
+like a bug in ScummVM's common font-rendering codepath in this WASM
+build, not something fixable by repackaging. Any other untested engine
+that reports "Could not locate the 'fonts.dat' engine data file" should
+be treated as high-risk for this same crash. Deferred by user decision
+rather than investigated further tonight.
 
-All three ROMs are correctly packaged (fonts.dat fix already applied)
+All five ROMs are correctly packaged (fonts.dat fix already applied)
 and kept — not deleted — in
 `/mnt/unraid/emulation/scummvm/non-running/` (`Griffon Legend.zip`,
-`Zork I.zip`, `Dungeon Master.zip`), for easy retesting once the
-underlying WASM bug is fixed. `non-running/` is the convention going
-forward for any ROM that's packaged correctly but blocked by an
+`Zork I.zip`, `Dungeon Master.zip`, `Tony Tough.zip`, `Neverhood.zip`),
+for easy retesting once the underlying WASM bug is fixed. `non-running/`
+is the convention going forward for any ROM that's packaged correctly
+but blocked by an
 engine/core bug rather than
 abandoned — as opposed to a bad packaging attempt, which just gets fixed
 in place or discarded.
@@ -163,7 +164,7 @@ friction.
 | made | Return to Zork | **Confirmed working** — tested the lighter Rodney's Funscreen instead, per this row's own recommendation. Tiny (~2.3 MiB), flat file layout, no subdirectories. `RODNEYS.DAT` size matched the detection table's entry (92990 bytes) but its MD5 didn't (yet another size-match/hash-mismatch case, harmless — same as `mohawk`/Myst this batch) — detected and ran straight into the interactive main menu (kids' edutainment minigame hub) | Yes | archive.org (`msdos_Rodneys_Funscreen_1992`), already tested |
 | mads | Rex Nebular and the Cosmic Gender Bender | Same | Yes | Deferred — only accessible copy found is 9 raw floppy `.img` disk images, same disk-image tooling complexity class as `lab`/`startrek`/`twine`; not attempted this pass |
 | mtropolis | Obsidian | **Confirmed working** — tested Muppet Treasure Island instead (also on this engine, `mti` game ID, `ADGF_NO_FLAGS` fully implemented), per the size-limit swap rule since Obsidian is multi-CD with no smaller cut. Needed `MTI1.MPL` (anchor file, first in zip write order) + `MTI2.MPX` (bulk data) + `MTPLAY32.EXE` (mTropolis Windows Player executable — the engine's own `boot.cpp` scans `*.exe` files for a "mTropolis Windows Player" signature to determine boot configuration, separately from the initial hash-based detection; omitting it throws "No executable files were found" even after detection succeeds). `MTI1.MPL`/`MTI2.MPX` matched the Windows Retail entry's declared sizes exactly but not the MD5 (yet another size-match/hash-mismatch case that still worked, unlike `icb`) | Yes | archive.org (`mti-1_202606`, 3-disc CD set), disc 1 only sufficient (~461 MiB) |
-| neverhood | The Neverhood | Same; check for an official demo | Yes | archive.org DOS CD release |
+| neverhood | The Neverhood | **Blocked** — same shared `fonts.dat` engine bug as `griffon`/`glk`/`dm`/`tony` (fifth confirmation of the identical `RuntimeError: memory access out of bounds` crash signature, see GOTCHAS.md). Packaging itself succeeded: `hd.blb`/`a.blb`/`c.blb`/`i.blb`/`m.blb`/`s.blb`/`t.blb` flat at root from a converted raw `.bin`/`.cue` CD image (Mode 1), plus ScummVM's own `neverhood.dat` companion file; `hd.blb` matched the English detection entry's declared size exactly but not its MD5 (worked anyway). Detection and companion-file loading succeeded fine — crash only hits once `fonts.dat` is added, same as the other four. Moved to `non-running/` | Yes | archive.org (`TheNeverhoodUSA`), raw `.bin`/`.cue` converted to ISO9660 by hand, ~638 MiB |
 | parallaction | The Big Red Adventure | **Confirmed working** (via Nippon Safes Inc., official freeware, English language-select confirmed) | Yes | Already tested |
 | pegasus | The Journeyman Project: Pegasus Prime | Same (only Pegasus-engine title) | Yes | archive.org CD release |
 | buried | The Journeyman Project 2: Buried in Time | Same | Yes | archive.org Presto Studios collections |
