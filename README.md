@@ -22,7 +22,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **36 of 102 confirmed working as of this
+plays, not just compiles. **37 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -50,7 +50,7 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**36 of 102 confirmed** (plus the `agos2` subengine). 4 blocked on a
+**37 of 102 confirmed** (plus the `agos2` subengine). 4 blocked on a
 shared crash, 7 deferred on sourcing/tooling, 11 waiting on a GL-core
 build that hasn't happened yet, 3 unidentified, the rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
@@ -73,7 +73,7 @@ table is the at-a-glance summary, kept in sync with it.
 | ultima | ⬜ | Via `ultima8` subengine (Ultima VIII) |
 | twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
 | mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
-| mediastation | ⬜ | |
+| mediastation | ✅ | Via Beatrix Potter (size-limit swap for Muppet Treasure Island); not kept in the live library by user preference |
 | nancy | ✅ | Nancy Drew: Secrets Can Kill |
 | groovie | ⬜ | |
 | sky | ✅ | Beneath a Steel Sky, official freeware |

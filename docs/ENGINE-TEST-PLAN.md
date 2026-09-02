@@ -4,14 +4,14 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (36 of 102, + agos2 subengine bonus)
+## Confirmed working so far (37 of 102, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
 `got`, `teenagent`, `awe`, `sword1`, `sword2`, `ags`, `kyra`, `gob`,
 `cine`, `sherlock`, `hugo`, `touche`, `cruise`, `sword25`, `saga`,
 `toltecs`, `tucker`, `mohawk`, `made`, `dgds`, `darkseed`, `nancy`,
-`hopkins`. Marked **Confirmed working** in their table row below — search this file for that phrase to
+`hopkins`, `mediastation`. Marked **Confirmed working** in their table row below — search this file for that phrase to
 jump to them.
 
 `sludge` was tested successfully (The Interview, freeware) but then
@@ -122,7 +122,7 @@ friction.
 | ultima | Ultima VIII: Pagan (via `ultima8` subengine — newest/most advanced of the ultima4/6/8 trio; base `ultima` has no standalone game) | Same (only title on this subengine) | Yes | archive.org Origin Systems / Ultima collections |
 | twine | Little Big Adventure | Same | Unclear | Deferred — only accessible archive.org copy found is a 500 MiB CD `.bin`/`.cue` image (French "Adeline" branding, English uncertain); needs CD-image mounting rather than a plain data zip, skipped for now |
 | mohawk | Myst | **Confirmed working** — correction: the tracker's original candidate (Logical Journey of the Zoombinis) turned out to be entirely `ADGF_UNSUPPORTED`/`GAME_NOT_IMPLEMENTED` in ScummVM's own detection table (every zoombini entry, DOS and demo alike) — it's detected only to show a "not supported" message, never playable. Pivoted to Myst itself instead. The archive.org CD image (`cdrom-myst-1.2`) is a single Mode1/2352 track, no CD audio; stripped to a 640MB ISO9660 with a Python sector-strip script, then 7z-extracted. The disc root is itself an **installer disc** (installer subfolders `MYST32`/`MYST16` present) but, unlike the Gobliiins/Tucker pattern, the actual game's Mohawk `.DAT` archives (`MYST.DAT`, `STONE.DAT`, etc.) and its `QTW/` QuickTime-movie subdirectory sit right at the disc root alongside the installer folders — no CD-image-within-an-image needed, just excluding the installer/setup clutter. `MYST.DAT`'s size matched a known detection-table entry exactly but its MD5 didn't (yet another size-match/hash-mismatch case, harmless here since Mohawk detection didn't require an exact table hit) — detected and booted straight to the intro cinematic and into the in-game dock scene, screenshot-confirmed navigable | Yes | archive.org (`cdrom-myst-1.2`), raw Mode1/2352 CD `.bin`/`.cue` converted to ISO9660 by hand, ~573 MiB after excluding installer folders |
-| mediastation | Muppet Treasure Island | Unclear if a smaller Media Station title exists | Yes | archive.org, "Muppet Treasure Island PC CD-ROM" |
+| mediastation | Muppet Treasure Island | **Confirmed working** — tested Beatrix Potter instead, per the size-limit swap rule (Muppet Treasure Island's only found copy is a 3-disc release well over 1GB). Booted and played correctly, proving the engine works. Not kept in the live library — removed at the user's discretion (didn't like the game itself, unrelated to the test result) | Yes | archive.org, already tested |
 | nancy | Nancy Drew: Secrets Can Kill | **Confirmed working** — single-disc CD-ROM release (archive.org item's disc 2 was unneeded, disc 1 alone has the full game). Disc was a raw Mode 2 Form 1 `.iso` (2352-byte sectors, `.iso` extension despite not being a plain ISO9660 image already) needing the same sector-strip treatment as `.mdf` images (offset 24). Needed ScummVM's own `nancy.dat` companion file (straight append, no collision). The engine's `directoryGlobs` registers `game`/`cdsound`/`cdvideo`/`hdvideo` as matching subdirectories, so the disc's original folder structure could be kept as-is inside the zip rather than flattened — just excluded installer-only clutter (`Redist/`, `SETUP.EXE`, etc.). `CifTree.dat` was another size-match/hash-mismatch case, harmless. Booted straight into the actual game menu and intro letter, screenshot-confirmed | Yes | archive.org (`nancy-drew-secrets-can-kill-disc-1`), already tested |
 | groovie | The 7th Guest | Same (only realistic option; large CD-ROM) | Yes | archive.org CD-ROM preservation collections |
 | sky | Beneath a Steel Sky | **Confirmed working** — officially freeware | Yes | Already tested |
