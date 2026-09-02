@@ -706,14 +706,41 @@ necessarily a sibling of every other file, so its parent *is* the
 correct root by construction. It only becomes visible for
 directory-structured games once every root-level file has been removed.
 
-Fix: keep at least one original root-level file in the zip (the specific
-file doesn't matter -- it just needs to exist at that level so whichever
-file the frontend selects as its content reference is more likely to sit
-there, or at minimum establishes that root-level files exist at all).
-Practically, don't over-clean these zips -- dropping genuinely unneeded
-subdirectories (e.g. a Windows installer's `DIRECTX/`/`INSTALL/` folders)
-is fine and reduces size/crash-surface, but leave loose root-level files
-alone even if they look like installer artifacts.
+Fix: keep the game's own original root-level files in the zip rather
+than cleaning them all out. Practically, don't over-clean these zips --
+dropping genuinely unneeded subdirectories (e.g. a Windows installer's
+`DIRECTX/`/`INSTALL/` folders) is fine and reduces size/crash-surface,
+but leave loose root-level files alone even if they look like installer
+artifacts.
+
+**This is not a guaranteed fix, and adding an arbitrary dummy file does
+not reliably work -- confirmed by a direct test, not assumed.** An
+earlier version of this note suggested "the specific file doesn't
+matter, it just needs to exist at that level." Tested directly: took a
+confirmed-working directory-structured zip (`sword1`'s full game, which
+has real root-level installer files making it work), stripped every
+original root-level file, and added nothing but a single fabricated
+0-byte `ANCHOR_DUMMY.txt` at the true root. Result: **detection still
+failed** (empty ScummVM launcher, identical symptom to having no root
+file at all). Confirmed via the in-memory filesystem inspection
+technique below that `ANCHOR_DUMMY.txt` genuinely was sitting at `/`
+alongside the subdirectories -- and separately confirmed ScummVM had
+written its own `scummvm.ini` *inside* `/SMACKSHI/`, proving the
+frontend's content-reference file-selection picked a file inside that
+subdirectory instead of the root-level dummy, even though the dummy
+existed. So the frontend's selection isn't "prefer a root-level file if
+one exists" -- it picked a subdirectory file anyway, dummy or not. Every
+previously-documented case where "keep a root file" fixed detection used
+a real, original file that happened to already be there (an installer
+leftover) -- it's not established that the file being *original* rather
+than fabricated is what mattered, only that fabricating one is
+confirmed **not sufficient** on its own. What actually determines which
+file the frontend picks as its content reference is still unknown --
+treat "keep original root files, don't add a synthetic one and expect it
+to work" as the current safe practice until that selection logic is
+actually traced (e.g. reading through EmulatorJS's own zip-handling
+code, or RetroArch's content-loading path, for whatever rule orders or
+picks among a multi-file archive's entries).
 
 **Diagnostic technique used to rule out the extraction-crash bug**: from
 the browser console, inspect the emulator's actual in-memory filesystem

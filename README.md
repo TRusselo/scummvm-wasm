@@ -354,11 +354,16 @@ The packaging rule, in order of how often you'll need each part:
    engine's source for hardcoded relative paths before assuming flat is
    always correct.
 
-4. **If you do keep subdirectory structure, at least one file must also
-   sit at the zip's true root level**, or ScummVM's own auto-detection
-   silently produces an empty game list -- no crash, no error, just
-   nothing detected. See GOTCHAS.md's "Zips with subdirectories but no
-   file at the true root" section.
+4. **If you do keep subdirectory structure, keep the game's own original
+   root-level files too** (don't strip them out as "installer clutter")
+   -- a zip with nothing at the true root silently produces an empty
+   ScummVM game list, no crash, no error, just nothing detected. This is
+   necessary but **not sufficient on its own**: a fabricated placeholder
+   file at the root has been directly tested and does *not* reliably fix
+   detection (the frontend can still pick a subdirectory file as its
+   scan-root reference regardless). See GOTCHAS.md's "Zips with
+   subdirectories but no file at the true root" section for the full
+   finding.
 
 5. **Multi-disc games: merge all discs into one zip, not one zip per
    disc.** When both discs ship a file with the *same name* but
