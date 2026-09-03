@@ -31,6 +31,13 @@ route around packaging quirks.
 | gnap | `[test] U.F.O.s (Gnap).zip` | archive.org `gnap_20230710` | Confirmed English release, hash-verified |
 | hadesch | `[test] Hades Challenge.zip` | archive.org `hadeschallenge` | 2 of 3 detection files hash-match exactly, 3rd size-matches only |
 | hdb | `[test] Hyperspace Delivery Boy.zip` | archive.org `hdb-linux` | Official freeware Linux release, hash-verified |
+| hypno | `[test] Wetlands.zip` | archive.org `msdos_Wetlands_1995` | Hash-verified via CD image (installed copy was missing MISSIONS.LIB) |
+| illusions | `[test] Duckman.zip` | archive.org `duckman-game-cd` | Hash-verified; corrects an earlier wrong candidate note ("Simon the Sorcerer's Puzzle Pack") |
+| kingdom | `[test] Kingdom - The Far Reaches.zip` | archive.org `msdos_Kingdom_I_-_The_Far_Reaches_1995` | Hash-verified |
+| lilliput | `[test] The Adventures of Robin Hood.zip` | archive.org `msdos_Adventures_of_Robin_Hood_The_1992` | Hash-verified, tiny (1.1MB) |
+| m4 | `[test] Orion Burger.zip` | archive.org `msdos_Orion_Burger_1996` | Hash-verified |
+| mortevielle | `[test] Mortville Manor.zip` | archive.org `mortevielle` | MENUFR.MOR hash-verified; presents in English via mort.dat translation overlay despite French data files |
+| mutationofjb | `[test] Mutation of J.B. (German).zip` | archive.org `mutation-of-jb` | Hash-verified; German-only, no English release exists (corrects a prior contradictory note) |
 
 ## Confirmed working (user-tested, `[pass]` tag)
 
