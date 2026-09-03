@@ -41,6 +41,14 @@
   // "-thread" when this is set) and enables the loader's own
   // SharedArrayBuffer usage on its side.
   EJS_threads = true;
+  // [fonts-oob-debug] Task 4 investigation only: EmulatorJS only passes RetroArch's
+  // own "-v" CLI flag (which is what enables verbosity_is_enabled(), the gate that
+  // retro_log_cb()'s frontend-side implementation checks before printing anything,
+  // regardless of RETRO_LOG_* level) when this is set. Without it, ALL retro_log_cb
+  // output -- including this core's own long-standing calls, not just this task's
+  // new diagnostic ones -- is silently dropped before it ever reaches stderr/console.
+  // See task-4-report.md, "Tooling gap" section. Not meant for production.
+  EJS_DEBUG_XX = true;
   // Point-and-click adventure games use an absolute cursor position that
   // the guest OS/game itself tracks internally, fed from relative mouse
   // deltas (the same model DOS mouse drivers used, and what libretro's
