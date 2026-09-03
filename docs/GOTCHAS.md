@@ -672,7 +672,23 @@ dropped 86 CD2-only tracks and 14 CD2-only cutscenes before this was
 caught by comparing directory listings (`comm -13`) between the two
 discs.
 
-### Zips with subdirectories but no file at the true root silently fail to detect any game
+### Zips with subdirectories but no file at the true root silently fail to detect any game (root cause fixed 2026-09-02, kept for historical/hook-file context)
+
+**Update:** the underlying cause described in this section --
+`retro_load_game()` deriving the detection scan root from whichever file
+EmulatorJS's `fileNames[0]` happened to select -- is now fixed
+permanently at the core level for this WASM build. See "Subdirectory-
+structured engines: anchor placement no longer matters" further down for
+the fix and its direct verification (a zip with *zero* root-level files
+at all -- every entry nested under `ACT1/`/`ACT2/`/`BURST/`/`MISC/` --
+detected and booted correctly with no repackaging). **You no longer need
+to ensure a root-level file exists, or control which file is first, for
+detection/autodetect purposes.** The `fileNames[0]` mechanism explained
+below is still real and still matters for one remaining thing: the
+`.scummvm` hook file (see further down) still only activates if it's
+literally `fileNames[0]`, since that check is on `game->path` itself, not
+on the derived scan root. Kept below for that reason and as historical
+context for how this was originally traced.
 
 For engines that need their directory structure preserved (see the
 griffon entry above), there's a second, distinct requirement beyond
@@ -1553,14 +1569,15 @@ specific to this integration.
   timing, with zero risk to the running instance) or add the export at
   build time and verify it landed before relying on it.
 
-## Subdirectory-structured engines: the anchor file's own directory is scanned, not the zip root
+## Subdirectory-structured engines: anchor placement no longer matters (fixed 2026-09-02)
 
 For engines that need their original subdirectory structure preserved
 (`griffon`, `toon`, `ultima8`, etc. -- see "Zips with subdirectories but
-no file at the true root" above for the general rule), there's a second,
-narrower trap specific to *multi-subdirectory* detection entries: the
-anchor file you choose determines which single directory ScummVM's
-autodetect scan actually looks in -- not the zip's top level.
+no file at the true root" above for the general rule), there used to be a
+second, narrower trap specific to *multi-subdirectory* detection entries:
+whichever file EmulatorJS's `fileNames[0]` heuristic happened to pick as
+the anchor determined which single directory ScummVM's autodetect scan
+actually looked in -- not the zip's top level.
 
 Traced end to end while packaging `ultima8` (Ultima VIII: Pagan): a GOG
 repack's `usecode/eusecode.flx` hash-matched the "Gold Edition" detection
@@ -1568,7 +1585,7 @@ entry in `engines/ultima/detection_tables.h` exactly, but that entry also
 requires `static/eintro.skf` -- a sibling directory. Packaging with
 `usecode/eusecode.flx` as the anchor (first zip entry) produced an empty
 ScummVM launcher with no error at all, not a "file not found" message.
-The cause is in `backends/platform/libretro/src/libretro-core.cpp`'s
+The cause was in `backends/platform/libretro/src/libretro-core.cpp`'s
 `retro_load_game()`:
 
 ```cpp
@@ -1582,21 +1599,54 @@ test_game_status = LIBRETRO_G_SYSTEM->testGame(parent_dir.getPath().toString().c
 zip-entry-order rule documented elsewhere in this file). `testGame()`
 then calls `dir.getChildren(files, ...)` on `parent_dir` -- the anchor
 file's *own* folder, not the archive root. With the anchor nested inside
-`usecode/`, ScummVM's scan never sees anything in `static/`, so the
-two-file entry can never match, silently. (`toon` and `griffon` didn't
-hit this because their required companion files all happened to live in
-the same folder as their anchor.)
+`usecode/`, ScummVM's scan never saw anything in `static/`, so the
+two-file entry could never match, silently. (`toon` and `griffon` didn't
+hit this in their originally-tested packaging because their required
+companion files happened to live in the same folder as their anchor --
+but see below, this was luck, not a property of those engines: `toon`'s
+own German retail release genuinely needs three sibling directories and
+hit the identical failure once actually tested against it.)
 
-Fix: use a genuine root-level file as the anchor (e.g. `u8.exe` sitting
-next to the `usecode/`, `static/`, `sound/` folders) so `parent_dir` is
-the actual top-level directory. Note this only helps if the engine's own
-`_directoryGlobs` (in its `detection.cpp`) lists every subdirectory the
-matching entry touches -- `composeFileHashMap()` in
-`engines/advancedDetector.cpp` only recurses into a subdirectory whose
-name appears in that engine's glob list (`ultima8`'s is `{"usecode", 0}`
-only). A detection entry that spans a subdirectory absent from the
-engine's own glob list (like Ultima VIII's Gold Edition entry needing
-both `usecode/` and `static/`) is undetectable via directory-scan
-autodetect no matter how the zip is packaged -- switch to a different
-dump whose hash matches a single-subdirectory (or single-file) detection
-entry instead of sinking time into repackaging.
+**This is now fixed permanently at the core level, not a packaging
+workaround.** `retro_load_game()` was traced against EmulatorJS's actual
+`downloadRom()` (`test-page/ejs/data/src/emulator.js`), which extracts
+every file in a ROM's zip preserving its full relative path, always
+writing to the virtual filesystem's true root (`/`) -- confirmed by
+reading the extraction code directly
+(`this.gameManager.FS.writeFile(`/${fileName}`, fileData)`), not assumed.
+This means `/` in this WASM deployment is *always* exactly and only the
+current ROM's fully-extracted content tree, regardless of which
+arbitrary file `fileNames[0]` happened to select -- unlike a real
+desktop/native libretro deployment, where content from many unrelated
+games might legitimately share one filesystem and restricting the scan
+to "near the specific file you were told to load" is necessary and
+correct.
+
+The fix, guarded to this WASM build only (using the `EMSCRIPTEN` define
+this Makefile already sets -- see `overrides.mk`'s own comment on why
+it's `EMSCRIPTEN` and not `__EMSCRIPTEN__`), forces `parent_dir` to
+always be the virtual-FS root instead of deriving it from `game->path`:
+
+```cpp
+#ifdef EMSCRIPTEN
+	Common::FSNode parent_dir = Common::FSNode(Common::Path("/"));
+#else
+	Common::FSNode parent_dir = detect_target.getParent();
+#endif
+```
+
+Native/desktop builds of this same shared source are completely
+unaffected -- the `#else` branch is untouched. Verified against the
+*original, completely unmodified* German Toonstruck retail dump (needing
+`misc/local.pak` + `act1/arcaddbl/arcaddbl.svl` + `act2/study/study.svl`
+-- three sibling top-level directories, with `toon`'s own
+`directoryGlobs`/`_maxScanDepth=3` already declaring all of them), no
+anchor repackaging at all -- this specific zip has **zero** root-level
+files at all, every entry nested under one of four sibling top-level
+directories -- booted straight into the real intro FMV with live audio.
+**No ROM ever needs a carefully-placed (or even present) root-level
+anchor file for detection/autodetect purposes again**, single-directory
+or multi-directory. The only remaining case where `fileNames[0]` still
+matters is the `.scummvm` hook file (see further down), since that
+specific check is on `game->path` itself, not on the scan root this fix
+changes.
