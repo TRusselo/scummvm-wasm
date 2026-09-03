@@ -35,7 +35,7 @@ route around packaging quirks.
 | illusions | `[test] Duckman.zip` | archive.org `duckman-game-cd` | Hash-verified; corrects an earlier wrong candidate note ("Simon the Sorcerer's Puzzle Pack") |
 | kingdom | `[test] Kingdom - The Far Reaches.zip` | archive.org `msdos_Kingdom_I_-_The_Far_Reaches_1995` | Hash-verified |
 | lilliput | `[test] The Adventures of Robin Hood.zip` | archive.org `msdos_Adventures_of_Robin_Hood_The_1992` | Hash-verified, tiny (1.1MB) |
-| m4 | `[test] Orion Burger.zip` | archive.org `msdos_Orion_Burger_1996` | Hash-verified |
+| m4 | `[test] Orion Burger.zip` | archive.org `msdos_Orion_Burger_1996` | **Retest after fix**: all 9 `SECTION*.HAG` per-chapter archives were missing (only on the CD, not the installed copy) — extracted from `BURGER/cd/DBURGER.bin` and added flat at root, ~540MB total |
 | mortevielle | `[test] Mortville Manor.zip` | archive.org `mortevielle` | MENUFR.MOR hash-verified; presents in English via mort.dat translation overlay despite French data files |
 | mutationofjb | `[test] Mutation of J.B. (German).zip` | archive.org `mutation-of-jb` | Hash-verified; German-only, no English release exists (corrects a prior contradictory note) |
 | ngi | `[test] Full Pipe.zip` | archive.org `Full-Pipe_CSF` | Official English Steam release, hash-verified exactly; corrects an old "Russian-primary" note |
