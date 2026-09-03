@@ -24,17 +24,34 @@ route around packaging quirks.
 
 | Engine | ROM filename | Source | Notes |
 |---|---|---|---|
-| access | `[test] Amazon Guardians of Eden.zip` | archive.org `000044-AmazonGuardiansOfEden` | Floppy image, hash-verified |
-| alg | `[test] Crime Patrol.zip` | archive.org `msdos_Crime_Patrol_1994` | Extracted from installer ISO, hash-verified |
-| avalanche | `[test] Lord Avalot dArgent.zip` | archive.org `LordAvalotDArgent_1020` | Freeware, hash-verified |
-| bagel | `[test] Hodj n Podj.zip` | archive.org `Nova_HodjnPodj_USA` | Used instead of Space Bar (too large), hash-verified |
-| bbvs | `[test] Beavis and Butt-Head in Virtual Stupidity.zip` | archive.org `CA-WINDOWS-Beavis-and-Butt-Head-in-Virtual-Stupidity` | Hash-verified |
-| chamber | `[test] Chamber of the Sci-Mutant Priestess.zip` | archive.org `msdos_Chamber_of_the_Sci-Fi_Mutant_Priestess_1989` | Hash-verified |
-| bladerunner | `[test] Blade Runner.zip` | archive.org `blasde-runner-1997-all-scummvm-files` | 1.947GB, only-title exception; STARTUP.MIX hash-verified |
-| mm | `[test] Might and Magic - World of Xeen.zip` | archive.org `msdos_Might_and_Magic_45_-_World_of_Xeen_1994` | Both xeen.cc/dark.cc hash-verified exactly |
-| tsage | `[test] Return to Ringworld.zip` | archive.org `msdos_Return_to_Ringworld_1994` (its bundled `scummvm/` folder) | R2RW.RLB hash-verified exactly |
-| plumbers | `[test] Plumbers Dont Wear Ties.zip` | archive.org `Plumbers_Dont_Wear_Ties_PC_Version` | GAME.BIN hash-verified exactly |
-| private | `[test] Private Eye.zip` | archive.org `private-eye` | pvteye.z hash-verified (EN_GRB variant) |
+| chewy | `[test] Chewy - Esc from F5.zip` | archive.org `msdos_Chewy_-_ESC_from_F5_1997` | English DOS release, hash-verified |
+| composer | `[test] Magic Tales - Baba Yaga.zip` | archive.org `babayagawin` | Hash-verified |
+| draci | `[test] Dragon History.zip` | archive.org `msdos_Dragon_History_1995` | English fan translation, hash-verified |
+| efh | `[test] Escape from Hell.zip` | archive.org `msdos_Escape_from_Hell_1990` | Hash-verified |
+| gnap | `[test] U.F.O.s (Gnap).zip` | archive.org `gnap_20230710` | Confirmed English release, hash-verified |
+| hadesch | `[test] Hades Challenge.zip` | archive.org `hadeschallenge` | 2 of 3 detection files hash-match exactly, 3rd size-matches only |
+| hdb | `[test] Hyperspace Delivery Boy.zip` | archive.org `hdb-linux` | Official freeware Linux release, hash-verified |
+
+## Confirmed working (user-tested, `[pass]` tag)
+
+| Engine | Game | Notes |
+|---|---|---|
+| access | Amazon: Guardians of Eden | |
+| avalanche | Lord Avalot d'Argent | |
+| bagel | Hodj 'n' Podj | used instead of The Space Bar (too large) |
+| bladerunner | Blade Runner | 1.947GB, only-title exception |
+| mm | World of Xeen (via `xeen`) | |
+| tsage | Return to Ringworld (via `ringworld2`) | |
+| plumbers | Plumbers Don't Wear Ties | |
+| private | Private Eye | EN_GRB variant |
+
+## Blocked (user-tested, failed — tagged in `non-running/`)
+
+| Engine | Game | Symptom | Notes |
+|---|---|---|---|
+| alg | Crime Patrol (used instead of Mad Dog McCree) | Drops to ScummVM debug console, `exit` freezes | Leading suspect: `CPSS.LIB` was skipped during packaging (not part of the hash-detection fingerprint) but may be needed at runtime — retry with it included |
+| bbvs | Beavis and Butt-Head in Virtual Stupidity | "mem access OOB" | Same signature as the shared `fonts.dat` WASM crash (griffon/glk/dm/tony/neverhood) — 6th engine confirmed hitting this core-level bug, not a packaging issue |
+| chamber | Chamber of the Sci-Mutant Priestess | Freezes the browser tab entirely | Different symptom from the other two; root cause not yet identified |
 
 ## Deferred (not sourceable within size/effort budget)
 
@@ -43,7 +60,3 @@ route around packaging quirks.
 | agds | Both titles (Black Mirror, NiBiRu) are large CD/installer-based FMV games; neither fits under 1GB without extraction effort unlikely to pay off. See ENGINE-TEST-PLAN.md for detail. |
 | cryomni3d | Versailles 1685 needs an actual InstallShield installer run to produce the real game files; no unshield/innoextract/DOSBox available. Tried both an installer package and raw ISO discs. |
 | dragons | Blazing Dragons is PS1-only (no DOS port exists); no archive.org copy of the disc image found, only longplay videos. Other ROM sites are outside this project's sourcing convention. |
-
-## Confirmed this round (moved out of the table above once reported)
-
-(none yet)
