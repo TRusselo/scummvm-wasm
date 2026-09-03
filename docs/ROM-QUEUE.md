@@ -30,12 +30,19 @@ route around packaging quirks.
 | bagel | `[test] Hodj n Podj.zip` | archive.org `Nova_HodjnPodj_USA` | Used instead of Space Bar (too large), hash-verified |
 | bbvs | `[test] Beavis and Butt-Head in Virtual Stupidity.zip` | archive.org `CA-WINDOWS-Beavis-and-Butt-Head-in-Virtual-Stupidity` | Hash-verified |
 | chamber | `[test] Chamber of the Sci-Mutant Priestess.zip` | archive.org `msdos_Chamber_of_the_Sci-Fi_Mutant_Priestess_1989` | Hash-verified |
+| bladerunner | `[test] Blade Runner.zip` | archive.org `blasde-runner-1997-all-scummvm-files` | 1.947GB, only-title exception; STARTUP.MIX hash-verified |
+| mm | `[test] Might and Magic - World of Xeen.zip` | archive.org `msdos_Might_and_Magic_45_-_World_of_Xeen_1994` | Both xeen.cc/dark.cc hash-verified exactly |
+| tsage | `[test] Return to Ringworld.zip` | archive.org `msdos_Return_to_Ringworld_1994` (its bundled `scummvm/` folder) | R2RW.RLB hash-verified exactly |
+| plumbers | `[test] Plumbers Dont Wear Ties.zip` | archive.org `Plumbers_Dont_Wear_Ties_PC_Version` | GAME.BIN hash-verified exactly |
+| private | `[test] Private Eye.zip` | archive.org `private-eye` | pvteye.z hash-verified (EN_GRB variant) |
 
 ## Deferred (not sourceable within size/effort budget)
 
 | Engine | Reason |
 |---|---|
 | agds | Both titles (Black Mirror, NiBiRu) are large CD/installer-based FMV games; neither fits under 1GB without extraction effort unlikely to pay off. See ENGINE-TEST-PLAN.md for detail. |
+| cryomni3d | Versailles 1685 needs an actual InstallShield installer run to produce the real game files; no unshield/innoextract/DOSBox available. Tried both an installer package and raw ISO discs. |
+| dragons | Blazing Dragons is PS1-only (no DOS port exists); no archive.org copy of the disc image found, only longplay videos. Other ROM sites are outside this project's sourcing convention. |
 
 ## Confirmed this round (moved out of the table above once reported)
 
