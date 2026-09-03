@@ -62,12 +62,12 @@ files is risky" section.
 | saga2 | Faery Tale Adventure II: Halls of the Dead | fixed — was missing `SAMPLE.AD`/`SAMPLE.OPL` |
 | m4 | Orion Burger | fixed — was missing all 9 `SECTION*.HAG` per-chapter archives |
 | pink | The Pink Panther: Passport to Peril | fixed — original dump corrupted beyond the first 5000 bytes despite matching size+prefix hash; resourced from MyAbandonware |
-| chamber | Chamber of the Sci-Mutant Priestess | fixed — original dump froze the browser despite passing every integrity check; resourced a third archive.org copy |
 
 ## Blocked (user-tested, failed — tagged in `non-running/`)
 
 | Engine | Game | Symptom | Notes |
 |---|---|---|---|
+| chamber | Chamber of the Sci-Mutant Priestess | Reaches title screen (past `ADGF_UNSTABLE` warning), then hangs | Likely genuine engine immaturity, not a dump issue -- not built by default upstream, no compatibility wiki entry, TODO-riddled source. Two prior dumps also failed differently (browser freeze, before that) |
 | bbvs | Beavis and Butt-Head in Virtual Stupidity | "mem access OOB" | Shared `fonts.dat` WASM crash, 6th confirmation |
 | gnap | U.F.O.s | "mem OOB" | Shared `fonts.dat` WASM crash, 7th confirmation |
 | mutationofjb | Mutation of J.B. (German) | "mem OOB" | Shared `fonts.dat` WASM crash, 8th confirmation |

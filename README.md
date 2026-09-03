@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 73 of 102 engines confirmed load into game.
+TEST STATUS : 72 of 102 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **73 of 102 confirmed working as of this
+plays, not just compiles. **72 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -52,9 +52,10 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**73 of 102 confirmed** (plus the `agos2` subengine). 9 blocked on the
-shared crash, 14 deferred on sourcing/tooling, 11 waiting on a GL-core
-build that hasn't happened yet, 3 unidentified, the rest untested. Full
+**72 of 102 confirmed** (plus the `agos2` subengine). 10 blocked (9 on
+the shared crash, 1 on likely engine immaturity), 14 deferred on
+sourcing/tooling, 11 waiting on a GL-core build that hasn't happened
+yet, 3 unidentified, the rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
 table is the at-a-glance summary, kept in sync with it.
@@ -151,7 +152,7 @@ table is the at-a-glance summary, kept in sync with it.
 | bbvs | 🚫 | Same shared `fonts.dat` WASM crash (6th confirmation) |
 | cge | ✅ | Soltys, bundled ScummVM freeware |
 | cge2 | ✅ | Sfinx, official English release |
-| chamber | ✅ | Original dump froze the browser despite passing every check; fixed by resourcing a third archive.org copy |
+| chamber | 🚫 | Reaches title screen then hangs; likely genuine engine immaturity (not built by default upstream, no compatibility wiki entry) |
 | chewy | ✅ | English DOS release exists, corrects old "German-only" note |
 | composer | ✅ | Magic Tales: Baba Yaga and the Magic Geese |
 | draci | ✅ | Dragon History, English fan translation |
