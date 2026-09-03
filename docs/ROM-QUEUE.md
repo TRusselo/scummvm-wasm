@@ -31,7 +31,6 @@ files is risky" section.
 
 | Engine | ROM filename | Source | Notes |
 |---|---|---|---|
-| pink | `[test] Pink Panther - Passport to Peril.zip` | archive.org `ThePinkPantherPassportToPerilUSA` | **Blocked, unresolved**: `Common::kNoGameDataFoundError` at engine startup despite the file being confirmed intact and hash-correct; a `.scummvm` hook file didn't help either. Needs core-level tracing, not repackaging |
 | hadesch | `[test] Hades Challenge.zip` | archive.org `hadeschallenge` | **Blocked, dump issue confirmed**: all files present exactly where expected, but `ol.pod`'s MD5 doesn't match any of ScummVM's ~3 cataloged variants at that byte size — a genuine dump-sourcing problem, not fixable by repackaging |
 | trecision | `[test] Nightlong - Union City Conspiracy.zip` | archive.org `DreamCatcher_Nightlong_Win95_1998_Eng` | **Blocked, predicted caveat confirmed**: only 2 of 3 required CD-animation files exist in this release; needs a genuine 3-CD dump or the demo entry instead |
 
@@ -62,6 +61,7 @@ files is risky" section.
 | alg | Crime Patrol | fixed — was missing `CP.SCN` + a dozen resource files |
 | saga2 | Faery Tale Adventure II: Halls of the Dead | fixed — was missing `SAMPLE.AD`/`SAMPLE.OPL` |
 | m4 | Orion Burger | fixed — was missing all 9 `SECTION*.HAG` per-chapter archives |
+| pink | The Pink Panther: Passport to Peril | fixed — original dump corrupted beyond the first 5000 bytes despite matching size+prefix hash; resourced from MyAbandonware |
 
 ## Blocked (user-tested, failed — tagged in `non-running/`)
 

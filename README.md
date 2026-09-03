@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 71 of 103 engines confirmed load into game.
+TEST STATUS : 72 of 102 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **71 of 102 confirmed working as of this
+plays, not just compiles. **72 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -52,8 +52,8 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**71 of 102 confirmed** (plus the `agos2` subengine). 10 blocked (9 on a
-shared crash, 1 on another issue), 15 deferred on sourcing/tooling, 11
+**72 of 102 confirmed** (plus the `agos2` subengine). 10 blocked (9 on a
+shared crash, 1 on another issue), 14 deferred on sourcing/tooling, 11
 waiting on a GL-core build that hasn't happened yet, 3 unidentified, the
 rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
@@ -169,7 +169,7 @@ table is the at-a-glance summary, kept in sync with it.
 | mutationofjb | 🚫 | Same shared `fonts.dat` WASM crash (8th confirmation); German-only, no English exists |
 | ngi | 🚫 | Same shared `fonts.dat` WASM crash (9th confirmation); official English release exists |
 | petka | ✅ | Red Comrades 2, Russian-only, testing purposes |
-| pink | ⏸️ | Pink Panther: Passport to Peril — file confirmed intact/correct, `.scummvm` hook file didn't help either; needs core-level tracing |
+| pink | ✅ | Pink Panther: Passport to Peril — original dump was corrupted beyond the first 5000 bytes, fixed by resourcing from MyAbandonware |
 | prince | ⬜ | Polish-only, fan patch unverified |
 | qdengine | ⬜ | Russian-origin |
 | saga2 | ✅ | Faery Tale Adventure II (was missing SAMPLE.AD/SAMPLE.OPL, fixed) |

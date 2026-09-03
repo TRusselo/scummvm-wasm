@@ -1683,3 +1683,39 @@ soundtrack when only enough to boot is needed), and when you do trim,
 treat every excluded file as a real risk until the game is confirmed
 booting into actual gameplay, not just past the ScummVM detection
 screen.
+
+## Exact size AND 5000-byte-prefix hash match still doesn't guarantee an intact file
+
+`pink` (The Pink Panther: Passport to Peril) found a failure mode beyond
+the ones above: `PPTP.ORB` matched the English detection entry's declared
+size (618203600 bytes) *and* its 5000-byte-prefix MD5 exactly, yet
+ScummVM's own engine-startup detection (`AdvancedMetaEngineDetection::
+createInstance()`) still failed with `Common::kNoGameDataFoundError`
+("Game data not found"). Direct WASM-filesystem inspection confirmed the
+file was genuinely present, correctly sized, with an intact zip CRC --
+not a packaging problem. A `.scummvm` hook file targeting the exact
+gameId directly (`pink:peril`) produced the identical error, ruling out
+an autodetect-path issue too.
+
+Root cause, found by sourcing an entirely different dump (a `.bin`/`.cue`
+CD image from [MyAbandonware](https://www.myabandonware.com/game/the-pink-panther-passport-to-peril-e79),
+converted to ISO, extracted, DirectX redistributable files removed): the
+new `PPTP.ORB` has the **identical** size and 5000-byte-prefix hash as
+the original broken dump, but plays correctly. This proves the original
+file was corrupted or incomplete somewhere in the ~618MB *beyond* the
+first 5000 bytes checked by ScummVM's own detection, and beyond the
+whole-file byte count checked by this project's sizing verification --
+neither check this project relies on can catch that class of corruption.
+Likely cause: a botched original CD-to-file extraction (e.g. a sector-
+alignment error) that happens to preserve both the file's start and its
+total length while scrambling data further in.
+
+**Takeaway:** if a game fails at ScummVM's own engine-startup detection
+despite the anchor file matching both the declared size and the 5000-byte
+prefix hash exactly -- and the WASM filesystem inspection confirms the
+file is genuinely present with no zip-level corruption -- suspect a bad
+rip/extraction of the *specific dump*, not a packaging or core bug.
+Sourcing a completely different dump (different site, different
+extraction method) is a legitimate, sometimes necessary troubleshooting
+step even when every automated check this project runs says the file
+looks correct.
