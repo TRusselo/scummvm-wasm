@@ -1650,3 +1650,36 @@ or multi-directory. The only remaining case where `fileNames[0]` still
 matters is the `.scummvm` hook file (see further down), since that
 specific check is on `game->path` itself, not on the scan root this fix
 changes.
+
+## Packaging by hand-picking only the detection-matching files is risky -- package the complete game data instead
+
+ScummVM's detection only checks 2-3 fingerprint files (an
+`AD_ENTRY`/`AD_ENTRY2s` tuple) to *identify* a game -- it says nothing
+about every file the engine's actual runtime code will read once the
+game is running. Two confirmed cases this sweep hit this exact class of
+bug from hand-picking a "minimal" file set based on what detection
+needs, rather than packaging the complete original game data:
+
+- **`groovie`**: a minimal zip containing only the two hashed files
+  passed detection cleanly, then crashed at runtime on missing
+  `icons.ph`/`sample.AD`/`sample.OPL` -- present on the original disc,
+  absent from detection's checklist.
+- **`alg`** (Crime Patrol): packaging hand-picked the 6 files matching
+  the detection entry from the installer ISO, explicitly skipping
+  `CPSS.LIB` and a dozen small `.8B`/`.ANI`/`.VGA` resource files as "not
+  part of the detection entry." Detection passed, the game launched, then
+  crashed to ScummVM's debug console on `_sceneInfo->loadScnFile("cp.scn")`
+  (`engines/alg/logic/game_crimepatrol.cpp:79`) -- `CP.SCN`, a plain
+  hardcoded filename the engine reads directly, was never included.
+
+**Default to packaging the complete original game directory/disc/ISO
+contents** (everything, minus obviously-irrelevant installer-only
+cruft like setup wizards or an unrelated bundled demo folder), not a
+subset curated around what the detection table happens to name. Given
+this project's current ~1GB size budget, most games have plenty of room
+to include everything -- there's rarely a real reason to hand-pick.
+Reserve trimming for genuinely oversized cases (e.g. a full-game CD-audio
+soundtrack when only enough to boot is needed), and when you do trim,
+treat every excluded file as a real risk until the game is confirmed
+booting into actual gameplay, not just past the ScummVM detection
+screen.

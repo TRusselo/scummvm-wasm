@@ -44,6 +44,7 @@ route around packaging quirks.
 | saga2 | `[test] Faery Tale Adventure II.zip` | archive.org `msdos_Halls_of_the_Dead_-_Faery_Tale_Adventure_II_1997` | All 7 required files hash/size-verified |
 | supernova | `[test] Mission Supernova.zip` | archive.org `bhv-playware_msn-disk` | Hash-verified exactly; corrects an old "unverified translation" note — official EN_ANY entry shares the German hash |
 | trecision | `[test] Nightlong - Union City Conspiracy.zip` | archive.org `DreamCatcher_Nightlong_Win95_1998_Eng` | **Caveat**: detection needs 3 CD-animation files, only 2 exist in this release; `data.nl` hash-verified but detection may fail on the missing `nlanim.cd3` |
+| alg | `[test] Crime Patrol.zip` | archive.org `msdos_Crime_Patrol_1994` (full ISO root, `SPDEMO/` excluded) | **Retest after fix**: first attempt hand-picked only detection-matching files and dropped `CP.SCN` + a dozen small resource files the engine reads by hardcoded filename at runtime — repackaged with the complete ISO root (~498MB, still under budget) |
 
 ## Confirmed working (user-tested, `[pass]` tag)
 
@@ -62,7 +63,6 @@ route around packaging quirks.
 
 | Engine | Game | Symptom | Notes |
 |---|---|---|---|
-| alg | Crime Patrol (used instead of Mad Dog McCree) | Drops to ScummVM debug console, `exit` freezes | Leading suspect: `CPSS.LIB` was skipped during packaging (not part of the hash-detection fingerprint) but may be needed at runtime — retry with it included |
 | bbvs | Beavis and Butt-Head in Virtual Stupidity | "mem access OOB" | Same signature as the shared `fonts.dat` WASM crash (griffon/glk/dm/tony/neverhood) — 6th engine confirmed hitting this core-level bug, not a packaging issue |
 | chamber | Chamber of the Sci-Mutant Priestess | Freezes the browser tab entirely | Different symptom from the other two; root cause not yet identified |
 
