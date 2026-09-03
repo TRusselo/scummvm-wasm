@@ -31,8 +31,8 @@ files is risky" section.
 
 | Engine | ROM filename | Source | Notes |
 |---|---|---|---|
-| pink | `[test] Pink Panther - Passport to Peril.zip` | archive.org `ThePinkPantherPassportToPerilUSA` | **Blocked, not yet fixed**: user reported "missing game data, then scumm loader" — root cause not yet investigated |
-| hadesch | `[test] Hades Challenge.zip` | archive.org `hadeschallenge` | **Blocked, not yet fixed**: empty ScummVM launcher; leading suspect is `ol.pod`'s hash mismatch (2 of 3 detection files matched exactly) |
+| pink | `[test] Pink Panther - Passport to Peril.zip` | archive.org `ThePinkPantherPassportToPerilUSA` | **Blocked, unresolved**: `Common::kNoGameDataFoundError` at engine startup despite the file being confirmed intact and hash-correct; a `.scummvm` hook file didn't help either. Needs core-level tracing, not repackaging |
+| hadesch | `[test] Hades Challenge.zip` | archive.org `hadeschallenge` | **Blocked, dump issue confirmed**: all files present exactly where expected, but `ol.pod`'s MD5 doesn't match any of ScummVM's ~3 cataloged variants at that byte size — a genuine dump-sourcing problem, not fixable by repackaging |
 | trecision | `[test] Nightlong - Union City Conspiracy.zip` | archive.org `DreamCatcher_Nightlong_Win95_1998_Eng` | **Blocked, predicted caveat confirmed**: only 2 of 3 required CD-animation files exist in this release; needs a genuine 3-CD dump or the demo entry instead |
 
 ## Confirmed working (user-tested, `[pass]` tag)

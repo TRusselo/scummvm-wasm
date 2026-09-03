@@ -158,7 +158,7 @@ table is the at-a-glance summary, kept in sync with it.
 | draci | ✅ | Dragon History, English fan translation |
 | efh | ✅ | Escape from Hell |
 | gnap | 🚫 | Same shared `fonts.dat` WASM crash (7th confirmation) |
-| hadesch | ⏸️ | Hades Challenge — empty launcher, likely `ol.pod` hash mismatch |
+| hadesch | ⏸️ | Hades Challenge — confirmed `ol.pod` dump mismatch, not fixable by repackaging |
 | hdb | ✅ | Hyperspace Delivery Boy!, official freeware |
 | hypno | ✅ | Wetlands (US) |
 | illusions | ✅ | Duckman: The Graphic Adventures of a Private Dick |
@@ -169,7 +169,7 @@ table is the at-a-glance summary, kept in sync with it.
 | mutationofjb | 🚫 | Same shared `fonts.dat` WASM crash (8th confirmation); German-only, no English exists |
 | ngi | 🚫 | Same shared `fonts.dat` WASM crash (9th confirmation); official English release exists |
 | petka | ✅ | Red Comrades 2, Russian-only, testing purposes |
-| pink | ⏸️ | Pink Panther: Passport to Peril — "missing game data, then scumm loader," not yet investigated |
+| pink | ⏸️ | Pink Panther: Passport to Peril — file confirmed intact/correct, `.scummvm` hook file didn't help either; needs core-level tracing |
 | prince | ⬜ | Polish-only, fan patch unverified |
 | qdengine | ⬜ | Russian-origin |
 | saga2 | ✅ | Faery Tale Adventure II (was missing SAMPLE.AD/SAMPLE.OPL, fixed) |
