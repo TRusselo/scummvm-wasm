@@ -22,7 +22,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **48 of 102 confirmed working as of this
+plays, not just compiles. **56 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -50,9 +50,10 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**48 of 102 confirmed** (plus the `agos2` subengine). 5 blocked on a
-shared crash, 9 deferred on sourcing/tooling, 11 waiting on a GL-core
-build that hasn't happened yet, 3 unidentified, the rest untested. Full
+**56 of 102 confirmed** (plus the `agos2` subengine). 8 blocked (6 on a
+shared crash, 2 on other issues), 12 deferred on sourcing/tooling, 11
+waiting on a GL-core build that hasn't happened yet, 3 unidentified, the
+rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
 table is the at-a-glance summary, kept in sync with it.
@@ -69,7 +70,7 @@ table is the at-a-glance summary, kept in sync with it.
 | sword1 | ✅ | Broken Sword — full game, both CDs merged |
 | sword2 | ✅ | Broken Sword II — full game, both CDs merged |
 | sci | ✅ | King's Quest V |
-| bladerunner | ⬜ | Only realistic candidate is CD-heavy, no smaller alt |
+| bladerunner | ✅ | Only title on this engine, under the 2GB single-title exception (1.947GB) |
 | ultima | ✅ | Ultima VIII: Pagan via `ultima8` (a GOG dump's own detection entry is structurally undetectable — libretro only scans the anchor's own directory, not the zip root; used a single-subdirectory dump instead) |
 | twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
 | mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
@@ -91,8 +92,8 @@ table is the at-a-glance summary, kept in sync with it.
 | Engine | Status | Notes |
 |---|---|---|
 | kyra | ✅ | Legend of Kyrandia: Book One |
-| mm | ⬜ | Parent engine, no standalone game of its own (see `xeen`) |
-| tsage | ⬜ | Parent engine, no standalone game of its own (see `ringworld2`) |
+| mm | ✅ | World of Xeen via `xeen` subengine |
+| tsage | ✅ | Return to Ringworld via `ringworld2` subengine |
 | sherlock | ✅ | The Case of the Serrated Scalpel |
 | queen | ✅ | Flight of the Amazon Queen, official freeware |
 | lure | ✅ | Lure of the Temptress, freed by Revolution Software |
@@ -100,11 +101,11 @@ table is the at-a-glance summary, kept in sync with it.
 | cine | ✅ | Future Wars |
 | cruise | ✅ | Cruise for a Corpse |
 | cryo | ✅ | Lost Eden (English DOS) |
-| cryomni3d | ⬜ | |
+| cryomni3d | ⏸️ | Versailles 1685 needs an InstallShield installer run; no unshield/innoextract/DOSBox available |
 | darkseed | ✅ | Dark Seed |
 | dgds | ✅ | Via Heart of China |
 | director | ✅ | The Journeyman Project — plays normally past the `ADGF_UNSTABLE` "Start anyway?" warning dialog |
-| dragons | ⬜ | |
+| dragons | ⏸️ | Blazing Dragons is PS1-only; no archive.org disc image found |
 | drascula | ✅ | Drascula: The Vampire Strikes Back |
 | dreamweb | ✅ | DreamWeb, freeware since 2011 |
 | griffon | 🚫 | Same shared `fonts.dat` WASM crash |
@@ -121,8 +122,8 @@ table is the at-a-glance summary, kept in sync with it.
 | parallaction | ✅ | The Big Red Adventure, official freeware |
 | pegasus | ✅ | The Journeyman Project 3: Pegasus Prime (official ScummVM-team demo) |
 | buried | ✅ | The Journeyman Project 2: Buried in Time demo |
-| plumbers | ⬜ | |
-| private | ⬜ | |
+| plumbers | ✅ | Plumbers Don't Wear Ties |
+| private | ✅ | Private Eye (EN_GRB variant) |
 | saga | ✅ | I Have No Mouth, and I Must Scream |
 | sludge | ⚠️ | Worked (The Interview) but excluded — unsigned `.exe`, engine marked unstable/WIP by ScummVM itself |
 | titanic | ⏸️ | Starship Titanic — GOG version hash-matches exactly, but `Assets/` alone is 1.19GiB (over size limit); single-game engine, no alt title |
@@ -141,15 +142,15 @@ table is the at-a-glance summary, kept in sync with it.
 
 | Engine | Status | Notes |
 |---|---|---|
-| access | ⬜ | |
-| agds | ⬜ | |
-| alg | ⬜ | |
-| avalanche | ⬜ | |
-| bagel | ⬜ | |
-| bbvs | ⬜ | |
+| access | ✅ | Amazon: Guardians of Eden |
+| agds | ⏸️ | Both titles (Black Mirror, NiBiRu) too large for size budget |
+| alg | 🚫 | Crime Patrol drops to ScummVM debug console; likely a runtime-needed file skipped during packaging |
+| avalanche | ✅ | Lord Avalot d'Argent, freeware |
+| bagel | ✅ | Hodj 'n' Podj (used instead of The Space Bar, too large) |
+| bbvs | 🚫 | Same shared `fonts.dat` WASM crash (6th confirmation) |
 | cge | ✅ | Soltys, bundled ScummVM freeware |
 | cge2 | ✅ | Sfinx, official English release |
-| chamber | ⬜ | |
+| chamber | 🚫 | Freezes the browser tab; root cause not yet identified |
 | chewy | ⬜ | No official English release |
 | composer | ⬜ | |
 | draci | ⬜ | Community English translation exists |
