@@ -22,7 +22,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **56 of 102 confirmed working as of this
+plays, not just compiles. **71 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -50,8 +50,8 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**56 of 102 confirmed** (plus the `agos2` subengine). 8 blocked (6 on a
-shared crash, 2 on other issues), 12 deferred on sourcing/tooling, 11
+**71 of 102 confirmed** (plus the `agos2` subengine). 10 blocked (9 on a
+shared crash, 1 on another issue), 15 deferred on sourcing/tooling, 11
 waiting on a GL-core build that hasn't happened yet, 3 unidentified, the
 rest untested. Full
 narrative detail (what game, what source, what broke, how it was fixed)
@@ -144,38 +144,38 @@ table is the at-a-glance summary, kept in sync with it.
 |---|---|---|
 | access | ✅ | Amazon: Guardians of Eden |
 | agds | ⏸️ | Both titles (Black Mirror, NiBiRu) too large for size budget |
-| alg | 🚫 | Crime Patrol drops to ScummVM debug console; likely a runtime-needed file skipped during packaging |
+| alg | ✅ | Crime Patrol (was missing `CP.SCN` + resource files skipped during initial packaging, fixed) |
 | avalanche | ✅ | Lord Avalot d'Argent, freeware |
 | bagel | ✅ | Hodj 'n' Podj (used instead of The Space Bar, too large) |
 | bbvs | 🚫 | Same shared `fonts.dat` WASM crash (6th confirmation) |
 | cge | ✅ | Soltys, bundled ScummVM freeware |
 | cge2 | ✅ | Sfinx, official English release |
 | chamber | 🚫 | Freezes the browser tab; root cause not yet identified |
-| chewy | ⬜ | No official English release |
-| composer | ⬜ | |
-| draci | ⬜ | Community English translation exists |
-| efh | ⬜ | |
-| gnap | ⬜ | Low confidence on title identification |
-| hadesch | ⬜ | Low confidence on title identification |
-| hdb | ⬜ | |
-| hypno | ⬜ | Low confidence on title identification |
-| illusions | ⬜ | |
-| kingdom | ⬜ | |
-| lilliput | ⬜ | |
-| m4 | ⬜ | |
-| mortevielle | ⬜ | French-origin, English availability unclear |
-| mutationofjb | ⬜ | Commercial Slovak/German-only release, no legitimate free English source |
-| ngi | ⬜ | Russian-primary |
-| petka | ⬜ | Russian-only |
-| pink | ⬜ | English availability unclear |
+| chewy | ✅ | English DOS release exists, corrects old "German-only" note |
+| composer | ✅ | Magic Tales: Baba Yaga and the Magic Geese |
+| draci | ✅ | Dragon History, English fan translation |
+| efh | ✅ | Escape from Hell |
+| gnap | 🚫 | Same shared `fonts.dat` WASM crash (7th confirmation) |
+| hadesch | ⏸️ | Hades Challenge — empty launcher, likely `ol.pod` hash mismatch |
+| hdb | ✅ | Hyperspace Delivery Boy!, official freeware |
+| hypno | ✅ | Wetlands (US) |
+| illusions | ✅ | Duckman: The Graphic Adventures of a Private Dick |
+| kingdom | ✅ | Kingdom: The Far Reaches |
+| lilliput | ✅ | The Adventures of Robin Hood |
+| m4 | ✅ | Orion Burger (was missing all 9 SECTION*.HAG per-chapter archives, fixed) |
+| mortevielle | ✅ | Mortville Manor, French data presents in English via `mort.dat` overlay |
+| mutationofjb | 🚫 | Same shared `fonts.dat` WASM crash (8th confirmation); German-only, no English exists |
+| ngi | 🚫 | Same shared `fonts.dat` WASM crash (9th confirmation); official English release exists |
+| petka | ✅ | Red Comrades 2, Russian-only, testing purposes |
+| pink | ⏸️ | Pink Panther: Passport to Peril — "missing game data, then scumm loader," not yet investigated |
 | prince | ⬜ | Polish-only, fan patch unverified |
 | qdengine | ⬜ | Russian-origin |
-| saga2 | ⬜ | |
-| supernova | ⬜ | German-origin, translation unverified |
+| saga2 | ✅ | Faery Tale Adventure II (was missing SAMPLE.AD/SAMPLE.OPL, fixed) |
+| supernova | ✅ | Mission Supernova, official EN_ANY entry shares the German hash |
 | teenagent | ✅ | TeenAgent, official freeware |
 | toltecs | ✅ | 3 Skulls of the Toltecs |
 | got | ✅ | God of Thunder, official freeware |
-| trecision | ⬜ | |
+| trecision | ⏸️ | Nightlong — predicted 3-CD-file caveat confirmed, only 2 of 3 exist in the accessible release |
 | tucker | ✅ | Bud Tucker in Double Trouble |
 | wage | ✅ | Via "Magic Rings" (WAGE Collection freeware bundle) |
 
