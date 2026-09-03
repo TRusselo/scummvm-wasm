@@ -1,0 +1,98 @@
+Task 3 captured crash trace -- Griffon Legend ROM, debug-info build
+(-g -gsource-map, same binary built in Task 2)
+====================================================================
+
+Captured via a real, manually-opened Chrome DevTools console attached
+to the test harness tab (http://localhost:8934/test-page/index.html,
+EJS_gameUrl = "griffon.zip") while the automated browser-driving
+session below was independently reproducing the same crash. This is
+the full native stack that Chrome's DevTools shows directly inside the
+crashing pthread-pool worker's own execution context, including
+symbolicated (non-mangled) C++ function names from the debug build's
+name section -- something the automated console-reading tool used
+during this investigation could NOT surface (see task-3-report.md for
+why).
+
+Preceding boot log (trimmed to the parts adjacent to the crash;
+full ~600-line boot log also included the expected "Failed to load
+resource" 404s for optional per-core report/localization JSON files,
+several "Uncaught ErrnoError {errno: 20}" from mkdir() retries during
+FS setup -- all benign/expected noise unrelated to the crash):
+
+  loader.js:135 Loading language en-GB
+  ejs/data/localization/en-GB.json:1  Failed to load resource: 404
+  loader.js:144 Missing language en-GB !!
+  ejs/data/cores/reports/scummvm.json:1  Failed to load resource: 404
+  emulator.min.js:1 Could not fetch core report JSON! Core caching will be disabled!
+   Warning: Enlarging memory arrays, this is not fast! 16777216,268435456
+   enlarged memory arrays from 16777216 to 268435456, took 5 ms (has ArrayBuffer.transfer? false)
+  Multiple debug symbols for script were found. Using EmbeddedDWARF
+  ... (repeated for each of the 4 pthread-pool workers)
+  <core .data 7z archive decompression via extract()/checkCompression() -- normal>
+  ... (repeated "Uncaught ErrnoError {name: 'ErrnoError', errno: 20}" -- benign mkdir() retries)
+
+The crash itself:
+
+  <blob>:846 Uncaught ErrorEvent {isTrusted: true, message: 'Uncaught RuntimeError: function signature mismatch', filename: 'blob:http://localhost:8934/383068ca-bc44-497c-8b3e-f1fc4f2a8e5c', lineno: 307, colno: 7, ...}
+  worker.onerror @ 383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:846
+
+  383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:307 Uncaught RuntimeError: function signature mismatch
+      at scummvm_libretro.wasm.af_loader_load_glyph (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x66f559)
+      at scummvm_libretro.wasm.af_autofitter_load_glyph (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x66fbc5)
+      at scummvm_libretro.wasm.FT_Load_Glyph (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x65b9f6)
+      at scummvm_libretro.wasm.Graphics::TTFFont::cacheGlyph(Graphics::TTFFont::Glyph&, unsigned int) const (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6eb077)
+      at scummvm_libretro.wasm.Graphics::TTFFont::load(Common::SeekableReadStream*, DisposeAfterUse::Flag, int, Graphics::TTFSizeMode, unsigned int, unsigned int, Graphics::TTFRenderMode, unsigned int const*, bool, int, bool, bool) (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6ea610)
+      at scummvm_libretro.wasm.Graphics::loadTTFFont(Common::SeekableReadStream*, DisposeAfterUse::Flag, int, Graphics::TTFSizeMode, unsigned int, unsigned int, Graphics::TTFRenderMode, unsigned int const*, bool) (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6edb99)
+      at scummvm_libretro.wasm.Glk::Screen::loadFont(Glk::FACES, Common::Archive*, double, double, int) (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x29abf6e)
+      at scummvm_libretro.wasm.Glk::Screen::loadFonts(Common::Archive*) (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x29aba89)
+      at scummvm_libretro.wasm.Glk::Screen::loadFonts() (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x29ab476)
+      at scummvm_libretro.wasm.Glk::Screen::initialize() (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x29aaea8)
+      at scummvm_libretro.wasm.Glk::GlkEngine::initialize() (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x29de21d)
+      at scummvm_libretro.wasm.Glk::GlkEngine::run() (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x29df0f3)
+      at scummvm_libretro.wasm.runGame(Plugin const*, OSystem&, DetectedGame const&, void const*) (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6c4d266)
+      at scummvm_libretro.wasm.scummvm_main (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6c48389)
+      at scummvm_libretro.wasm.retro_wrap_emulator(void*) (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6c4e261)
+      at scummvm_libretro.wasm.thread_wrap (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x3c5860)
+      at scummvm_libretro.wasm.dynCall_ii (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6c8586c)
+      at wrapper (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:13358)
+      at invokeEntryPoint (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:948)
+      at handleMessage (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:275)
+      [Worker.postMessage async boundary -- Chrome's async-stack stitching
+       across the pthread_create() call that spawned this emulation thread]
+      at spawnThread (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:622)
+      at ___pthread_create_js (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:1270)
+      at scummvm_libretro.wasm.__pthread_create (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6c6dd79)
+      at scummvm_libretro.wasm.sthread_create (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x3c572c)
+      at scummvm_libretro.wasm.retro_init_emu_thread() (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6c4df40)
+      at scummvm_libretro.wasm.retro_load_game (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6c146d7)
+      at scummvm_libretro.wasm.core_load_game (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x13cfb5)
+      at scummvm_libretro.wasm.content_init (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x1562db)
+      at scummvm_libretro.wasm.runloop_event_init_core (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x133423)
+      at scummvm_libretro.wasm.command_event (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x11a463)
+      at scummvm_libretro.wasm.dynCall_iii (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x6c85df5)
+      at wrapper (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:13358)
+      at invoke_iii (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:15257)
+      at scummvm_libretro.wasm.retroarch_main_init (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x127d48)
+      at scummvm_libretro.wasm.content_load (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x150732)
+      at scummvm_libretro.wasm.task_load_content_internal (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x15342c)
+      at scummvm_libretro.wasm.task_push_load_content_from_cli (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x1537d8)
+      at scummvm_libretro.wasm.rarch_main (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x12018d)
+      at scummvm_libretro.wasm.main (61aa59a4-b2dd-4d2a-83a0-4ba7e1578049:0x22297e)
+      at wrapper (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:13358)
+      at callMain (383068ca-bc44-497c-8b3e-f1fc4f2a8e5c:15329)
+      at startGame (emulator.min.js:1)
+
+====================================================================
+Crash type: WebAssembly.RuntimeError: "function signature mismatch"
+(an indirect call (call_indirect) through the wasm function table hit
+a table slot whose actual signature didn't match the expected one at
+the call site) -- NOT literally "memory access out of bounds", though
+plausibly a different symptom of the same underlying corruption this
+investigation is chasing (see task-3-report.md for discussion).
+
+Deepest verified-against-source frames (see task-3-report.md):
+  Graphics::TTFFont::cacheGlyph()  -- scummvm-core/graphics/fonts/ttf.cpp:803
+    -> FT_Load_Glyph(_face, slot, _loadFlags) at ttf.cpp:813
+      -> FreeType autofit module: af_autofitter_load_glyph -> af_loader_load_glyph
+         (indirect call inside FreeType's per-script hinting dispatch
+         is where the trap actually fires)
