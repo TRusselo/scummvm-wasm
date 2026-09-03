@@ -38,6 +38,12 @@ route around packaging quirks.
 | m4 | `[test] Orion Burger.zip` | archive.org `msdos_Orion_Burger_1996` | Hash-verified |
 | mortevielle | `[test] Mortville Manor.zip` | archive.org `mortevielle` | MENUFR.MOR hash-verified; presents in English via mort.dat translation overlay despite French data files |
 | mutationofjb | `[test] Mutation of J.B. (German).zip` | archive.org `mutation-of-jb` | Hash-verified; German-only, no English release exists (corrects a prior contradictory note) |
+| ngi | `[test] Full Pipe.zip` | archive.org `Full-Pipe_CSF` | Official English Steam release, hash-verified exactly; corrects an old "Russian-primary" note |
+| petka | `[test] Red Comrades 2.zip` | archive.org `petka/petka/petka2.7z` | Hash-verified (5000-byte-prefix); genuinely Russian-only, no translation exists |
+| pink | `[test] Pink Panther - Passport to Peril.zip` | archive.org `ThePinkPantherPassportToPerilUSA` | English (USA), hash-verified exactly; corrects an old "unclear" note |
+| saga2 | `[test] Faery Tale Adventure II.zip` | archive.org `msdos_Halls_of_the_Dead_-_Faery_Tale_Adventure_II_1997` | All 7 required files hash/size-verified |
+| supernova | `[test] Mission Supernova.zip` | archive.org `bhv-playware_msn-disk` | Hash-verified exactly; corrects an old "unverified translation" note — official EN_ANY entry shares the German hash |
+| trecision | `[test] Nightlong - Union City Conspiracy.zip` | archive.org `DreamCatcher_Nightlong_Win95_1998_Eng` | **Caveat**: detection needs 3 CD-animation files, only 2 exist in this release; `data.nl` hash-verified but detection may fail on the missing `nlanim.cd3` |
 
 ## Confirmed working (user-tested, `[pass]` tag)
 
@@ -67,3 +73,5 @@ route around packaging quirks.
 | agds | Both titles (Black Mirror, NiBiRu) are large CD/installer-based FMV games; neither fits under 1GB without extraction effort unlikely to pay off. See ENGINE-TEST-PLAN.md for detail. |
 | cryomni3d | Versailles 1685 needs an actual InstallShield installer run to produce the real game files; no unshield/innoextract/DOSBox available. Tried both an installer package and raw ISO discs. |
 | dragons | Blazing Dragons is PS1-only (no DOS port exists); no archive.org copy of the disc image found, only longplay videos. Other ROM sites are outside this project's sourcing convention. |
+| prince | Confirmed a real official English "w/translation" detection entry exists (just needs the original Polish/German `databank.ptc` + ScummVM's own now-embedded `prince_translation.dat`) — but no accessible dump of the original Polish/German release found on archive.org after real search effort. |
+| qdengine | Confirmed genuinely Russian-only (hardcoded in the detection macros). Identified two small candidates (`nupogodi3`, `karliknos`) but archive.org searches only turned up unrelated cartoon media under the same titles, not the game. |
