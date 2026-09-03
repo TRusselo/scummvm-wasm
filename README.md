@@ -1,5 +1,7 @@
 # scummvm-wasm
 
+TEST STATUS : 71 of 103 engines confirmed load into game.
+
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
 [EmulatorJS](https://emulatorjs.org/) libretro core, so ScummVM-supported
