@@ -436,6 +436,121 @@ tuning the flags (e.g. `SAFE_HEAP=1` instead of `2`, or `-O1` without
 `SAFE_HEAP`) to isolate which one drives the slowdown -- not attempted this
 round.
 
+### Follow-up (2026-09-03, Task B): logging trimmed, still impractical -- but differently
+
+The leading hypothesis going into this follow-up was that the diagnostic
+logging itself, not `SAFE_HEAP=2`, was the practical bottleneck:
+`TTFFont::load()`'s two 256-iteration loops fired an unconditional
+`printf`+`fflush(stdout)` per character (up to ~512 times per font load),
+and under Emscripten pthreads a worker's `fflush` on proxied stdout is a
+synchronous cross-thread operation. This was trimmed (see
+`scummvm-core`'s `4ddbbfa52fb` commit): the per-iteration lines were
+removed entirely, and `fflush(stdout)` was dropped from every diagnostic
+call site except the one immediately before the crashing `FT_Load_Glyph()`
+call in `cacheGlyph()` -- the only line that must survive as the last
+output before a trap.
+
+Rebuilt with the same `DEBUG=1` flags as before
+(`bash build/build-core.sh` then `DEBUG=1 bash
+build/build-retroarch-core-debug.sh` then `bash build/package-core.sh`).
+Artifact sizes came out essentially identical to the first attempt --
+`.wasm` 378,733,353 bytes (~379MB, vs. 379MB before) and packaged `.data`
+122,011,804 bytes (~117MB, vs. 117MB before). This confirms the
+expectation stated when this follow-up was planned: the logging trim was
+never expected to change binary size (log call sites are a rounding error
+against a whole-program `-O0`/`SAFE_HEAP=2` rebuild) -- the goal was
+runtime responsiveness, not size, and size was correctly unaffected either
+way.
+
+**Result: still impractical, but the failure mode changed in a
+meaningful, informative way.** Four attempts were made this round (across
+two browser tabs, with the user directly watching one window while an
+automated tab drove the other):
+1. Reached "Decompress Game Core" ~76% then appeared to stall -- but the
+   tab was separately confirmed to have been closed by user accident, not
+   hung. Invalidated as a data point.
+2. Reached full core boot successfully -- all 58 expected RetroArch/
+   ScummVM startup log lines captured live via `read_console_messages`,
+   ending at `[INFO] [Display] Found display driver: "gl".` (GL context
+   found, GLSL shaders linked, OpenAL audio driver started). Positive
+   control confirmed: real-time main-thread log capture was working for
+   this exact run, immediately before the point where output stopped.
+   Then appeared to stall for several minutes with no new console output
+   and intermittent screenshot failures -- but the user identified this as
+   Brave's background-tab throttling (the tab was backgrounded relative to
+   the browser window), not a genuine hang. Also invalidated as a
+   build-hang data point, though it re-confirms background-tab throttling
+   as a real, recurring confound in this harness (consistent with this
+   project's standing "close unused tabs" testing guidance).
+3. Reached the identical 58-line boot point (through
+   `[INFO] [Display] Found display driver: "gl".`) with the tab kept in
+   the foreground this time, then **genuinely crashed** -- confirmed
+   directly by the user watching the tab, not inferred from tooling
+   symptoms.
+4. Reloaded and repeated: reached the exact same 58-line boot point again,
+   then **crashed again at the same point** -- the user predicted this
+   correctly before it happened, based on attempt 3.
+
+No `[fonts-oob-debug]` line, no ScummVM game-detection output, and no
+`RuntimeError`/`SAFE_HEAP` diagnostic text was ever captured in this
+round -- the build never survived past its own startup sequence far enough
+to reach game loading, let alone font loading. The positive control
+(real-time capture of the 58 boot lines) was confirmed working on the
+exact runs that then went silent, so this is a genuine absence of further
+output from the page, not a tooling-capture gap -- though it's worth
+stating precisely what this does and doesn't rule out: it confirms
+`read_console_messages` sees real-time **main-thread** output up to the
+crash; it does not by itself confirm or deny whether pthread-worker
+`printf` output would have been visible too, because the crash happened
+before ScummVM's own worker-thread code (game detection, then font
+loading) ever ran. That half of the C1 hypothesis (from the "Correction"
+section above) remains untested by this round as well.
+
+**Comparing the two rounds' failure signatures directly:** the original
+attempt's tab became unresponsive to script injection shortly after/around
+the decompress step and was eventually lost after 40+ seconds of repeated
+injection timeouts -- consistent with an overloaded-but-technically-alive
+renderer rather than a hard crash. This round's build, with the logging
+trimmed, reliably got measurably further -- through full RetroArch core
+initialization, GL context creation, shader linking, and audio driver
+startup -- before crashing outright (a real tab crash, user-confirmed
+twice in a row at the identical point). So the logging trim did produce a
+real, reproducible improvement in how far the build gets before failing;
+it did not fix the underlying impracticality, and the new failure mode
+(a hard crash immediately after audio/display driver init, before any
+game-specific code runs) is if anything a worse place to fail for this
+investigation's purposes, since it's further from the decompress step but
+still well before the actual diagnostic target (font loading happens after
+game detection, which never got a chance to start). The most plausible
+explanation, not confirmed: `SAFE_HEAP=2` instruments every single memory
+access with bounds/alignment-checking calls, which combined with `-O0`
+(no dead-code elimination, no inlining, much larger generated code) most
+likely drives real memory/CPU usage high enough, on top of the large heap
+growth already visible in this build's own console output (the pasted
+manual DevTools log this round showed heap growth to 512MB early in
+extraction, before core init even starts), to hit a hard per-tab resource
+limit shortly after startup completes -- but this was not directly
+diagnosed (no `chrome://crashes` or `about:memory`-equivalent data was
+captured for either crash).
+
+**Updated bottom line:** `DEBUG=1`/`SAFE_HEAP=2` remains confirmed
+impractical for interactively reaching this specific crash in this test
+harness, now across two independent rounds and four more attempts (six
+total). The earlier round's "impractical" verdict holds, but for a
+refined reason: it is not simply that the tab hangs near the decompress
+step (trimming the logging measurably fixed that specific symptom -- the
+tab now reliably gets all the way through core boot), it's that the
+combination of `-O0` and `SAFE_HEAP=2` on a program this large appears to
+exhaust some hard resource limit shortly after boot, before the game/font
+code that's actually of interest ever runs. Future attempts should try
+the flag-isolation experiment already suggested above (`SAFE_HEAP=1`
+alone, or `-O1` without `SAFE_HEAP`, to find out which flag actually
+drives the crash) rather than assuming `SAFE_HEAP=2` itself is
+categorically unusable -- this round narrowed the failure to "sometime
+between audio-driver-init and the game finishing detection," which is a
+smaller window than "sometime between page load and the crash" that the
+first round left it at.
+
 ## Known limitations
 
 Reproducing this crash requires a human with real, manually-opened Chrome
@@ -576,6 +691,99 @@ the "Open question" section above, *does* use `kTTFRenderModeLight` too and
 *has* run successfully across many confirmed-working engines -- that
 remains the real, still-unresolved counter-evidence against a
 categorically-broken autofit dispatch, not `buried`.)
+
+## MAJOR FINDING (2026-09-04): the crash is NOT specific to FreeType/fonts.dat -- it's pervasive memory corruption
+
+While testing a control build (zero extra debug flags -- exactly Task 2's
+original recipe, `-O3` + `-g -gsource-map`, no `DEBUG=1`, no `SAFE_HEAP`,
+run to rule out whether the previous session's "even `-O1` alone crashes"
+finding was itself a regression in the current codebase state rather than
+a flag effect), `test-page/griffon.zip` was left running at the ScummVM
+splash screen for ~8 minutes with no visible change. It then threw **three
+separate `RuntimeError: memory access out of bounds` exceptions within the
+same second**, in three completely unrelated functions that have nothing
+to do with fonts, FreeType, or ScummVM's own code:
+
+```
+[1] __clock_gettime <- cpu_features_get_time_usec <- runloop_iterate <- emscripten_mainloop
+[2] platform_emscripten_update_canvas_dimensions_cb (triggered by a browser ResizeObserver callback)
+[3] platform_emscripten_update_canvas_dimensions_cb (same, second occurrence)
+```
+
+Verified against source: `cpu_features_get_time_usec` (declared
+`retroarch/libretro-common/include/features/features_cpu.h:61`) is
+RetroArch's own generic frame-timing helper, called from `runloop_iterate`
+(`retroarch/runloop.c`) on essentially every single frame for core-runtime
+tracking, frame-limiting, and similar bookkeeping -- pure RetroArch
+infrastructure, never touching ScummVM code at all.
+`platform_emscripten_update_canvas_dimensions_cb` is declared in
+`retroarch/frontend/drivers/platform_emscripten.c`, RetroArch's own
+Emscripten frontend driver, fired by a browser-side `ResizeObserver` --
+again, nothing to do with fonts, FreeType, or ScummVM.
+
+**This changes the whole investigation's framing.** Every prior task
+(1-4, the final review, and this round's earlier follow-ups) treated the
+crash as specific to `Graphics::TTFFont::cacheGlyph()` -> `FT_Load_Glyph()`
+-> FreeType's autofit dispatch, reached via GLK's font-loading chain. That
+crash-site identification is still real and still source-verified -- it
+is a genuine, reproducible trap at that location. But this session's
+result shows the SAME broad symptom class (`memory access out of bounds`,
+this build's original, more generic signature from before Task 3 narrowed
+it to `function signature mismatch` via the GLK-specific FreeType path)
+can *also* manifest in code that has no relationship to fonts at all, in
+the same test run, within the same second, across three unrelated call
+sites. A single narrow bug confined to FreeType's autofit dispatch would
+not produce this pattern. Pervasive, already-present memory corruption
+that manifests wherever the next vulnerable access happens to occur
+would.
+
+**Leading hypothesis, not yet confirmed:** this build's link flags include
+both `-s ALLOW_MEMORY_GROWTH=1` and `-pthread` (confirmed in
+`build/build-retroarch-core-debug.sh`'s `emmake make` invocation). This
+exact combination is a documented Emscripten trouble spot: when the wasm
+heap grows, the JS-side typed-array views (`HEAP8`/`HEAPU8`/etc.) into the
+underlying `ArrayBuffer` must be refreshed in *every* worker thread that
+holds cached references to them, not just the thread that triggered the
+growth. If a pthread worker's views aren't correctly refreshed after a
+growth event initiated elsewhere, that worker can read/write through
+stale/detached views, producing exactly this pattern: seemingly random
+"memory access out of bounds" traps in whatever code that specific worker
+happens to run next, with no relationship to what that code actually does.
+Consistent circumstantial evidence already on record in this
+investigation: repeated `"Warning: Enlarging memory arrays, this is not
+fast!"` console messages were observed throughout this session and
+earlier ones, including at least one growth from 16MB to 512MB during
+this exact kind of test run -- large, dramatic growth events are exactly
+what this hypothesis needs to occur. **Not yet verified**: whether a
+growth event's timing actually correlates with when a subsequent trap
+occurs (would need instrumentation logging every growth event with a
+timestamp, cross-referenced against the eventual crash time), and whether
+disabling `ALLOW_MEMORY_GROWTH` (fixing `INITIAL_HEAP`/`INITIAL_MEMORY` at
+a large-enough static value instead) avoids the crash entirely -- if it
+does, that would be strong, near-conclusive confirmation.
+
+**Recommended next step for whoever continues this:** test with
+`ALLOW_MEMORY_GROWTH=0` and a large fixed `INITIAL_MEMORY` (large enough
+to avoid ever needing growth for this ROM's actual working set -- the
+512MB growth event observed suggests starting around there, or higher, to
+have real margin) instead of the current
+`STACK_SIZE=16777216 INITIAL_HEAP=134217728` +
+`-s ALLOW_MEMORY_GROWTH=1` combination. If the crash (in any of its forms
+-- `function signature mismatch` at the FreeType site, or these
+generic-code `memory access out of bounds` traps) stops happening
+entirely with growth disabled, that would confirm this hypothesis and
+point directly at the actual fix: either disable memory growth in the
+production build (simplest, at the cost of a larger fixed download size),
+or find and fix the specific pthread-worker view-refresh gap in this
+project's own Emscripten/RetroArch integration if growth needs to stay
+enabled for other reasons.
+
+This does not invalidate the FreeType/GLK crash-site work already done --
+that trap is real and reproducible, and is very likely simply the specific
+manifestation this ROM's specific timing/code-path most reliably produces
+under the *original* `-O3` production build. It does mean a fix targeted
+narrowly at FreeType's autofit dispatch would likely be treating a symptom
+rather than the actual root cause.
 
 ## Note for whenever a fix eventually merges
 
