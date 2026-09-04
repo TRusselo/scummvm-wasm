@@ -347,6 +347,15 @@ directly, not yet done -- a different font file, or never triggers the
 autofit sub-path at all), or there's a discriminating variable nobody has
 identified yet. Stated here plainly as unresolved, not silently dropped.
 
+**Resolved in the "Follow-up: buried vs GLK font-loading comparison"
+section below.** `buried`'s actual confirmed-working test run used a
+non-truecolor detection entry, which takes `kTTFRenderModeMonochrome` and
+(traced into FreeType's own dispatch logic) never invokes autofit at all,
+while GLK's `Screen::loadFont()` always defaults to `kTTFRenderModeLight`,
+which -- unconditionally, for the TrueType driver -- does. `buried`'s
+success provides no evidence about the LIGHT/autofit path GLK's crash
+actually goes through.
+
 ## What's still needed for a real fix
 
 1. Resolve the CORRECTION's open question above: why does GLK code actually
@@ -445,6 +454,128 @@ own retest saw an even higher stall rate (4 of 5 attempts never left the
 splash screen at all), plausibly worsened by heavy unrelated CPU load on
 the test machine at the time rather than a change in the ROM's own
 behavior (see "Correction" section for detail).
+
+## Follow-up: buried vs GLK font-loading comparison
+
+Resolved. The "Contradiction" section above is settled: `buried`'s success
+and GLK's crash are not actually comparable -- they take genuinely
+different FreeType code paths, and the difference is real, source-verified,
+and load-bearing, not a false lead.
+
+**The render-mode call sites differ:**
+- `engines/glk/screen.cpp:132`'s `Screen::loadFont()` calls
+  `Graphics::loadTTFFont(f, DisposeAfterUse::YES, (int)size,
+  Graphics::kTTFSizeModeCharacter)` -- only 4 explicit arguments. Per
+  `graphics/fonts/ttf.h:101`'s declaration, the omitted `renderMode`
+  parameter defaults to `kTTFRenderModeLight`.
+- `engines/buried/graphics.cpp:116` and `:124`'s
+  `GraphicsManager::createArialFont()` explicitly passes
+  `_vm->isTrueColor() ? Graphics::kTTFRenderModeLight :
+  Graphics::kTTFRenderModeMonochrome`.
+- `engines/buried/metaengine.cpp:71`'s `isTrueColor()` returns
+  `(_gameDescription->flags & GF_TRUECOLOR) != 0`. This project's own
+  `docs/ENGINE-TEST-PLAN.md` (buried row) documents the *actual* ROM used to
+  confirm `buried` working: the "US Gold (UK)" `BIT816.EXE` demo (8BPP),
+  packaged as the anchor. `engines/buried/detection_tables.h:406-415`'s
+  matching detection entry for that exact file
+  (`AD_ENTRY1s("BIT816.EXE", "5535fd50e504537ab08066a89df1b6de", 1259040)`)
+  has flags `ADGF_DEMO` only -- **no `GF_TRUECOLOR`** (contrast the
+  adjacent `BIT2416.EXE` 24BPP demo entry at line 417-426, which does carry
+  `GF_TRUECOLOR`). So the confirmed-working `buried` test run had
+  `isTrueColor() == false`, meaning its actual, exercised call used
+  **`kTTFRenderModeMonochrome`, not `kTTFRenderModeLight`**.
+
+**Tracing both render modes through `ttf.cpp`:** `TTFFont::load()`'s switch
+(lines 346-364) maps `kTTFRenderModeLight` -> `_loadFlags =
+FT_LOAD_TARGET_LIGHT`, `_renderMode = FT_RENDER_MODE_LIGHT`, and
+`kTTFRenderModeMonochrome` -> `_loadFlags = FT_LOAD_TARGET_MONO`,
+`_renderMode = FT_RENDER_MODE_MONO`. Neither branch ORs in
+`FT_LOAD_FORCE_AUTOHINT` or `FT_LOAD_NO_BITMAP` (the latter is only added
+separately for `_fakeItalic`, irrelevant here). So the two paths hand
+FreeType genuinely different `FT_RENDER_MODE_*`/`FT_LOAD_TARGET_*` values,
+not equivalent ones under different names.
+
+**This is not a coarse guess -- traced into FreeType's actual dispatch
+logic** (this project's vendored copy at
+`scummvm-core/backends/platform/libretro/deps/libretro-deps/freetype`).
+`src/base/ftobjs.c`'s `FT_Load_Glyph()` (~line 604) decides whether to
+route a glyph through the autofit module with this exact condition (comment
+and code, lines 652-690):
+
+```c
+// - Otherwise, auto-hint for LIGHT hinting mode or if there isn't
+//   any hinting bytecode in the TrueType/OpenType font.
+...
+FT_Render_Mode mode = FT_LOAD_TARGET_MODE(load_flags);
+if ( ( mode == FT_RENDER_MODE_LIGHT && !FT_DRIVER_HINTS_LIGHTLY(driver) ) ||
+     ( FT_IS_SFNT(face) && ttface->num_locations &&
+       ttface->max_profile.maxSizeOfInstructions == 0 &&
+       ttface->font_program_size == 0 &&
+       ttface->cvt_program_size == 0 ) )
+    autohint = TRUE;
+```
+
+`FT_DRIVER_HINTS_LIGHTLY(driver)` checks a static per-driver module flag
+(`FT_MODULE_DRIVER_HINTS_LIGHTLY`, `include/freetype/ftmodapi.h:120`).
+Grepping the whole vendored FreeType tree shows only
+`src/cff/cffdrivr.c:950` (the CFF/PostScript driver) sets this flag --
+`src/truetype/ttdriver.c`'s `tt_driver_class` (the driver used for all
+three `.ttf`/`glyf`-format fonts in play here) does **not** set it, and
+this is independent of `TT_CONFIG_OPTION_SUBPIXEL_HINTING` or the
+`interpreter_version` (checked: `ftoption.h` has subpixel hinting set to
+"minimal"/v40, and `ttobjs.c:1295` does default `interpreter_version` to
+`TT_INTERPRETER_VERSION_40` accordingly, but that only affects grid-fitting
+quality *if* the native hinter runs at all -- it never sets the
+`HINTS_LIGHTLY` module flag, which is hardcoded per-driver at
+compile time).
+
+**The consequence, for a TrueType driver, is unconditional:**
+`FT_DRIVER_HINTS_LIGHTLY(driver)` is always false, so the first half of the
+OR (`mode == FT_RENDER_MODE_LIGHT && !HINTS_LIGHTLY`) is true for *every*
+`FT_RENDER_MODE_LIGHT` glyph load on a TrueType font, regardless of whether
+that font has its own hinting bytecode. **`autohint` is forced `TRUE`
+unconditionally for LIGHT mode on this driver** -- FreeType's autofit
+module always runs. For `FT_RENDER_MODE_MONO` (and `_NORMAL`), only the
+second OR clause applies, which checks whether the font's own
+`fpgm`/`prep`/`cvt` tables are empty.
+
+**Checked whether the fonts themselves differ enough to matter (they
+don't):** extracted `LiberationSans-Regular.ttf` (buried),
+`GoMono-Regular.ttf` and `NotoSerif-Regular.ttf` (GLK) from
+`scummvm-core/dists/engine-data/fonts.dat` and inspected their table
+directories with `fonttools`/`ttx`. All three are `glyf`-format TrueType
+fonts and all three carry non-empty `fpgm`, `prep`, `cvt `, and `gasp`
+tables (i.e. all three have real native hinting bytecode) -- so the fonts
+are not the discriminator; GLK's fonts are not somehow "unhinted" compared
+to buried's. This rules out the font-file angle: the only thing that
+actually differs is the render-mode argument each call site passes.
+
+**Conclusion:** this is a real, load-bearing discriminating variable, not
+a wash.
+- GLK's `Screen::loadFont()` always requests `kTTFRenderModeLight` ->
+  `FT_RENDER_MODE_LIGHT`, which -- per FreeType's own dispatch logic on this
+  driver -- **always** routes through the autofit module, the exact
+  subsystem where the confirmed crash traps.
+- `buried`'s actual confirmed-working test run used the non-truecolor demo
+  entry, so its exercised call used `kTTFRenderModeMonochrome` ->
+  `FT_RENDER_MODE_MONO`, which -- given `LiberationSans-Regular.ttf` has
+  non-empty hinting tables -- takes the native TrueType bytecode-hinter
+  path and **never invokes autofit at all**.
+
+`buried`'s success therefore provides **no evidence whatsoever** about
+whether the LIGHT-mode/autofit path works, because its tested configuration
+never exercised that path. The original plan's "probably not
+`ttf.cpp`'s direct TTF path, since `buried` uses it successfully" assumption
+is now understood to have been comparing two code paths that only share a
+source file, not actual runtime behavior. This does not by itself explain
+*why* autofit traps -- that remains open -- but it fully resolves the
+contradiction: there is no evidence anywhere in this project's own test
+history that FreeType's autofit dispatch has ever run successfully in this
+WASM build. (Note: `gui/ThemeEngine.cpp`'s `loadScalableFont`, discussed in
+the "Open question" section above, *does* use `kTTFRenderModeLight` too and
+*has* run successfully across many confirmed-working engines -- that
+remains the real, still-unresolved counter-evidence against a
+categorically-broken autofit dispatch, not `buried`.)
 
 ## Note for whenever a fix eventually merges
 
