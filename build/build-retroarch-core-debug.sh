@@ -52,6 +52,21 @@ cd retroarch
 # NOT part of the production build (build-retroarch-core.sh) -- it makes
 # the .wasm significantly larger and is only useful for diagnosing this
 # specific crash.
+# DEBUG=1: pass through to Makefile.emulatorjs's own existing debug mode
+# (lines ~299-301) -- -O1 CFLAGS plus -g -gsource-map -s SAFE_HEAP=2
+# -s STACK_OVERFLOW_CHECK=2 -s ASSERTIONS=1 in LDFLAGS. This is a Makefile
+# variable checked with `ifeq ($(DEBUG), 1)`, so it must be passed as a
+# make argument (like HAVE_THREADS=1 below), not just exported into the
+# environment, to be certain it takes effect regardless of how emmake/make
+# is invoked. See docs/GOTCHAS.md:114-124 for the prior bug this exact
+# flag combination diagnosed (a 4MB-stack overflow presenting as a vague
+# "memory access out of bounds"); untested until 2026-09-03 against this
+# investigation's "function signature mismatch" crash.
+DEBUG_ARG=""
+if [ "${DEBUG:-0}" = "1" ]; then
+  DEBUG_ARG="DEBUG=1"
+fi
+
 EMCC_CFLAGS="--pre-js ../build/midi-stub-pre.js --embed-file ../build/embed-staging/engine-data@/engine-data -g -gsource-map" emmake make -f Makefile.emulatorjs \
   LD=em++ \
   HAVE_7ZIP=1 HAVE_CHD=1 \
@@ -59,6 +74,7 @@ EMCC_CFLAGS="--pre-js ../build/midi-stub-pre.js --embed-file ../build/embed-stag
   ASYNC=1 HAVE_OPENGLES3=1 \
   STACK_SIZE=16777216 INITIAL_HEAP=134217728 \
   TARGET=scummvm_libretro.js \
+  $DEBUG_ARG \
   -j"$(nproc)"
 
 echo "Build artifacts:"
