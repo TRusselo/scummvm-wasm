@@ -199,11 +199,29 @@ An earlier report claimed the entire pthread-worker's console output is
 invisible to automated browser tooling (`read_console_messages`). This is
 false: `printf`-based output from the SAME worker thread (e.g. ScummVM's own
 game-detection log lines, and the `level9v3` sub-detector match) WAS
-captured normally by the automated tool. The real discriminator is the print
-API: `retro_log_cb` calls get routed through RetroArch's own
-`RARCH_LOG`/verbosity filtering (`retroarch/verbosity.c`) in a way that
-prevented them from reaching the console the automated tool reads, while
-plain `printf` does not go through that gate at all.
+captured normally by the automated tool -- `identifyGame()`/`detectGames()`
+(`base/main.cpp`/`base/commandLine.cpp`) both run inside `scummvm_main()`,
+which the branch's own `stack-trace-1.txt` shows executing inside the same
+pthread worker the crash later occurs in, so this is genuinely
+worker-thread output, not main-thread output as an earlier draft of this
+section called it (corrected here).
+
+The real discriminator is less settled than an earlier draft of this
+section claimed. That draft attributed it entirely to the print API:
+`retro_log_cb` calls get routed through RetroArch's own `RARCH_LOG`/
+verbosity filtering (`retroarch/verbosity.c`), which was believed to
+prevent them reaching the console the automated tool reads, while plain
+`printf` does not go through that gate. **This explanation is incomplete**:
+commit `6a02069` (already on this branch, predating this round's fix)
+added `EJS_DEBUG_XX = true` specifically to pass RetroArch's `-v` flag and
+open `verbosity_is_enabled()` -- so at the point this round's printf
+retest ran, that gate was already open, and `retro_log_cb` output should
+no longer have been silently dropped by it either. Whether the original
+`retro_log_cb` diagnostic calls (Task 4) would now surface correctly with
+that gate open was never re-tested after `6a02069` landed -- the printf
+swap happened first, without first confirming whether the original
+`retro_log_cb` approach was already fixed by the verbosity change alone.
+This is left as an open, untested question rather than resolved.
 
 This round's fix: `scummvm-core/graphics/fonts/ttf.cpp`'s 5 diagnostic call
 sites (in `TTFFont::load()`, `TTFFont::cacheGlyph()`, `TTFFont::assureCached()`)
@@ -231,16 +249,30 @@ over a minute in each case). This session's own `ps aux` showed heavy,
 unrelated concurrent CPU load at the time (a `DisplayLinkManager` process at
 ~160% CPU, several Brave renderer processes at 20-40% CPU each, a compositor
 at ~30%) that plausibly starved the pthread-heavy emulation workload of real
-CPU time -- a plausible explanation, not confirmed, and not something to do
-with the printf change itself (nothing before font-loading, which happens
-well after detection, touches the modified code).
+CPU time -- a plausible explanation, but a re-review of this round's own diff
+surfaced a stronger, previously-unconsidered alternative that should be
+ruled out first: **the printf swap itself made the instrumentation far more
+expensive.** Before this round, the diagnostic sites were
+`#ifdef __LIBRETRO__` + `if (retro_log_cb)` calls (near-zero cost once
+disabled, and previously always disabled by the log-level/verbosity gates
+anyway); they are now unconditional `printf(...)` followed by an explicit
+`fflush(stdout)`, firing up to ~512 times per font load across
+`TTFFont::load()`'s two 256-iteration loops alone. Under Emscripten with
+pthreads, a worker's stdout is proxied to the main thread, making a forced
+flush on every one of those calls a genuinely expensive, synchronous,
+cross-thread operation in the exact hot path this round was trying to
+observe. This round's stalls may therefore be self-inflicted by the
+instrumentation's own new cost, not solely external CPU contention -- not
+distinguished from the contention theory by this round's data, and worth
+checking first (e.g. buffering the log lines or removing the per-call
+`fflush`) before drawing further conclusions from this build variant.
 
 The one attempt that did reach a crash produced a genuine `worker.onerror`
 `ErrorEvent` (the same swallowed-detail signature Task 3 already
 characterized), but **zero `[fonts-oob-debug]` printf lines appeared in the
 automated tool's captured console** for that run, despite the instrumented
 `TTFFont::load()` loops being written to fire (and `fflush`) hundreds of
-times before any crash could occur on a real font-loading path. Two
+times before any crash could occur on a real font-loading path. Three
 explanations remain open, not distinguished by this round's data:
 1. That specific crash occurred via a path that never actually called the
    instrumented functions (e.g., a different failure before font loading was
@@ -248,6 +280,10 @@ explanations remain open, not distinguished by this round's data:
 2. Plain `printf` output genuinely still does not reach the automated
    `read_console_messages` tool for this Worker context, and the C1
    hypothesis (printf succeeds where `retro_log_cb` failed) does not hold.
+3. Emscripten's proxied stdout from a worker can be lost if that worker
+   terminates abruptly (as a crash does), independent of `fflush` -- the
+   flush may complete locally but the proxying to the main thread's console
+   sink may not survive the worker's termination.
 
 **This round's honest conclusion: the printf swap is not confirmed to fix
 the tooling gap.** The evidence is one ambiguous data point, not a clean

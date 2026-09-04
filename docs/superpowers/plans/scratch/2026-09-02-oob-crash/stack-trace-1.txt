@@ -10,7 +10,7 @@ the full native stack that Chrome's DevTools shows directly inside the
 crashing pthread-pool worker's own execution context, including
 symbolicated (non-mangled) C++ function names from the debug build's
 name section -- something the automated console-reading tool used
-during this investigation could NOT surface (see task-3-report.md for
+during this investigation could NOT surface (see docs/superpowers/notes/2026-09-02-oob-crash-findings.md for
 why).
 
 Preceding boot log (trimmed to the parts adjacent to the crash;
@@ -88,9 +88,9 @@ Crash type: WebAssembly.RuntimeError: "function signature mismatch"
 a table slot whose actual signature didn't match the expected one at
 the call site) -- NOT literally "memory access out of bounds", though
 plausibly a different symptom of the same underlying corruption this
-investigation is chasing (see task-3-report.md for discussion).
+investigation is chasing (see docs/superpowers/notes/2026-09-02-oob-crash-findings.md for discussion).
 
-Deepest verified-against-source frames (see task-3-report.md):
+Deepest verified-against-source frames (see docs/superpowers/notes/2026-09-02-oob-crash-findings.md):
   Graphics::TTFFont::cacheGlyph()  -- scummvm-core/graphics/fonts/ttf.cpp:803
     -> FT_Load_Glyph(_face, slot, _loadFlags) at ttf.cpp:813
       -> FreeType autofit module: af_autofitter_load_glyph -> af_loader_load_glyph
