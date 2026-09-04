@@ -692,98 +692,147 @@ the "Open question" section above, *does* use `kTTFRenderModeLight` too and
 remains the real, still-unresolved counter-evidence against a
 categorically-broken autofit dispatch, not `buried`.)
 
-## MAJOR FINDING (2026-09-04): the crash is NOT specific to FreeType/fonts.dat -- it's pervasive memory corruption
+## BREAKTHROUGH (2026-09-04): deterministic glyph-level repro, captured via automated tooling
 
-While testing a control build (zero extra debug flags -- exactly Task 2's
-original recipe, `-O3` + `-g -gsource-map`, no `DEBUG=1`, no `SAFE_HEAP`,
-run to rule out whether the previous session's "even `-O1` alone crashes"
-finding was itself a regression in the current codebase state rather than
-a flag effect), `test-page/griffon.zip` was left running at the ScummVM
-splash screen for ~8 minutes with no visible change. It then threw **three
-separate `RuntimeError: memory access out of bounds` exceptions within the
-same second**, in three completely unrelated functions that have nothing
-to do with fonts, FreeType, or ScummVM's own code:
+A control build (zero extra debug flags -- exactly Task 2's original
+recipe, `-O3` + `-g -gsource-map`, no `DEBUG=1`, no `SAFE_HEAP`) was run
+against `test-page/griffon.zip` with the printf-based diagnostic logging
+from Task 4's fix round still in place. This session initially
+misdiagnosed this run twice before getting it right -- both
+misdiagnoses and the corrected conclusion are recorded here because the
+methodology mistakes are as instructive as the finding itself.
+
+**Misdiagnosis #1**: an automated `read_console_messages` query (narrow
+pattern, made well after the run had already produced thousands of lines
+of output) found only a late-occurring `RuntimeError: memory access out
+of bounds` in `__clock_gettime`/`cpu_features_get_time_usec`/
+`runloop_iterate` -- generic RetroArch frame-timing code with no
+connection to fonts or FreeType -- and, seeing this in isolation, this
+session concluded the *entire* prior FreeType/GLK crash-site
+investigation might have been looking at the wrong thing, and that some
+pervasive, ROM-independent memory corruption was the real culprit.
+
+**Misdiagnosis #2**: challenged on this, a second automated query for
+`"Enlarging memory arrays"` (used to check the leading
+`ALLOW_MEMORY_GROWTH=1` + `-pthread` hypothesis) found no matches in the
+core module's context, leading to a claim that no heap-growth event
+occurred in this run at all.
+
+**Both misdiagnoses stemmed from the same root methodology error**:
+`read_console_messages` was queried after the fact with narrow patterns
+and default limits, against a run that turned out to have produced
+**11,339 lines of console output**. The user was independently watching
+this exact run with real DevTools open, saved a complete copy of it
+(`desktop/console.log`), and both corrected misdiagnoses were wrong: the
+console *did* show heap-growth events (confirming an automated query can
+silently miss real evidence buried under enough later output -- the same
+class of gap this document's earlier "Correction -- the tooling-gap claim
+was wrong" section already describes, recurring in a new form), and,
+far more importantly, **the true first anomaly in the complete log was
+never queried for at all**, because the automated tool's own narrow,
+after-the-fact queries only ever surfaced what was still within its
+retention window near the end of an 11k-line run.
+
+**With the complete log in hand, the actual sequence is now fully
+resolved and it is exactly what Tasks 3-4 already found -- deterministically
+so, this time**, at **line 620 of 11,339**, immediately after the
+ScummVM splash and audio/GL driver init:
 
 ```
-[1] __clock_gettime <- cpu_features_get_time_usec <- runloop_iterate <- emscripten_mainloop
-[2] platform_emscripten_update_canvas_dimensions_cb (triggered by a browser ResizeObserver callback)
-[3] platform_emscripten_update_canvas_dimensions_cb (same, second occurrence)
+[fonts-oob-debug] TTFFont::load: face=0xb32ec98 num_glyphs=712 mapping=0 loadFlags=0x10000
+[fonts-oob-debug] cacheGlyph: chr=0  slot=1 face=0xb32ec98 loadFlags=0x10000 (numGlyphs=712)
+[fonts-oob-debug] cacheGlyph: FT_Load_Glyph returned OK for chr=0 slot=1
+[fonts-oob-debug] cacheGlyph: chr=13 slot=2 face=0xb32ec98 loadFlags=0x10000 (numGlyphs=712)
+[fonts-oob-debug] cacheGlyph: FT_Load_Glyph returned OK for chr=13 slot=2
+[fonts-oob-debug] cacheGlyph: chr=32 slot=3 face=0xb32ec98 loadFlags=0x10000 (numGlyphs=712)
+[fonts-oob-debug] cacheGlyph: FT_Load_Glyph returned OK for chr=32 slot=3
+[fonts-oob-debug] cacheGlyph: chr=33 slot=4 face=0xb32ec98 loadFlags=0x10000 (numGlyphs=712)
+worker sent an error! ...: Uncaught RuntimeError: function signature mismatch
+    at af_loader_load_glyph
+    at af_autofitter_load_glyph
+    at FT_Load_Glyph
+    at Graphics::TTFFont::cacheGlyph(Graphics::TTFFont::Glyph&, unsigned int) const
+    at Graphics::TTFFont::load(...)
+    at Graphics::loadTTFFont(...)
+    at Glk::Screen::loadFont(Glk::FACES, Common::Archive*, double, double, int)
+    at Glk::Screen::loadFonts(Common::Archive*)
+    at Glk::Screen::loadFonts()
+    at Glk::Screen::initialize()
 ```
 
-Verified against source: `cpu_features_get_time_usec` (declared
-`retroarch/libretro-common/include/features/features_cpu.h:61`) is
-RetroArch's own generic frame-timing helper, called from `runloop_iterate`
-(`retroarch/runloop.c`) on essentially every single frame for core-runtime
-tracking, frame-limiting, and similar bookkeeping -- pure RetroArch
-infrastructure, never touching ScummVM code at all.
-`platform_emscripten_update_canvas_dimensions_cb` is declared in
-`retroarch/frontend/drivers/platform_emscripten.c`, RetroArch's own
-Emscripten frontend driver, fired by a browser-side `ResizeObserver` --
-again, nothing to do with fonts, FreeType, or ScummVM.
+This is the single most concrete result this entire investigation has
+produced. It confirms, with a clean automated capture (no manual DevTools
+paste needed this time -- the `retro_log_cb`-to-`printf` swap plus
+`EJS_DEBUG_XX` really do work together, resolving that open question):
 
-**This changes the whole investigation's framing.** Every prior task
-(1-4, the final review, and this round's earlier follow-ups) treated the
-crash as specific to `Graphics::TTFFont::cacheGlyph()` -> `FT_Load_Glyph()`
--> FreeType's autofit dispatch, reached via GLK's font-loading chain. That
-crash-site identification is still real and still source-verified -- it
-is a genuine, reproducible trap at that location. But this session's
-result shows the SAME broad symptom class (`memory access out of bounds`,
-this build's original, more generic signature from before Task 3 narrowed
-it to `function signature mismatch` via the GLK-specific FreeType path)
-can *also* manifest in code that has no relationship to fonts at all, in
-the same test run, within the same second, across three unrelated call
-sites. A single narrow bug confined to FreeType's autofit dispatch would
-not produce this pattern. Pervasive, already-present memory corruption
-that manifests wherever the next vulnerable access happens to occur
-would.
+- The crash is **exactly** where Task 3/4 said it was:
+  `TTFFont::cacheGlyph` -> `FT_Load_Glyph` -> FreeType's autofit dispatch,
+  reached via `Glk::Screen`'s real font-loading chain.
+- It is **deterministic at the glyph level**: the first three glyphs
+  cached against this specific font (`face=0xb32ec98`, `num_glyphs=712`,
+  `loadFlags=0x10000` i.e. `FT_LOAD_TARGET_LIGHT`) succeed cleanly --
+  character codes 0, 13 (CR), and 32 (space). The trap fires on the
+  **fourth glyph cached, character code 33 (`'!'`), slot 4** -- every
+  single time, before its "FT_Load_Glyph returned OK" line ever prints.
+  This is not timing-dependent or nondeterministic at this level of
+  detail; it is a specific glyph in a specific font.
+- Everything that happens **after** this crash in the remaining ~10,700
+  lines of the log -- continued `[INFO] Setting real canvas size` spam,
+  and eventually the `__clock_gettime`/`platform_emscripten_update_canvas_dimensions_cb`
+  traps this session mistakenly promoted to a standalone "major finding"
+  -- is downstream fallout of the emulation core's pthread already
+  having fatally crashed, with the surrounding RetroArch/EmulatorJS
+  harness limping along in a partially-torn-down state for a long time
+  afterward before something else in it also eventually faults. **These
+  are not independent bugs.** This session's original framing (Tasks 1-4,
+  the final review) was right the whole time; the "pervasive memory
+  corruption unrelated to fonts" theory floated earlier today was a
+  direct product of querying an incomplete log tail without checking
+  the beginning first, and should be disregarded as a lead.
 
-**Leading hypothesis, not yet confirmed:** this build's link flags include
-both `-s ALLOW_MEMORY_GROWTH=1` and `-pthread` (confirmed in
-`build/build-retroarch-core-debug.sh`'s `emmake make` invocation). This
-exact combination is a documented Emscripten trouble spot: when the wasm
-heap grows, the JS-side typed-array views (`HEAP8`/`HEAPU8`/etc.) into the
-underlying `ArrayBuffer` must be refreshed in *every* worker thread that
-holds cached references to them, not just the thread that triggered the
-growth. If a pthread worker's views aren't correctly refreshed after a
-growth event initiated elsewhere, that worker can read/write through
-stale/detached views, producing exactly this pattern: seemingly random
-"memory access out of bounds" traps in whatever code that specific worker
-happens to run next, with no relationship to what that code actually does.
-Consistent circumstantial evidence already on record in this
-investigation: repeated `"Warning: Enlarging memory arrays, this is not
-fast!"` console messages were observed throughout this session and
-earlier ones, including at least one growth from 16MB to 512MB during
-this exact kind of test run -- large, dramatic growth events are exactly
-what this hypothesis needs to occur. **Not yet verified**: whether a
-growth event's timing actually correlates with when a subsequent trap
-occurs (would need instrumentation logging every growth event with a
-timestamp, cross-referenced against the eventual crash time), and whether
-disabling `ALLOW_MEMORY_GROWTH` (fixing `INITIAL_HEAP`/`INITIAL_MEMORY` at
-a large-enough static value instead) avoids the crash entirely -- if it
-does, that would be strong, near-conclusive confirmation.
+**On the memory-growth question specifically** (raised, correctly
+double-checked, and only partially resolved during this same
+back-and-forth): heap-growth events are confirmed to occur on this run,
+but per the user's explicit, repeated caution, growth events are **normal,
+expected behavior that also occurs on ROMs/engines that never crash** --
+their mere presence is not evidence either for or against them being
+related to this crash, and this document should not (and now does not)
+assert a direction on that either way without dedicated, timestamped
+correlation work that has not been done. Treat it as a genuinely open,
+untested variable, not a lead to chase on its own.
 
-**Recommended next step for whoever continues this:** test with
-`ALLOW_MEMORY_GROWTH=0` and a large fixed `INITIAL_MEMORY` (large enough
-to avoid ever needing growth for this ROM's actual working set -- the
-512MB growth event observed suggests starting around there, or higher, to
-have real margin) instead of the current
-`STACK_SIZE=16777216 INITIAL_HEAP=134217728` +
-`-s ALLOW_MEMORY_GROWTH=1` combination. If the crash (in any of its forms
--- `function signature mismatch` at the FreeType site, or these
-generic-code `memory access out of bounds` traps) stops happening
-entirely with growth disabled, that would confirm this hypothesis and
-point directly at the actual fix: either disable memory growth in the
-production build (simplest, at the cost of a larger fixed download size),
-or find and fix the specific pthread-worker view-refresh gap in this
-project's own Emscripten/RetroArch integration if growth needs to stay
-enabled for other reasons.
+**What this means for the actual next step toward a fix**: the problem is
+now narrow and concrete enough to actually debug directly, rather than
+guessed at via build-flag experiments. The next session should:
 
-This does not invalidate the FreeType/GLK crash-site work already done --
-that trap is real and reproducible, and is very likely simply the specific
-manifestation this ROM's specific timing/code-path most reliably produces
-under the *original* `-O3` production build. It does mean a fix targeted
-narrowly at FreeType's autofit dispatch would likely be treating a symptom
-rather than the actual root cause.
+1. Find out what is special about character 33 / the 4th glyph in this
+   font that the first three (0, 13, 32) don't share -- e.g. examine
+   `GoMono-Regular.ttf`'s (or whichever font `face=0xb32ec98` is --
+   confirm which of the two GLK fonts this face pointer corresponds to)
+   own glyph-33 outline/hinting data directly (a font editor or
+   `fonttools`/`ttx` dump), looking for anything unusual about that
+   specific glyph (a malformed contour, an edge case in its hinting
+   program, an unusually large/complex outline) that could trip a bug in
+   FreeType's autofit script/style dispatch when this specific WASM
+   build processes it.
+2. Since the crash is now 100% deterministic and fast to reach (line 620,
+   not line 11,339 -- reachable in well under a minute, not many
+   minutes), this is now cheap enough to iterate on directly: add
+   logging *inside* FreeType's own `af_autofitter_load_glyph`/
+   `af_loader_load_glyph` (this project's vendored copy, under
+   `scummvm-core/backends/platform/libretro/deps/libretro-deps/freetype`)
+   to see exactly which function-pointer-table lookup or dispatch step
+   is producing a mismatched-signature call for this specific glyph --
+   this is a much smaller, more tractable place to add targeted
+   diagnostics than anything tried so far.
+3. Re-run the render-mode/font comparison from the "buried vs GLK"
+   follow-up above with this new specificity in mind: check whether
+   `gui/ThemeEngine.cpp`'s successfully-used `kTTFRenderModeLight` path
+   ever actually caches a glyph for character 33 in the fonts it loads --
+   if it does and doesn't crash, the bug is specific to something about
+   *this* font's glyph 33, not the render mode/autofit path in general;
+   if it never touches character 33 at all, that would be a much more
+   direct, complete explanation than anything found so far.
 
 ## Note for whenever a fix eventually merges
 
