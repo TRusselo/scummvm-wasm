@@ -1,4 +1,5 @@
 *.scm
+test-page/*.zip
 toolchain/emsdk/
 test-page/ejs/
 test-page/ejs.7z
