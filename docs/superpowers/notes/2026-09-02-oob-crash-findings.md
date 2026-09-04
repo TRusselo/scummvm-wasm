@@ -834,6 +834,288 @@ guessed at via build-flag experiments. The next session should:
    if it never touches character 33 at all, that would be a much more
    direct, complete explanation than anything found so far.
 
+## RESOLVED (2026-09-04, follow-up round): exact dispatch point found, with a concrete candidate root cause
+
+This follow-up picked up directly from the BREAKTHROUGH section above. Three
+things were done: (1) identify the exact crashing font and glyph via
+`fonttools`, (2) add diagnostic `printf` logging inside this project's
+vendored FreeType (`scummvm-core/backends/platform/libretro/deps/libretro-deps/freetype`,
+a separate nested git checkout -- see "Build/tooling note" below) at the
+autofit dispatch points identified by source analysis, rebuild, and
+reproduce; (3) cross-check the ThemeEngine counter-evidence from the "Open
+question" section above. All three succeeded and converge on a single,
+well-supported, concrete finding.
+
+### Task 1: the crashing font is GoMono-Regular.ttf, and glyph 33 is unremarkable except for being non-empty
+
+`engines/glk/screen.cpp`'s `Screen::loadFonts(Common::Archive*)` calls
+`loadFont(MONOR, ...)` first (`MONOR` is index 0 of the `FACES` enum in
+`engines/glk/fonts.h:30`), and `Screen::loadFont`'s `FILENAMES[8]` array maps
+index 0 to `"GoMono-Regular.ttf"`. Extracting it from `fonts.dat` and
+inspecting with `fonttools` confirms `maxp.numGlyphs == 712`, an exact match
+to the crash log's `num_glyphs=712` -- this is definitively the crashing
+font.
+
+Inspecting the `glyf` table for the four glyphs in play:
+
+| chr | glyph name | numContours | instruction bytes | outcome |
+|---|---|---|---|---|
+| 0 (NUL) | `uni0000` | 0 (empty) | 0 | succeeds |
+| 13 (CR) | `uni000D` | 0 (empty) | 0 | succeeds |
+| 32 (space) | `space` | 0 (empty) | 0 | succeeds |
+| 33 (`!`) | `exclam` | 2 | 76 | **crashes** |
+
+Character 33 is **not** structurally unusual for an `exclam` glyph (a
+vertical bar contour plus a dot contour, 10 points total, normal TrueType
+hinting bytecode) -- it is simply the **first glyph in this font-load
+sequence with any outline at all**. This directly answers Task 1's item 4
+in favor of the second framing offered there: this is not "what's special
+about glyph 33," it's "what's broken in autofit's real per-glyph analysis
+path in general, first triggered here because it's the first non-trivial
+glyph." Confirmed empirically below, not just inferred.
+
+### Task 2: exact trap site found by source analysis, then confirmed live by diagnostic logging
+
+Reading `src/autofit/afloader.c`'s `af_loader_load_g()` (the static helper
+that does the real per-glyph work, called from `af_loader_load_glyph()`;
+`-O3` inlines it into the latter, matching the crash trace's
+`af_loader_load_glyph` frame with no separate `af_loader_load_g` frame)
+shows an explicit fast path at line 276: `if ( slot->outline.n_points == 0 )
+goto Hint_Metrics;` -- this **skips** the block containing the
+`writing_system_class->style_hints_apply(...)` indirect call entirely for
+any empty-outline glyph. Every glyph before `'!'` in this font-load sequence
+(0, 13, 32) has `n_points == 0` and therefore never reaches that call. `'!'`
+is the first one that does.
+
+**The likely defect, found by reading the writing-system class definitions
+directly:** every `AF_WritingSystem_ApplyHintsFunc` implementation in this
+vendored FreeType tree -- `af_latin_hints_apply` (`aflatin.c:3378`),
+`af_cjk_hints_apply` (`afcjk.c:2258`), `af_indic_hints_apply`
+(`afindic.c:82`, itself delegating to `af_cjk_hints_apply`), and
+`af_dummy_hints_apply` (`afdummy.c:41`) -- is declared returning `FT_Error`,
+and every one of them is stored into its writing-system class struct via an
+explicit cast to `AF_WritingSystem_ApplyHintsFunc`
+(`aftypes.h:224-228`), which is typed as returning **`void`**:
+
+```c
+typedef void
+(*AF_WritingSystem_ApplyHintsFunc)( FT_UInt          glyph_index,
+                                    AF_GlyphHints    hints,
+                                    FT_Outline*      outline,
+                                    AF_StyleMetrics  metrics );
+```
+
+e.g. `aflatin.c:3486`: `(AF_WritingSystem_ApplyHintsFunc) af_latin_hints_apply`.
+This return-type mismatch (`void` vs. `FT_Error`/`int`) is silently
+tolerated by every conventional native ABI (an unused return value in a
+register costs nothing) -- it is textbook C undefined behavior via an
+incompatible function pointer cast, but upstream FreeType has shipped this
+exact pattern for years without issue on any native target. WASM's
+`call_indirect` type-checks the full function type (parameter types *and*
+return arity/type) of every indirect call against the table entry's actual
+compiled type, and does not tolerate it. This is precisely the mechanism a
+"function signature mismatch" trap describes, and it is systemic across
+*all four* writing systems in this file, not particular to Latin or to this
+font.
+
+By contrast, the other two indirect calls on the same dispatch path --
+`style_metrics_scale` (`AF_WritingSystem_ScaleMetricsFunc`, returns `void`,
+and every real implementation checked -- `af_latin_metrics_scale` --
+actually returns `void` too, no mismatch) and `style_hints_init`
+(`AF_WritingSystem_InitHintsFunc`, returns `FT_Error`, and
+`af_latin_hints_init` actually returns `FT_Error` -- also no mismatch) --
+have no such discrepancy. This predicts, before any live test, that
+`style_hints_init`/`style_metrics_scale` should keep succeeding right up to
+the crash, and only `style_hints_apply` should trap.
+
+**Diagnostic logging added** (`scummvm-core/backends/platform/libretro/deps/libretro-deps/freetype/src/autofit/afloader.c`,
+plain `printf`+`fflush(stdout)` per this investigation's established
+convention, no `__LIBRETRO__` guard needed -- see "Build/tooling note"
+below for why) at three points: right after `af_face_globals_get_metrics`
+resolves each glyph's style/writing-system (logging the writing system,
+style, and all three function-pointer values), right after
+`style_metrics_scale`/`style_hints_init` return (to confirm they didn't
+trap), and immediately before/after the `style_hints_apply` call.
+
+**Live confirmation, from the user's own DevTools capture (`~/Desktop/console2.log`,
+saved by the user mid-run, independent of the automated tool -- see
+"Build/tooling note" below), reproduced against `test-page/griffon.zip` on a
+freshly rebuilt core (same recipe as the BREAKTHROUGH section: `-O3` +
+`-g -gsource-map`, no `DEBUG=1`):**
+
+```
+[fonts-oob-debug] cacheGlyph: chr=32 slot=3 face=0xb298cb0 loadFlags=0x10000 (numGlyphs=712)
+[fonts-oob-debug][autofit] load_glyph: gindex=3 writing_system=1 style=44 style_metrics_scale=0x127f style_hints_init=0x1281 style_hints_apply=0x1282
+[fonts-oob-debug][autofit] style_metrics_scale: returned (did not trap) for gindex=3
+[fonts-oob-debug][autofit] style_hints_init: returned (did not trap) for gindex=3 error=0
+[fonts-oob-debug] cacheGlyph: FT_Load_Glyph returned OK for chr=32 slot=3
+[fonts-oob-debug] cacheGlyph: chr=33 slot=4 face=0xb298cb0 loadFlags=0x10000 (numGlyphs=712)
+[fonts-oob-debug][autofit] load_glyph: gindex=4 writing_system=1 style=44 style_metrics_scale=0x127f style_hints_init=0x1281 style_hints_apply=0x1282
+[fonts-oob-debug][autofit] style_metrics_scale: returned (did not trap) for gindex=4
+[fonts-oob-debug][autofit] style_hints_init: returned (did not trap) for gindex=4 error=0
+[fonts-oob-debug][autofit] style_hints_apply: about to call writing_system=1 style=44 fn=0x1282 glyph_index=4 n_points=10 hints=0x9016d80 outline=0xb29b4cc metrics=0x7fd3828
+worker sent an error! ...: Uncaught RuntimeError: function signature mismatch
+    at af_loader_load_glyph
+    at af_autofitter_load_glyph
+    ...
+```
+
+This is as precise a confirmation as this investigation is likely to get:
+glyph index 3 (space, empty outline) and glyph index 4 (`!`, real outline)
+resolve to the **identical** writing system (1 = `AF_WRITING_SYSTEM_LATIN`),
+the **identical** style (44), and the **identical three function pointers**
+(`0x127f`/`0x1281`/`0x1282`) -- proving the only thing that differs between
+the successful and crashing glyph is `n_points` (0 vs. 10), exactly as
+predicted by the `n_points == 0` fast path. `style_metrics_scale` and
+`style_hints_init` both return normally (no trap) for both glyphs, exactly
+as predicted by the return-type analysis above. The trap fires at, and
+only at, the `style_hints_apply` call (`fn=0x1282`, i.e. `af_latin_hints_apply`
+for this style/writing-system) -- its own "returned (did not trap)" log
+line never printed, and the real `RuntimeError` immediately follows. No
+other candidate indirect call in this dispatch chain was left unconfirmed.
+
+Also notable: glyphs 0 (NUL) and 13 (CR) resolve to writing_system=2
+(`AF_WRITING_SYSTEM_CJK`), style=59 -- i.e. this build's `AF_STYLE_FALLBACK`
+is `AF_STYLE_HANI_DFLT` (`afglobal.h:69`'s `#ifdef AF_CONFIG_OPTION_CJK`
+branch), confirming `AF_CONFIG_OPTION_CJK` is enabled in this build. This is
+incidental -- `af_cjk_hints_apply` has the identical return-type mismatch,
+so it would have failed too had NUL/CR had non-empty outlines -- but it
+confirms the fallback-style bookkeeping matches source exactly, reinforcing
+confidence in the whole reading.
+
+**This is diagnosis, not a fix, per this investigation's standing rule.**
+No FreeType source was changed beyond the diagnostic logging itself (still
+in place, uncommitted-to-`Exit` behavior unchanged). A real fix would need
+to either correct the four writing systems' function-pointer types (or their
+casts) to genuinely return `void` and discard the `FT_Error` (upstream
+FreeType itself never actually uses `style_hints_apply`'s return value --
+`af_loader_load_g` calls it as a bare statement, ignoring any result, so
+correcting the types to be honest about this would very likely be a safe,
+minimal upstream-style fix) -- not attempted here.
+
+### Task 3: the ThemeEngine cross-check's premise doesn't hold in this build -- it very likely never exercises this path at all
+
+The "Open question" section above treated `gui/ThemeEngine.cpp`'s
+`loadScalableFont` (also `kTTFRenderModeLight`, also TrueType/autofit) as
+strong counter-evidence against a universal, always-broken autofit dispatch,
+reasoning that dozens of confirmed-working engines render their ScummVM GUI
+through it without crashing. Checking this directly this round:
+
+- ScummVM's default UI text genuinely contains `!` constantly (e.g.
+  `gui/launcher.cpp`: *"ScummVM could not find any engine capable of running
+  the selected game!"*; `gui/massadd.cpp`: *"Scan complete!"*; multiple
+  entries in `gui/credits.h`) -- so if this path were genuinely exercised
+  with real glyphs, it plausibly would hit `!` or some other non-empty
+  Latin glyph sooner or later.
+- But `ThemeEngine::loadFont()` (`ThemeEngine.cpp:1803-1811`) only calls
+  `loadScalableFont()` when a theme supplies a non-empty `scalableFilename`
+  for a given font id. This project's WASM build does **not** bundle any
+  external theme `.zip` (`scummmodern.zip`/`scummclassic.zip` exist in
+  `scummvm-core/gui/themes/` in source, but are absent from
+  `build/embed-staging/engine-data/` and from every build script checked --
+  `grep` for `scummmodern|scummclassic|theme.dat` across `build/*.sh` and
+  the libretro `.mk` files found nothing). Without a bundled theme,
+  `ThemeEngine::loadTheme()` falls back to the hardcoded `"builtin"` theme
+  (`ThemeEngine.cpp:2109`'s `warning("Could not find theme '%s' falling
+  back to builtin"...)`).
+- The builtin theme's font declarations are hardcoded in
+  `gui/themes/default.inc` and use **only `.bdf` bitmap fonts**
+  (`helvb12.bdf`, `clR6x12.bdf`, `fixed5x8.bdf`) for every font id
+  (`text_default`, `text_button`, `text_normal`, `tooltip_normal`,
+  `console`) -- no `scalableFilename` is ever configured for any of them.
+
+**This means `ThemeEngine::loadScalableFont`'s `kTTFRenderModeLight`/autofit
+path is very likely never exercised at all in this WASM build**, regardless
+of how many engines are "confirmed working" -- "confirmed working" only
+establishes that the game booted and its BDF-rendered GUI displayed, not
+that any TTF/autofit code ran. The earlier round's reasoning ("if the
+dispatch table were universally corrupted, GUI font loading would be
+expected to crash on every engine") rested on an unverified assumption that
+this path was actually being exercised in this specific build; it wasn't
+checked against the actual bundled/fallback theme before being used as
+counter-evidence. This removes that counter-evidence rather than
+confirming it, and leaves the return-type-mismatch defect found in Task 2
+as a plausible universal defect rather than something GLK/font-specific --
+GLK is simply one of the only code paths in this codebase (see the "9
+engines" cluster in this doc's Summary) that unconditionally loads its own
+TTF fonts via `kTTFRenderModeLight` regardless of any theme's
+availability, since it ships and loads its own embedded `fonts.dat`
+directly rather than going through `ThemeEngine`'s theme-driven font
+selection at all.
+
+**One other `kTTFRenderModeLight` call site was checked and found
+non-comparable, for the same reason `buried` was found non-comparable in
+the earlier "Follow-up" section**: `engines/asylum/system/text.cpp:70`
+(Sanitarium, confirmed working per `docs/ENGINE-TEST-PLAN.md:190`) loads
+`"NotoSansSC-Regular.otf"` with `kTTFRenderModeLight`, but this is
+specifically the engine's `_chineseFont` (a Simplified-Chinese OpenType
+font, likely CFF-flavored rather than glyf/TrueType, which per the
+"Follow-up" section's own already-documented `FT_DRIVER_HINTS_LIGHTLY`
+logic would take the CFF driver's own native light-hinting path and never
+invoke autofit at all) -- and even setting the font-format question aside,
+this path is very unlikely to have been exercised by the confirmed English
+test run at all (a Chinese-localization-only font, not the game's normal
+text rendering). `engines/neverhood/menumodule.cpp`'s `kTTFRenderModeLight`
+call is not independent evidence either way -- Neverhood is already one of
+the 9 engines in this bug's own cluster. The only other two source files
+using `kTTFRenderModeLight` (`engines/vcruise/runtime.cpp`,
+`engines/grim/font.cpp`/`engines/stark/services/fontprovider.cpp`) belong to
+engines `docs/ENGINE-TEST-PLAN.md` does not list as confirmed working
+(`vcruise`: "Could not confidently identify"; `grim`/`stark`: candidate
+info only, no confirmed-working test result recorded) -- not usable as
+evidence either way without first actually testing them, which was not
+attempted this round (flagged as a reasonable next step, not pursued
+further here per this task's own "don't overinvest" guidance).
+
+### Build/tooling note: the vendored FreeType tree is a separate, gitignored nested checkout
+
+`scummvm-core/backends/platform/libretro/deps/libretro-deps` is **not**
+tracked by `scummvm-core`'s own git (`backends/platform/libretro/.gitignore`
+excludes the whole `deps/` folder) -- it is its own separate git checkout of
+`https://github.com/libretro/libretro-deps`, fetched/pinned by
+`backends/platform/libretro/dependencies.mk` (`DEPS_COMMIT_libretro-deps`)
+via `backends/platform/libretro/scripts/configure_submodules.sh`. That
+script **runs on every `make` invocation** and does `git reset --hard` on
+this checkout if it's dirty, unless `DEBUG_ALLOW_DIRTY_SUBMODULES=1` is set
+(a `?=`-defaulted Makefile variable, so exporting it as a shell environment
+variable before invoking `emmake make` -- e.g. before running
+`build/build-core.sh` -- is sufficient; no script edits needed). **Any
+future round editing files under this `deps/` tree must set
+`DEBUG_ALLOW_DIRTY_SUBMODULES=1` in the environment before running
+`build/build-core.sh`, or the edits will be silently wiped by the very next
+build.** This round's diagnostic edits to `afloader.c` were confirmed to
+survive a full `build-core.sh` + `build-retroarch-core-debug.sh` +
+`package-core.sh` cycle with this variable set. Because this checkout is
+its own nested git repo (with its own `git init`/`remote add` from the
+configure script, not a real git submodule), it cannot be committed via
+`scummvm-core`'s own git at all -- there is nowhere in this project's normal
+git history for these diagnostic changes to live long-term; they exist only
+in this checked-out working tree and as this document's transcription of
+them (full diff: `git diff` inside
+`scummvm-core/backends/platform/libretro/deps/libretro-deps` from this
+session's checkout). A prior round's task instructions assumed FreeType
+changes would go into `scummvm-core`'s own submodule commit history the
+same way `ttf.cpp` changes do -- this is not actually possible for this
+particular file, since it lives in a doubly-nested, separately-tracked
+dependency checkout outside `scummvm-core`'s own repository.
+
+Also confirmed this round: **the automated `read_console_messages` tool did
+not capture this run's crash at all**, even queried with a broad `"."`
+pattern and `limit=500` immediately after the crash was known (from the
+user's own parallel manual capture) to have happened. The MCP-driven tab
+stalled at the ScummVM splash/black-screen stage for the entire run (per
+its own screenshots) and never produced the GameID-table/game-detection
+output the user's real DevTools session shows starting at its own log line
+361 onward -- i.e. this was two genuinely different browser
+sessions/contexts running the same build, not a capture-window/retention
+gap in the same session as earlier rounds hit. The user's own manually
+captured DevTools log (saved directly to `~/Desktop/console2.log`, 605
+lines) is what actually contains the deterministic sequence quoted above.
+This is consistent with this document's "Known limitations" section's
+standing note that this crash reliably needs a human with real, manually
+opened DevTools to capture reliably -- worth stating plainly again rather
+than re-litigating, since this round hit it again independently.
+
 ## Note for whenever a fix eventually merges
 
 `docs/GOTCHAS.md` (on the `engines-2d-sweep` branch, not touched by this
