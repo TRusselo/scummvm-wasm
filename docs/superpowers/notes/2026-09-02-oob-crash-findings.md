@@ -1116,6 +1116,104 @@ standing note that this crash reliably needs a human with real, manually
 opened DevTools to capture reliably -- worth stating plainly again rather
 than re-litigating, since this round hit it again independently.
 
+## FIX CONFIRMED (2026-09-04): root cause found, fixed, and verified live
+
+Following directly from the "BREAKTHROUGH" section above, the exact
+function-pointer dispatch was traced to source and fixed:
+
+**Root cause, fully confirmed against source (not inferred):**
+`scummvm-core/backends/platform/libretro/deps/libretro-deps/freetype`'s
+`src/autofit/aftypes.h` declares:
+```c
+typedef void
+(*AF_WritingSystem_ApplyHintsFunc)( FT_UInt glyph_index, AF_GlyphHints hints,
+                                     FT_Outline* outline, AF_StyleMetrics metrics );
+```
+Every implementation assigned to this pointer -- `af_latin_hints_apply`
+(`aflatin.c`), `af_cjk_hints_apply` (`afcjk.c`), `af_indic_hints_apply`
+(`afindic.c`), `af_dummy_hints_apply` (`afdummy.c`) -- is declared
+`static FT_Error` (a real return value) and force-cast to this mismatched
+`void`-returning type at assignment (each `AF_DEFINE_WRITING_SYSTEM_CLASS`
+block). **Separately and independently**, `af_dummy_hints_apply` was
+missing the typedef's 4th parameter (`metrics`) entirely -- a genuine
+arity mismatch, not just a return-type one; `af_latin_hints_apply`/
+`af_cjk_hints_apply`/`af_indic_hints_apply` all have the correct 4
+parameters (verified directly), so only the dummy/`AF_STYLE_NONE_DFLT`
+writing system had this second defect.
+
+Both are the kind of mismatch native ABIs (x86/ARM calling conventions)
+silently tolerate -- a caller ignoring an actual return value sitting in
+a register, or a callee never reading an extra stack/register argument
+the caller passed -- which is exactly why this bug has presumably never
+been noticed on any of FreeType's countless native deployments. WASM's
+`call_indirect` performs strict type-checking (return type AND full
+parameter list) on every indirect call and traps immediately with
+`function signature mismatch` the instant either mismatch is actually
+exercised. `af_dummy_hints_apply` (the dummy/`AF_STYLE_NONE_DFLT` writing
+system) is reached for any glyph FreeType's style classifier doesn't map
+to a specific script -- which explains the deterministic chr-33 trigger:
+characters 0/13/32 are empty-outline placeholders that never reach the
+`style_hints_apply` dispatch at all (an early-exit guard for empty
+outlines skips it), and `'!'` (33) is simply the first glyph in the load
+sequence with a real outline, making it the first time this exact
+indirect call fires for this font.
+
+**Fix applied** (`aftypes.h`'s typedef changed to declare `FT_Error`,
+matching every real implementation -- the sole call site in `afloader.c`
+already discards the result as a bare statement, so this is a pure
+type-correctness fix with zero behavioral change on any platform; and
+`af_dummy_hints_apply` given its missing `metrics` parameter, marked
+unused like `glyph_index` already is, matching the codebase's own
+convention) and **confirmed live**: rebuilt clean, reproduced against
+`griffon.zip` again -- **zero `RuntimeError`/`signature mismatch`/`memory
+access out of bounds` anywhere in a 3301-line captured console log** (this
+time genuinely complete, not truncated -- checked directly, not inferred).
+The run now proceeds cleanly through font loading and reaches the
+already-documented, already-understood, **non-crashing**
+"Level9-debugger-diversion" outcome (`ERROR: Unable to locate valid Level
+9 game in file: objectdb.dat!`, dropping into ScummVM's own interactive
+debugger) instead. That remaining behavior is a separate, benign,
+already-explained issue (this specific ROM gets routed to GLK's Level9
+sub-interpreter, whose own internal validation then rejects it) -- not a
+crash, and not part of what this investigation was chasing.
+
+**Where the fix lives**: this vendored FreeType is not a real git
+submodule of `scummvm-core` (gitignored, pinned via a hardcoded commit SHA
+in `backends/platform/libretro/dependencies.mk`, re-synced by
+`configure_submodules.sh` on every build). Discovered the hard way: an
+uncommitted edit, and even a *committed*-but-not-pinned edit, gets
+silently wiped on the next build the moment `git rev-parse HEAD` in that
+checkout no longer matches `DEPS_COMMIT_libretro-deps` exactly --
+`configure_submodules.sh` treats any mismatch as "wrong checkout" and does
+`rm -rf` + a fresh shallow clone of the pinned commit, not a soft reset.
+One earlier attempt at this exact fix was lost this way (a diagnostic-
+logging commit made by an earlier session's implementer, and this
+session's first two fix attempts, were all destroyed by this mechanism
+before being understood). The durable fix: forked
+`libretro/libretro-deps` to `TRusselo/libretro-deps`, committed the fix on
+branch `fix/wasm-autofit-signature-mismatch` (commit `b94bd2d`), pushed
+it, and updated `dependencies.mk`'s `DEPS_URL_libretro-deps`/
+`DEPS_COMMIT_libretro-deps` to point at that fork+commit -- matching this
+project's existing convention for the `scummvm-core` submodule itself
+(also forked, also pinned to a specific commit on `TRusselo`'s fork).
+**Anyone touching this vendored FreeType (or any other `dependencies.mk`
+entry) in the future must fork+pin the same way, or their change will
+silently vanish on the next build.**
+
+**What remains, for whoever picks this up next**: this fix (a) needs to
+be reported/upstreamed to `libretro-deps` (and ideally to FreeType itself,
+if they still vendor an old-enough copy with this bug) as a real, general
+WASM-portability defect, not just patched locally forever, and (b) should
+be cross-checked against the other 8 originally-listed "affected engines"
+(`dm`, `tony`, `neverhood`, `bbvs`, `gnap`, `mutationofjb`, `ngi`, and
+`glk` proper) to confirm the same fix resolves their crashes too -- this
+round only tested against `griffon.zip`'s GLK-misrouted repro. Given the
+crash site and mechanism are entirely generic (any glyph landing on
+`AF_STYLE_NONE_DFLT`, or exercising the return-type mismatch on any
+writing system, regardless of which ScummVM engine triggers font loading),
+there is no reason to expect those other 8 engines behave differently,
+but this has not been directly re-tested against each one individually.
+
 ## Note for whenever a fix eventually merges
 
 `docs/GOTCHAS.md` (on the `engines-2d-sweep` branch, not touched by this
