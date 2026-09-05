@@ -754,9 +754,17 @@ never surfaces: whatever file happens to be first is necessarily a
 sibling of every other file, so its parent *is* the correct root by
 construction. It only becomes visible for directory-structured games.
 
-**The fix, now deterministic instead of "keep some root file and hope":
-write the intended anchor file as the literal first entry added to the
-zip, before any subdirectory files, regardless of its name or
+**Superseded 2026-09-02 -- do NOT repackage ROMs for this any more.** The
+core now scans the virtual-FS root directly on Emscripten builds (see
+"Subdirectory-structured engines: anchor placement no longer matters"
+below), so entry order is irrelevant to detection. The paragraph below
+describes the old packaging workaround, kept because the same entry-order
+mechanism still governs which file `game->path` points at, which matters
+for `.scummvm` hook files.
+
+**The old workaround, deterministic instead of "keep some root file and
+hope": write the intended anchor file as the literal first entry added to
+the zip, before any subdirectory files, regardless of its name or
 extension.** An earlier version of this note suggested any root-level
 file would do, and separately that a fabricated dummy file didn't
 reliably work -- both observations are now fully explained: a "kept"
@@ -1570,6 +1578,19 @@ specific to this integration.
   build time and verify it landed before relying on it.
 
 ## Subdirectory-structured engines: anchor placement no longer matters (fixed 2026-09-02)
+
+**Measured impact (2026-09-04).** Re-checked against the 435 zips of the
+official ScummVM collection by replaying EmulatorJS's own selection rule
+(first entry whose extension matches the core's declared extensions, else
+entry zero -- and no real ScummVM zip contains a `.scummvm` file, so it is
+always entry zero). 22 of the 435 (5%) pick a file inside a subdirectory
+and would therefore have failed detection before this fix, including
+stock dumps of Full Throttle, Gabriel Knight, Toonstruck, Beavis CD
+Windows, Maniac Mansion NES and four Living Books titles. So this was a
+real defect affecting ordinary unmodified ROMs, not an artifact of any
+locally repackaged archive. Note also that 13 of those 22 *do* have
+root-level files and still failed, because a subdirectory sorted ahead of
+them -- which is why "keep a root-level file" never worked reliably.
 
 For engines that need their original subdirectory structure preserved
 (`griffon`, `toon`, `ultima8`, etc. -- see "Zips with subdirectories but
