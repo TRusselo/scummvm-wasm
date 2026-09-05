@@ -1,4 +1,15 @@
-# Gotchas
+# Engineering notes
+
+**These are engineering notes, not user documentation.** For what this
+project is, how to build it, and how to add a game, see the
+[README](../README.md). This file is the accumulated debugging record
+behind the build scripts: why each flag exists and what breaks without
+it.
+
+Sections are kept even after their conclusion is overturned, with a
+superseded banner explaining what replaced them, because the wrong turns
+are often more useful than the answers. Check a section's banner before
+acting on it.
 
 Everything in this file was learned the hard way -- by hitting the actual
 failure, misdiagnosing it at least once, and eventually finding the real
@@ -471,7 +482,12 @@ sync after a single run. `build/deploy-to-romm.sh` likewise stages both
 files into the ROMM fork checkout. There's no manual copy step and no
 stale-copy hazard anymore.
 
-### Zip packaging: flat structure, always
+### Zip packaging: flat is simplest, but no longer required
+
+> Updated 2026-09-02: subdirectory layouts detect fine now that the core
+> scans the virtual filesystem root. Flat remains the simplest option and
+> avoids the engines noted below that hardcode relative paths, but a
+> nested archive is no longer a reason to repackage.
 
 See the README's [Adding a game](../README.md#adding-a-game) section.
 The short version: `cd` into the game's actual data folder before
@@ -947,7 +963,15 @@ files at boot time that never show up in `detection_tables.h` at all, so
 a "No X found" error after a clean detection is worth grepping the
 engine's own source for, not just re-checking the detection table.
 
-### Multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
+### SUPERSEDED: multiple sibling subdirectories in a zip crash EmulatorJS's own extraction worker -- and the crash is intermittent
+
+> **Root-caused 2026-09-04; it is neither intermittent nor about sibling
+> directories.** See "The 'flaky' ENOTDIR extraction error" below. The
+> trigger is a zip that stores standalone directory entries alongside its
+> file paths: EmulatorJS creates the folder while walking a file's path,
+> then creates it again from the standalone entry, and the second call
+> throws. Perfectly deterministic, and a property of how the archive was
+> written rather than of the game. Kept for the investigation trail.
 
 Found live-debugging user reports of specific SCUMM titles failing:
 zips whose files were split across two or more subdirectories at the same
@@ -1133,7 +1157,27 @@ file* that ScummVM's detector doesn't check (e.g. `groovie`'s
 `icons.ph`/`sample.AD`/`sample.OPL`) -- those still must be packaged
 into the ROM itself.
 
-## Suspected shared bug: rendering text via `fonts.dat` crashes the WASM core (`RuntimeError: memory access out of bounds`)
+## SUPERSEDED -- WRONG DIAGNOSIS: suspected shared bug: rendering text via `fonts.dat` crashes the WASM core (`RuntimeError: memory access out of bounds`)
+
+> **This section's conclusion was wrong and is kept only as a record of
+> the misdiagnosis.** There was never a `fonts.dat` bug. The label stuck
+> because five engines crashed while loading a font and the common file
+> was assumed to be the cause. Two unrelated bugs were actually at work:
+>
+> 1. Two FreeType autofit function-pointer signature mismatches, in
+>    `AF_WritingSystem_ApplyHintsFunc`'s return type and in
+>    `af_dummy_hints_apply`'s missing fourth parameter. Native ABIs
+>    tolerate both; WebAssembly's `call_indirect` checks signatures and
+>    traps. Fixed 2026-09-04.
+> 2. For `bbvs` and `ngi`, a missing Indeo codec plus a double free in
+>    `AVIDecoder::loadStream()`'s failure path. Nothing to do with fonts
+>    at all. Fixed 2026-09-04.
+>
+> All engines listed below now work. The lesson worth keeping: a shared
+> symptom in a shared file is not evidence of a shared cause, and
+> "memory access out of bounds" in WASM is usually the cascade after an
+> earlier trap, not the fault itself.
+
 
 Four unrelated engines -- `griffon` (a real-time action RPG), `glk`
 (text-adventure interpreter, tested via Zork I), `dm` (Dungeon Master),
