@@ -1225,3 +1225,114 @@ narrative is undercut by this fix round's finding that `fonts.dat` is
 GLK-specific (`engines/glk/screen.cpp`'s own hardcoded `FONTS_FILENAME`, with
 `backends/imgui/imgui_fonts.cpp` its only other consumer in the whole
 codebase) rather than a ScummVM-wide requirement.
+
+## SECOND BUG (2026-09-04, later): Beavis and Butt-Head still crashed on the fixed core -- a different cause with the same symptom
+
+After the FreeType fix was deployed to the live ROMM container (image and core
+MD5 both verified), the user launched *Beavis and Butt-Head in Virtual
+Stupidity* (bbvs engine) and got the familiar
+`RuntimeError: function signature mismatch` followed by a cascade of
+`memory access out of bounds` (user log: `console4.log`). Their read was "same
+bug". It is not, and the way that was established is worth recording because it
+needed no rebuild and no reproduction.
+
+### Symbolicating a production (name-stripped) wasm without rebuilding it
+
+The production `.wasm` has no name section. Chrome's trace prints module byte
+offsets (`…:0x54c015`). A ~150-line parser
+(`~/scummvm-wasm-scratch/beavis-crash-analysis/wasmmap.py`) reads the TYPE /
+IMPORT / FUNCTION / ELEM / CODE / DATA sections directly, maps each offset to a
+function index + wasm signature, and resolves `i32.const` operands to string
+literals in the data segments (passive segments; the start function's
+`memory.init` calls give their addresses, segment 0 lives at 1024).
+`llvm-objdump -d --start-address/--stop-address` from the emsdk then
+disassembles one function at a time (disassembling all 186 MB is impractical).
+
+Two gotchas: (1) V8 reports the *call instruction's own offset* for every frame,
+not a return address; (2) binaryen's -O3 `reorder-functions` sorts functions by
+call count, so function index says nothing about link order, and a re-link with
+`--profiling-funcs` produces a *different* ordering -- the symbol map from a
+name-preserving re-link only matched the production binary for the most-called
+few hundred functions. Body-shape comparison (identical 202-op sequence, 388
+bytes) was what confirmed the name.
+
+### What the trace actually is
+
+| frame | function (by strings / shape) |
+|---|---|
+| 0x2dacd1c | `dynCall_ii` (pthread entry trampoline) |
+| 0x5215a91 | libretro-common `thread_wrap` |
+| 0x2dd1dcd | `retro_wrap_emulator` with `scummvm_main` inlined (91 KB) |
+| 0x1ab37ea | `runGame` |
+| 0x578d806 | `BbvsEngine::run` with `playVideo` inlined (`vid/video%03d.avi`) |
+| 0x54c015 | **`Video::VideoDecoder::loadFile`** -- the trap |
+
+`loadFile` decodes to exactly `file = new Common::File(); if (file->open(p))
+{ if (loadStream(file)) return true; } delete file; return false;`
+(sizeof(File) == 40 = vptr + `_handle` + 32-byte `String`; vtable slot 3 is
+`loadStream`, slot 12 is `open`). The trap is the `delete file`: a
+`call_indirect` through **vtable slot 1, the deleting destructor**. A real
+destructor slot always has the `(i32) -> ()` signature the caller expects, so
+this is not a cast bug at all -- the vptr had been overwritten, i.e. the object
+was already freed. Same message as the FreeType bug, unrelated mechanism.
+
+### Top-down chain (earliest cause first)
+
+1. **No Indeo codec in this port.** The game's AVIs are Indeo 3 (`IV32`,
+   `ffprobe`), Full Pipe's intro is Indeo 5 (`IV50`). `image/module.mk` and
+   `image/codecs/codec.cpp` gate Indeo 3/4/5 behind `USE_INDEO3`/`USE_INDEO45`,
+   and this fork's `backends/platform/libretro/Makefile.common` never defined
+   them. Upstream ScummVM's libretro Makefile.common does (lines 177-181 on
+   master); our `libretro/scummvm`-based fork lagged. The other four gated-looking
+   codecs (truemotion1, xan, cdtoons, jyv1) compile unconditionally here, so
+   Indeo was the only real hole.
+2. `createBitmapCodec()` returns null → `AVIVideoTrack::isValid()` false →
+   `handleStreamHeader()` returns false → `loadStream()` hits
+   "Failed to parse AVI header" → **`close()` deletes the stream it was handed**,
+   returns false.
+3. `VideoDecoder::loadFile()` deletes the same `Common::File` again → double
+   free → allocator metadata over the vptr → trap. Natively this is a silent (or
+   glibc-aborting) double free; upstream master still has it.
+4. **Why nobody could see any of this:** release builds also passed
+   `-DDISABLE_TEXT_CONSOLE`, which turns every `warning()` into an inline no-op.
+   The strings "Indeo 3 codec is not compiled", "Failed to parse AVI header",
+   "Unable to open video" do not exist in the production binary at all
+   (verified by byte search). The user's blank console lines were not a capture
+   problem; the messages were compiled out.
+
+### Fix (scummvm-core `9fdbf469a29`, fork branch `debug/fonts-oob-crash-diagnostics`)
+
+- `Makefile.common`: `USE_INDEO3 = 1` / `USE_INDEO45 = 1` + the `-D` defines,
+  mirroring upstream.
+- `Makefile.common`: drop `DISABLE_TEXT_CONSOLE` from release builds (keep
+  `RELEASE_BUILD`), so `warning()` reaches the libretro log and the browser
+  console.
+- `video/avi_decoder.cpp`: on both post-assignment failure paths in
+  `loadStream()`, set `_fileStream = nullptr` before `close()`, so the caller
+  keeps ownership on failure, consistent with the early-return paths and with
+  `loadFile()`. Direct `loadStream()` callers that relied on deletion-on-failure
+  now leak on that error path instead of double-freeing; that is the safer of
+  the two behaviours and matches how every other decoder behaves.
+
+Because the `DISABLE_TEXT_CONSOLE` change alters every translation unit that
+calls `warning()`, the Unraid rebuild wiped all core objects (kept the
+libretro-deps ones) rather than relying on make's header-only dependency
+tracking. Clean core compile is ~12 min on that box.
+
+### Bearing on the other "mem OOB" ROMs
+
+- Full Pipe (ngi): `intro.avi` is Indeo 5 → almost certainly the same chain;
+  covered by `USE_INDEO45`.
+- U.F.O.s / Gnap: `HOFFMAN.AVI` is Cinepak + PCM, both supported → a different
+  failure; now diagnosable because warnings are back.
+- Mutation of J.B.: no video files at all → different bug.
+
+### On the question "did the first fix do anything, is the PR needed"
+
+Yes and yes. The FreeType fix removed griffon's deterministic glyph-33 crash
+(clean 3301-line run). Upstream `libretro/libretro-deps` master (2026-08-01)
+still ships FreeType 2.7.0 with both signature bugs, while FreeType upstream
+has had the corrected `FT_Error` / 4-parameter signatures for years, so a PR
+there is a straight backport. `-sEMULATE_FUNCTION_POINTER_CASTS` (still
+supported by emcc 6.0.9 via binaryen `--fpcast-emu`) would have masked the
+FreeType class of bug but not this one, and is not worth its cost.
