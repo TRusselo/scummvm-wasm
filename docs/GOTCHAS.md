@@ -1740,3 +1740,61 @@ Sourcing a completely different dump (different site, different
 extraction method) is a legitimate, sometimes necessary troubleshooting
 step even when every automated check this project runs says the file
 looks correct.
+
+## The "flaky" ENOTDIR extraction error: zips carrying explicit directory entries (root cause found 2026-09-04)
+
+The intermittent `Uncaught ErrnoError {name: 'ErrnoError', errno: 20}`
+during EmulatorJS's ROM extraction is neither flaky nor random. errno 20
+is ENOTDIR, and the trigger is a property of the zip file alone.
+
+**Mechanism.** EmulatorJS's `decompressFile` callback creates each parent
+directory while walking a file's path (`FS.analyzePath(i).exists ||
+FS.mkdir(i)`), and then separately calls `FS.mkdir(t)` for any entry whose
+name ends in `/`. Most zip writers store only file paths and let the
+extractor infer folders. Some also store standalone directory entries
+(`data/`, `art/`, ...). When a zip has both, the folder is created by the
+path walk and then created again from the standalone entry, and the second
+call throws.
+
+**Measured correlation** across the 12 ROMs tested that day:
+
+| ROM | explicit dir entries | ErrnoErrors in console |
+|---|---|---|
+| Griffon Legend | 5 | 5 |
+| the other 11 | 0 | 0 |
+
+Griffon's zip stores `data/`, `mapdb/`, `music/`, `sfx/` and `art/`, and
+produced exactly five errors in each of four separate test sessions.
+
+**Consequence.** Benign in this case -- the directory already exists, so
+the throw is swallowed at the worker boundary and the game plays. It is
+worth knowing about because it is the same error that has previously been
+blamed for extraction failures, and because it is a property of the
+archive rather than of the game or the core. Nothing to fix on our side;
+it is EmulatorJS's extractor.
+
+**Detection gotcha that cost real time:** the console prints
+`ErrnoError {errno: 20}`, never the string "ENOTDIR". Grepping a saved log
+for "ENOTDIR" always returns zero and looks like a clean run. Grep for
+`ErrnoError` instead.
+
+## Quitting can hang the browser tab if an engine drops EVENT_QUIT (fixed 2026-09-04)
+
+Exiting Griffon Legend froze the tab with nothing logged at all.
+
+`close_emu_thread()` in libretro-core.cpp looped without a bound: each pass
+pushes an `EVENT_QUIT` and hands the emulator thread a timeslice, waiting
+for the engine to observe it and return from `scummvm_main()`. An engine
+that keeps yielding but never observes the quit spins there forever, and
+because the loop runs on the frontend's own thread the tab locks up with no
+diagnostic whatsoever. Now bounded, with a warning, tearing down regardless.
+
+Griffon triggers it: `GriffonEngine::checkInputs()` returns early while
+`_attacking` or `_forcePause` is set, and that early return sat *above* the
+`EVENT_QUIT` check, so a quit arriving in either state was discarded
+outright. Upstream ScummVM has the same ordering -- harmless on desktop,
+where the window manager closes the window regardless of what the engine
+thinks, and fatal here, where the frontend waits for acknowledgement.
+
+If another engine ever hangs on exit, look for the same shape: an early
+return in the engine's event handler placed ahead of its quit check.
