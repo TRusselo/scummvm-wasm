@@ -1336,3 +1336,13 @@ has had the corrected `FT_Error` / 4-parameter signatures for years, so a PR
 there is a straight backport. `-sEMULATE_FUNCTION_POINTER_CASTS` (still
 supported by emcc 6.0.9 via binaryen `--fpcast-emu`) would have masked the
 FreeType class of bug but not this one, and is not worth its cost.
+
+### VERIFIED LIVE (2026-09-04, evening)
+
+Container force-updated to image `4f661a2b9a3f` (core MD5
+`f9c2e1a8ff8b7b0f99f06257bd3763b1`, confirmed inside the running container).
+Beavis and Butt-Head now plays its intro and runs into the game past the main
+menu. The user's full 1490-line `console5.log` has zero RuntimeErrors, zero
+ScummVM `WARNING:` lines, and no ENOTDIR extraction crash; the only entries are
+ROMM frontend 404/500s, two normal Emscripten heap-growth notices, and the usual
+benign fullscreen-permission rejection at the end.
