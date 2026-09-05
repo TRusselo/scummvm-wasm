@@ -29,4 +29,20 @@ rm -f test-page/ejs/data/cores/scummvm-wasm.data \
 cp test-page/ejs/data/cores/scummvm-thread-wasm.data \
    test-page/ejs/data/cores/scummvm-thread-legacy-wasm.data
 
-ls -la test-page/ejs/data/cores/scummvm*
+
+# Core report JSON. EmulatorJS (src/emulator.js, downloadGameCore) fetches
+# cores/reports/<core>.json and reads exactly two things from it:
+#   - buildStart: the key for its IndexedDB core cache. Without it EmulatorJS
+#     logs "Could not fetch core report JSON! Core caching will be disabled!"
+#     and re-downloads the ~88 MB core on every launch. Stamping the real
+#     build time here means every new build invalidates the cache by itself,
+#     so a stale core can never be served after a rebuild.
+#   - options.defaultWebGL2: whether a first-time visitor is routed to the
+#     regular or the "-legacy" core filename. This core is built with
+#     HAVE_OPENGLES3 (WebGL2), so default to the regular name.
+mkdir -p test-page/ejs/data/cores/reports
+BUILD_STAMP="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
+cat > test-page/ejs/data/cores/reports/scummvm.json <<EOF_JSON
+{ "core": "scummvm", "buildStart": "${BUILD_STAMP}", "buildEnd": "${BUILD_STAMP}", "options": { "defaultWebGL2": true } }
+EOF_JSON
+ls -la test-page/ejs/data/cores/scummvm* test-page/ejs/data/cores/reports/scummvm.json

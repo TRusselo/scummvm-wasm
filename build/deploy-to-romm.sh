@@ -29,7 +29,11 @@ DEST_DIR="$1/docker/scummvm-core"
 mkdir -p "$DEST_DIR"
 cp "$CORE_FILE" "$DEST_DIR/scummvm-thread-wasm.data"
 cp "$CORE_FILE_LEGACY" "$DEST_DIR/scummvm-thread-legacy-wasm.data"
+# Core report JSON (see build/package-core.sh) -- the ROMM Dockerfile copies
+# it to /emulatorjs/data/cores/reports/scummvm.json so EmulatorJS can cache
+# the core keyed on this build's timestamp.
+cp "test-page/ejs/data/cores/reports/scummvm.json" "$DEST_DIR/scummvm.json"
 
-echo "Staged core (both variants) at $DEST_DIR/"
+echo "Staged core (both variants) and report JSON at $DEST_DIR/"
 echo "Next, from $1:"
 echo "  docker build -f docker/Dockerfile --target full-image -t romm-scummvm:local ."
