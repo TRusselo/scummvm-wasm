@@ -1346,3 +1346,33 @@ menu. The user's full 1490-line `console5.log` has zero RuntimeErrors, zero
 ScummVM `WARNING:` lines, and no ENOTDIR extraction crash; the only entries are
 ROMM frontend 404/500s, two normal Emscripten heap-growth notices, and the usual
 benign fullscreen-permission rejection at the end.
+
+### THREE GAMES CONFIRMED WORKING (2026-09-04, late evening)
+
+Image `ee9ae60dd7d5`, core built from scummvm-core `7908efbd387`.
+
+| Game | Engine | Was | Now |
+|---|---|---|---|
+| Beavis and Butt-Head | bbvs | signature-mismatch trap on intro AVI | plays into the game past the menu |
+| Full Pipe | ngi | mem OOB after the splash | plays, ~40 fps |
+| Dungeon Master (DOS v3.4) | dm | Level 9 debugger error screen | plays |
+
+All three logs are clean read top-down: no RuntimeError, no ScummVM
+`WARNING:`, no ENOTDIR extraction crash. Beavis and Full Pipe were the
+Indeo 3 / Indeo 5 codec gap; Dungeon Master was the missing DOS detection
+entry plus the GLK Level 9 detector's precedence bug misclaiming its
+DMSAVE.DAT.
+
+Two notes for later, neither blocking:
+
+- Full Pipe's log carries 8 "File CRC differs from ZIP CRC" lines from
+  EmulatorJS's own zip extraction in the container (the string is not in
+  the core wasm, nor in this repo's bundled EmulatorJS copy). The game
+  runs regardless, but per the "size+prefix-hash match isn't proof of an
+  intact file" lesson this is worth re-checking if that game ever
+  misbehaves deeper in.
+- The `[fonts-oob-debug]` printf/fflush instrumentation in
+  graphics/fonts/ttf.cpp is still compiled into the shipped core
+  (confirmed by byte search of the deployed wasm). It only fires for
+  games that load a TTF font, which is why these three logs show none of
+  it, but it should be removed now that the FreeType bug is fixed.
