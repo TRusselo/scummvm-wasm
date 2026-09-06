@@ -52,9 +52,20 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**81 of 102 confirmed** (plus the `agos2` subengine). 1 blocked
-(`chamber`), 14 deferred on sourcing/tooling, 14 waiting on a GL-core
+**81 of 111 confirmed** (plus the `agos2` subengine). 1 blocked
+(`chamber`), 14 deferred on sourcing/tooling, 15 waiting on a GL-core
 build that hasn't happened yet, 3 unidentified, the rest untested.
+
+The 2026-09-06 rebase onto current upstream added 10 engines that did not
+exist when this project started: `bolt`, `eem` (Eagle Eye Mysteries),
+`fool` (The Fool's Errand), `gamos`, `harvester`, `macs2`, `pelrock`
+(Alfred Pelrock), `phoenixvr`, `waynesworld`, and `colony` (The Colony,
+deferred — it declares a `3d` dependency, so it belongs to the GL core).
+The other nine are in `all-engines.list` but **are not in the currently
+deployed core**, which was built before they were added — they need a
+rebuild, and none has been tested yet. Four of them (`fool`, `harvester`,
+`macs2`, `waynesworld`) are not built by default upstream either, so
+expect some to be as immature as `chamber`.
 
 All confirmed engines were re-validated on 2026-09-06 against a core
 rebased onto current upstream ScummVM (30 titles: 20 chosen because they
