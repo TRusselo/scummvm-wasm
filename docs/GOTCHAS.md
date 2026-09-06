@@ -1749,6 +1749,85 @@ treat every excluded file as a real risk until the game is confirmed
 booting into actual gameplay, not just past the ScummVM detection
 screen.
 
+### The same gap applies to dumps you did not package yourself (2026-09-06)
+
+The two cases above were self-inflicted -- we hand-picked the files. The
+2026-09-06 rebase regression pass found the same failure mode in dumps
+sourced whole, where nothing was trimmed at all:
+
+- **`toltecs`** (3 Skulls of the Toltecs): the collection copy contains
+  only `WESTERN`. `engines/toltecs/music.cpp:39` calls
+  `MidiDriver_Miles_AdLib_create("SAMPLE.AD", "SAMPLE.OPL")` whenever the
+  music device resolves to AdLib, and `audio/miles_adlib.cpp:1377`
+  `error()`s outright if neither timbre file exists. Fatal before the
+  game starts.
+- **`scumm`** (The Secret of Monkey Island, FM-TOWNS): contains only
+  `MONKEY.000`/`MONKEY.001`. That entry carries `GF_AUDIOTRACKS`
+  (`engines/scumm/detection_tables.h:204`), so ScummVM expects ripped CD
+  audio beside the data files. Zak (21 tracks), Loom (16) and Last
+  Crusade (14) in the same library are packaged correctly with
+  `Track*.fla`; Fate of Atlantis and Monkey 2 legitimately have none,
+  because those entries lack `GF_AUDIOTRACKS` and use the internal
+  FM-TOWNS synth instead.
+
+**A folder named `Working` is only as trustworthy as the validator's
+setup.** A desktop ScummVM user with a soundfont configured never reaches
+the Miles AdLib path at all -- `toltecs` asks for
+`MDT_MIDI | MDT_ADLIB | MDT_PREFER_GM`, so a GM device wins and
+`SAMPLE.AD` is never opened. This core has no such escape hatch (see the
+AdLib-only note in README's Known limitations), so incomplete dumps that
+pass elsewhere fail here. When a game hard-errors on a missing file,
+check whether the *dump* is short before suspecting the core.
+
+## EmulatorJS imposes two hard size limits, and neither is our core's wasm32 heap (measured 2026-09-06)
+
+Large games fail in EmulatorJS's loader, before ScummVM starts. Two
+independent limits, in the order they bite:
+
+**1. The packaged zip must be under 2 GiB.** `downloadFile` uses
+`responseType = "arraybuffer"`, so the whole archive becomes one JS typed
+array and hits V8's maximum byte length. Over the line the tab pauses
+with "Paused before potential out-of-memory crash" inside `downloadFile`
+on `t = r.response`; our core only ever logs its own module init.
+
+**2. zip + unpacked must be under 4 GiB.** `data/compression/extractzip.js`
+is one line:
+
+```js
+onmessage = function(e) {
+    Module.FS_createDataFile("/", "1.zip", e.data, true, false);  // zip -> wasm MEMFS
+    unzip("1.zip");                                                // output -> same MEMFS
+    FS.unlink("1.zip");                                            // freed only AFTER
+};
+```
+
+The archive is copied into the extractor's own wasm32 linear memory, the
+output is written into that same memory, and the zip is freed only once
+extraction completes. Over 4 GiB it cannot grow and hangs in
+`asm._extract` -- no error, no progress percentage. (`src/compression.js`
+also does `worker.postMessage(data)` with no transfer list, so the zip is
+structured-*cloned* into the Worker rather than moved: three live copies
+at peak.)
+
+Measured:
+
+| ROM | zip | unpacked | sum | result |
+|---|---|---|---|---|
+| Phantasmagoria | 1.787G | 2.144G | 3.931G | plays |
+| Feeble Files (2CD Amiga) | 1.034G | 1.083G | 2.117G | plays |
+| Feeble Files (4CD Windows) | 1.996G | 2.071G | 4.067G | hangs decompressing |
+| Riven (CD) | 2.036G | 2.674G | 4.711G | fails downloading |
+| Zork: Grand Inquisitor | 2.091G | 2.359G | 4.450G | fails downloading |
+| Gabriel Knight 2 | 2.618G | 3.343G | 5.961G | fails downloading |
+
+**Unpacked size alone predicts nothing** -- Zork GI unpacks *smaller* than
+Phantasmagoria and still fails. Phantasmagoria clears limit 2 by only
+74 MB, so it is close to the largest game this architecture can run.
+Every blocked title unpacks to under 3.35 GiB and would fit on its own;
+they fail only because the compressed copy shares the space. Full
+analysis and the proposed upstream fix are in
+[issue #5](https://github.com/TRusselo/scummvm-wasm/issues/5).
+
 ## Exact size AND 5000-byte-prefix hash match still doesn't guarantee an intact file
 
 `pink` (The Pink Panther: Passport to Peril) found a failure mode beyond

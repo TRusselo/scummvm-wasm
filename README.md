@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 81 of 102 engines confirmed load into game.
+TEST STATUS : 81 of 111 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **81 of 102 confirmed working as of this
+plays, not just compiles. **81 of 111 confirmed working as of this
 writing** — see the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
