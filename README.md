@@ -506,6 +506,25 @@ found," even with a correctly-placed hook file.
   reverse proxy, on a LAN IP, etc.) needs a real TLS certificate in front
   of it. See docs/GOTCHAS.md's "`HAVE_THREADS=1` requires cross-origin
   isolation at serve time" section for the full explanation.
+- **Minimum browser versions: Chrome 92, Firefox 79, Safari 15.2** (all
+  2020-2021). This is the same constraint as the HTTPS requirement above,
+  expressed as version numbers: the core is built with real pthreads
+  (`HAVE_THREADS=1`), which need `SharedArrayBuffer`, which browsers only expose
+  to cross-origin-isolated pages -- re-enabled behind COOP/COEP in Chrome 92
+  (Jul 2021), Firefox 79 (Jul 2020) and Safari 15.2 (Dec 2021). The core also
+  links `MIN_WEBGL_VERSION=2` (WebGL2: Chrome 56, Firefox 51, Safari 15), so on
+  Safari the two requirements land within a few months of each other. Older
+  browsers cannot run this core at all, regardless of how it is served.
+
+  Worth knowing for the size work in
+  [issue #5](https://github.com/TRusselo/scummvm-wasm/issues/5): the proposed
+  streaming loader would need `DecompressionStream("deflate-raw")` -- Chrome 103
+  (Jun 2022), Firefox 113 (May 2023), Safari 16.4 (Mar 2023). On Chrome and
+  Firefox that is *below* the bar this core already sets, so it costs nothing.
+  On Safari it is slightly above (16.4 vs 15.2), meaning a Safari 15.2-16.3 user
+  could run the core today but could not use a streaming loader for oversized
+  games. That gap is the reason the proposal is gated and feature-detected
+  rather than a straight replacement.
 - EmulatorJS's own "Save State"/"Load State" buttons work (bridged to
   ScummVM's save/load system -- see docs/GOTCHAS.md for the three
   separate bugs, two in ScummVM and one in RetroArch/EmulatorJS, that
