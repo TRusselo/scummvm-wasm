@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 72 of 102 engines confirmed load into game.
+TEST STATUS : 81 of 102 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **72 of 102 confirmed working as of this
+plays, not just compiles. **81 of 102 confirmed working as of this
 writing** — see the full status table below, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -52,10 +52,14 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**72 of 102 confirmed** (plus the `agos2` subengine). 10 blocked (9 on
-the shared crash, 1 on likely engine immaturity), 14 deferred on
-sourcing/tooling, 11 waiting on a GL-core build that hasn't happened
-yet, 3 unidentified, the rest untested. Full
+**81 of 102 confirmed** (plus the `agos2` subengine). 1 blocked
+(`chamber`), 14 deferred on sourcing/tooling, 14 waiting on a GL-core
+build that hasn't happened yet, 3 unidentified, the rest untested.
+
+All confirmed engines were re-validated on 2026-09-06 against a core
+rebased onto current upstream ScummVM (30 titles: 20 chosen because they
+only work due to a code fix in this project, 10 as regression canaries).
+No regressions. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
 table is the at-a-glance summary, kept in sync with it.
@@ -66,9 +70,9 @@ table is the at-a-glance summary, kept in sync with it.
 | Engine | Status | Notes |
 |---|---|---|
 | agi | ✅ | King's Quest I; also Leisure Suit Larry 1-3, Space Quest I-III |
-| glk | 🚫 | `fonts.dat`-related WASM crash, shared with `griffon`/`dm`/`tony` |
+| glk | ✅ | Zork I; `fonts.dat` WASM crash fixed 2026-09-06 (FreeType autofit signature) |
 | awe | ✅ | Another World |
-| dm | 🚫 | Same shared `fonts.dat` WASM crash |
+| dm | ✅ | Dungeon Master; needed the Level 9 detector precedence fix as well |
 | sword1 | ✅ | Broken Sword — full game, both CDs merged |
 | sword2 | ✅ | Broken Sword II — full game, both CDs merged |
 | sci | ✅ | King's Quest V |
@@ -110,7 +114,7 @@ table is the at-a-glance summary, kept in sync with it.
 | dragons | ⏸️ | Blazing Dragons is PS1-only; no archive.org disc image found |
 | drascula | ✅ | Drascula: The Vampire Strikes Back |
 | dreamweb | ✅ | DreamWeb, freeware since 2011 |
-| griffon | 🚫 | Same shared `fonts.dat` WASM crash |
+| griffon | ✅ | The Griffon Legend; `fonts.dat` crash fixed (this is the game that first exposed it) |
 | hopkins | ✅ | Hopkins FBI (freeware Linux port; audio is French despite `EN_ANY` tag) |
 | hugo | ✅ | Hugo's House of Horrors |
 | icb | ⏸️ | Tried El Dorado (also on this engine); dump doesn't match any known hash signature, not a packaging issue |
@@ -120,7 +124,7 @@ table is the at-a-glance summary, kept in sync with it.
 | made | ✅ | Via Rodney's Funscreen |
 | mads | ⏸️ | Only raw floppy disk images found |
 | mtropolis | ✅ | Via Muppet Treasure Island (Obsidian, original candidate, is multi-CD, no smaller cut) |
-| neverhood | 🚫 | Same shared `fonts.dat` WASM crash (fifth confirmation) |
+| neverhood | ✅ | The Neverhood; `fonts.dat` crash fixed |
 | parallaction | ✅ | The Big Red Adventure, official freeware |
 | pegasus | ✅ | The Journeyman Project 3: Pegasus Prime (official ScummVM-team demo) |
 | buried | ✅ | The Journeyman Project 2: Buried in Time demo |
@@ -129,7 +133,7 @@ table is the at-a-glance summary, kept in sync with it.
 | saga | ✅ | I Have No Mouth, and I Must Scream |
 | sludge | ⚠️ | Worked (The Interview) but excluded — unsigned `.exe`, engine marked unstable/WIP by ScummVM itself |
 | titanic | ⏸️ | Starship Titanic — GOG version hash-matches exactly, but `Assets/` alone is 1.19GiB (over size limit); single-game engine, no alt title |
-| tony | 🚫 | Same shared `fonts.dat` WASM crash |
+| tony | ✅ | Tony Tough; `fonts.dat` crash fixed |
 | touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
 | voyeur | ✅ | Perfect hash match to full-game detection entry, no ambiguity |
 | zvision | ⏸️ | Full retail (3 CDs) exceeds 1GB; only lighter alt found fails detection |
@@ -149,15 +153,15 @@ table is the at-a-glance summary, kept in sync with it.
 | alg | ✅ | Crime Patrol (was missing `CP.SCN` + resource files skipped during initial packaging, fixed) |
 | avalanche | ✅ | Lord Avalot d'Argent, freeware |
 | bagel | ✅ | Hodj 'n' Podj (used instead of The Space Bar, too large) |
-| bbvs | 🚫 | Same shared `fonts.dat` WASM crash (6th confirmation) |
+| bbvs | ✅ | Beavis and Butt-Head; needed Indeo codecs + the AVI loadStream double-free fix |
 | cge | ✅ | Soltys, bundled ScummVM freeware |
 | cge2 | ✅ | Sfinx, official English release |
-| chamber | 🚫 | Reaches title screen then hangs; likely genuine engine immaturity (not built by default upstream, no compatibility wiki entry) |
+| chamber | 🚫 | Reaches title screen then hangs in every render mode, plus corrupt EGA backgrounds. Three independent engine faults; upstream engine is still in public testing. See [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3) |
 | chewy | ✅ | English DOS release exists, corrects old "German-only" note |
 | composer | ✅ | Magic Tales: Baba Yaga and the Magic Geese |
 | draci | ✅ | Dragon History, English fan translation |
 | efh | ✅ | Escape from Hell |
-| gnap | 🚫 | Same shared `fonts.dat` WASM crash (7th confirmation) |
+| gnap | ✅ | U.F.O.s; needed Indeo codecs + the AVI double-free fix |
 | hadesch | ⏸️ | Hades Challenge — confirmed `ol.pod` dump mismatch, not fixable by repackaging |
 | hdb | ✅ | Hyperspace Delivery Boy!, official freeware |
 | hypno | ✅ | Wetlands (US) |
@@ -166,8 +170,8 @@ table is the at-a-glance summary, kept in sync with it.
 | lilliput | ✅ | The Adventures of Robin Hood |
 | m4 | ✅ | Orion Burger (was missing all 9 SECTION*.HAG per-chapter archives, fixed) |
 | mortevielle | ✅ | Mortville Manor, French data presents in English via `mort.dat` overlay |
-| mutationofjb | 🚫 | Same shared `fonts.dat` WASM crash (8th confirmation); German-only, no English exists |
-| ngi | 🚫 | Same shared `fonts.dat` WASM crash (9th confirmation); official English release exists |
+| mutationofjb | ✅ | Mutation of J.B.; German-only, no English exists. Indeo + AVI double-free fix |
+| ngi | ✅ | Full Pipe; needed Indeo codecs (IV50) + the AVI double-free fix |
 | petka | ✅ | Red Comrades 2, Russian-only, testing purposes |
 | pink | ✅ | Pink Panther: Passport to Peril — original dump was corrupted beyond the first 5000 bytes, fixed by resourcing from MyAbandonware |
 | prince | ⬜ | Polish-only, fan patch unverified |
