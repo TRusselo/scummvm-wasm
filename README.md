@@ -525,6 +525,29 @@ found," even with a correctly-placed hook file.
   could run the core today but could not use a streaming loader for oversized
   games. That gap is the reason the proposal is gated and feature-detected
   rather than a straight replacement.
+- **14 engines are not compiled into this core, and a game on one of them
+  fails silently.** `alcachofa`, `foxtail`, `freescape`, `grim`, `herocraft`,
+  `hpl1`, `myst3`, `stark`, `tetraedge`, `tinsel`, `twp`, `watchmaker`,
+  `wintermute` and `wme3d` need an OpenGL-capable core that has not been built
+  yet (`build/engine-lists/gl-core.list`). Launching one of their games does not
+  produce an error -- with no engine present, detection simply matches nothing
+  and you land in an empty ScummVM launcher. Discworld (`tinsel`) is the easy
+  way to see this. Worth knowing before debugging a "detection failure" that is
+  really a missing engine.
+- **Music is AdLib-only, which makes some games depend on files their dump may
+  omit.** `SharedArrayBuffer`-era browsers give us no MIDI hardware (the WebMIDI
+  plugin is excluded -- see `docs/GOTCHAS.md`), FluidSynth is compiled in but
+  ships no soundfont so ScummVM never offers it, and MT-32 emulation needs
+  Roland ROMs that cannot be redistributed. `MidiDriver::detectDevice()`
+  therefore always resolves to AdLib. For the four engines that use the Miles
+  AdLib driver (`toltecs`, `made`, `saga2`, `eem`) this is not merely a
+  fidelity question: they call `MidiDriver_Miles_AdLib_create("SAMPLE.AD",
+  "SAMPLE.OPL")` and hard-`error()` if the game's own timbre banks are absent.
+  A desktop user with a soundfont configured never sees this, because
+  `MDT_PREFER_GM` routes them past the Miles path entirely -- which is how an
+  incomplete dump can sit in a collection folder marked "Working" and still fail
+  here. Tracked in
+  [issue #4](https://github.com/TRusselo/scummvm-wasm/issues/4).
 - EmulatorJS's own "Save State"/"Load State" buttons work (bridged to
   ScummVM's save/load system -- see docs/GOTCHAS.md for the three
   separate bugs, two in ScummVM and one in RetroArch/EmulatorJS, that
