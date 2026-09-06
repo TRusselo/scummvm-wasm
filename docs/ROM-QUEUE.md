@@ -14,6 +14,14 @@ engine first. Exception: if a game is the *only* title on its engine and
 its size is under ~2GB, it's fine to use as-is rather than deferring the
 whole engine.
 
+**Hard ceiling (measured 2026-09-06): the packaged `.zip` must stay under
+~1.8 GB.** EmulatorJS buffers the whole ROM into one JS `ArrayBuffer` before
+the core starts, hitting V8's ~2 GB typed-array limit. Phantasmagoria
+(1.79 GB zip / 2.14 GB unpacked) plays; Riven (2.04 GB zip / 2.67 GB
+unpacked) kills the tab inside EmulatorJS's own download. It is the
+*compressed* size that binds — 2.14 GB unpacked is proven fine, so wasm32's
+4 GB space is not the limit at these sizes. Full analysis in issue #5.
+
 No per-ROM `.dat`-file bundling or careful anchor placement needed
 anymore (see `docs/GOTCHAS.md`'s engine-data-embed and scan-root-fix
 sections) — repackaging is now only needed to *create* a ROM that doesn't
@@ -33,6 +41,9 @@ files is risky" section.
 |---|---|---|---|
 | hadesch | `[test] Hades Challenge.zip` | archive.org `hadeschallenge` | **Blocked, dump issue confirmed**: all files present exactly where expected, but `ol.pod`'s MD5 doesn't match any of ScummVM's ~3 cataloged variants at that byte size — a genuine dump-sourcing problem, not fixable by repackaging |
 | trecision | `[test] Nightlong - Union City Conspiracy.zip` | archive.org `DreamCatcher_Nightlong_Win95_1998_Eng` | **Blocked, predicted caveat confirmed**: only 2 of 3 required CD-animation files exist in this release; needs a genuine 3-CD dump or the demo entry instead |
+| toltecs | `3 Skulls of the Toltecs (CD DOS).zip` | needs re-sourcing | **Incomplete dump — needs replacement.** Contains only `WESTERN`; missing `SAMPLE.AD`/`SAMPLE.OPL`, the Miles AdLib timbre banks `engines/toltecs/music.cpp:39` opens unconditionally when the device is AdLib. Fails with `ERROR: MILES-ADLIB: could not open timbre file`. Came from the collection's `Working/` folder — a desktop validator with a soundfont configured never hits this, because `MDT_PREFER_GM` routes them past the Miles path (see issue #4's MIDI/FluidSynth section). A complete copy exists at `duplicates/3 Skulls of the Toltecs.zip` if a re-source proves hard |
+| scumm | `The Secret of Monkey Island (FM Towns).zip` | needs re-sourcing | **Incomplete dump — needs replacement.** Contains only `MONKEY.000`/`MONKEY.001`. The `monkey` FM-TOWNS detection entry carries `GF_AUDIOTRACKS` (`engines/scumm/detection_tables.h:204`), so ScummVM warns that CD audio must be ripped. Needs a `Track*.fla` set alongside the data files, matching how Zak (21 tracks), Loom (16) and Last Crusade (14) are packaged in this library. Note Fate of Atlantis and Monkey 2 FM-TOWNS legitimately have none — those entries lack `GF_AUDIOTRACKS` and use the internal FM-TOWNS synth |
+| mohawk (`riven`) | `Riven (CD Windows).zip`, `Riven (DVD Windows).zip` | — | **Permanently blocked at current EJS architecture.** 2.04/2.17 GB zips, 2.67/2.74 GB unpacked — over the ~1.8 GB zip ceiling. Brave pauses with "Paused before potential out-of-memory crash" inside EmulatorJS's `downloadFile` on `t = r.response`, before the core starts; our core only ever logs its own init. Engines are compiled in (`mohawk`/`myst`/`mystme`/`riven`), so this is not an engine gap and not a regression. Needs streaming ROM delivery (ScummVM's `fs/emscripten/http-fs.o`) to ever work — see issue #5 |
 
 ## Confirmed working (user-tested, `[pass]` tag)
 

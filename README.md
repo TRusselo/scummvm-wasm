@@ -476,6 +476,19 @@ found," even with a correctly-placed hook file.
 
 ## Known limitations
 
+- **Game size ceiling: keep the packaged `.zip` under ~1.8 GB.** This is a
+  browser/EmulatorJS limit, not a ScummVM or core one. EmulatorJS downloads a
+  ROM into a single JavaScript `ArrayBuffer` (`downloadFile`,
+  `responseType = "arraybuffer"`) before the core ever sees it, and that
+  buffer hits V8's ~2 GB typed-array limit. Measured boundary: Phantasmagoria
+  (1.79 GB zip, 2.14 GB unpacked) plays; Riven (2.04 GB zip, 2.67 GB unpacked)
+  pauses the tab with "Paused before potential out-of-memory crash" while still
+  inside EmulatorJS's own download, before the core starts. Note it is the
+  *compressed* size that matters -- 2.14 GB unpacked is proven fine, so
+  wasm32's 4 GB address space is not the binding constraint at these sizes. See
+  [issue #5](https://github.com/TRusselo/scummvm-wasm/issues/5) for the full
+  analysis, including why `wasm64` would not fix it and what would.
+
 - **⚠️ Requires HTTPS (or `localhost`) wherever you actually deploy it --
   a bare LAN IP or hostname over plain HTTP will not work, no matter how
   correctly everything else is configured.** This core uses real pthreads
