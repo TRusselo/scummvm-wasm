@@ -192,16 +192,30 @@ The packaging rule, in order of how often you'll need each part:
    engine's source for hardcoded relative paths before assuming flat is
    always correct.
 
-4. **Zip entry order no longer matters for detection.** Earlier versions
-   of this guide told you to write a root-level "anchor" file into the
-   zip first, because the core scanned only the directory containing
-   whichever file EmulatorJS happened to hand it. Since 2026-09-02 the
-   core scans the virtual filesystem root directly on Emscripten builds,
-   so a game is detected wherever its files sit in the archive. **Do not
-   repackage anything for this.** Measured against the 435 zips of the
-   official ScummVM collection, 22 would have failed detection under the
-   old behaviour, including stock dumps of Full Throttle, Gabriel Knight
-   and Toonstruck; all of them work untouched now.
+4. **Put the game's own files at the archive root.** Zip *entry order*
+   no longer matters: earlier versions of this guide told you to write a
+   root-level "anchor" file first, because the core scanned only the
+   directory containing whichever file EmulatorJS handed it. Since
+   2026-09-02 the core scans the virtual filesystem root instead, so
+   entry order is irrelevant and 22 of the 435 zips in the official
+   ScummVM collection that would have failed before — including stock
+   dumps of Full Throttle, Gabriel Knight and Toonstruck — now work
+   untouched.
+
+   What *does* still matter is nesting. ScummVM's detector only descends
+   into a subdirectory whose name appears in that engine's own
+   `directoryGlobs` list (`advancedDetector.cpp`: `if
+   (!_globsMap.contains(efname)) continue;`). Engines that ship data in
+   `ACT1/`, `WIN9x/`, `data/` and so on declare those names, which is why
+   nested retail dumps detect fine. But wrapping a game in a folder the
+   engine has never heard of — `MyGame/`, or the game's own title —
+   hides it completely: the scan skips that directory and the launcher
+   comes up empty, with no error. Chamber of the Sci-Mutant Priestess
+   (wrapped in `Kult/`) and Nightlong (wrapped in `Nightlong/`) both
+   failed exactly this way.
+
+   In short: an untouched ScummVM-collection dump should just work. If
+   you build an archive yourself, don't add a wrapper folder.
 
    Entry order still decides which file EmulatorJS passes as the content
    path, which matters only for `.scummvm` hook files (see below). That
