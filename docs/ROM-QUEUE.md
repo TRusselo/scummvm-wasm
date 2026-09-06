@@ -81,13 +81,19 @@ analysis in issue #5.
 
 ## Blocked (user-tested, failed — tagged in `non-running/`)
 
+> **Fixed and removed from this list 2026-09-04:** `bbvs` (Beavis and
+> Butt-Head), `gnap` (U.F.O.s), `mutationofjb` (Mutation of J.B.) and
+> `ngi` (Full Pipe) were all listed here as a shared `fonts.dat` WASM
+> crash. That diagnosis was wrong and all four now play. The real causes
+> were two FreeType autofit function-pointer signature mismatches, and
+> for `bbvs`/`ngi` a missing Indeo codec plus a double free in
+> `AVIDecoder::loadStream()`. `griffon`, `dm`, `glk`, `tony` and
+> `neverhood` were fixed by the same work. See the corrected summary in
+> ENGINE-TEST-PLAN.md.
+
 | Engine | Game | Symptom | Notes |
 |---|---|---|---|
 | chamber | Chamber of the Sci-Mutant Priestess | Reaches title screen (past `ADGF_UNSTABLE` warning), then hangs | Likely genuine engine immaturity, not a dump issue -- not built by default upstream, no compatibility wiki entry, TODO-riddled source. Two prior dumps also failed differently (browser freeze, before that) |
-| bbvs | Beavis and Butt-Head in Virtual Stupidity | "mem access OOB" | Shared `fonts.dat` WASM crash, 6th confirmation |
-| gnap | U.F.O.s | "mem OOB" | Shared `fonts.dat` WASM crash, 7th confirmation |
-| mutationofjb | Mutation of J.B. (German) | "mem OOB" | Shared `fonts.dat` WASM crash, 8th confirmation |
-| ngi | Full Pipe | "mem OOB after SCUMM splash" | Shared `fonts.dat` WASM crash, 9th confirmation |
 
 ## Deferred (not sourceable within size/effort budget)
 

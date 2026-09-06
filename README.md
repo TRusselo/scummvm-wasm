@@ -25,7 +25,7 @@ engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
 plays, not just compiles. **81 of 102 confirmed working as of this
-writing** — see the full status table below, or
+writing** — see the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
 
@@ -42,195 +42,6 @@ Most of the value here isn't the code -- it's the accumulated knowledge of
 [docs/GOTCHAS.md](docs/GOTCHAS.md) if you're extending this project;
 almost everything non-obvious in the build scripts is explained there,
 not just asserted.
-
-## Engine Status
-
-Legend: ✅ confirmed working (a real game boots and plays) · 🚫 blocked
-(packaged correctly, blocked by an engine/core bug) · ⏸️ deferred
-(sourcing/tooling blocker, not yet worked around) · 🔒 blocked on a
-separate OpenGL core build that doesn't exist yet · ❓ engine not
-confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
-purpose
-
-**81 of 111 confirmed** (plus the `agos2` subengine). 1 blocked
-(`chamber`), 14 deferred on sourcing/tooling, 15 waiting on a GL-core
-build that hasn't happened yet, 3 unidentified, the rest untested.
-
-The 2026-09-06 rebase onto current upstream added 10 engines that did not
-exist when this project started: `bolt`, `eem` (Eagle Eye Mysteries),
-`fool` (The Fool's Errand), `gamos`, `harvester`, `macs2`, `pelrock`
-(Alfred Pelrock), `phoenixvr`, `waynesworld`, and `colony` (The Colony,
-deferred — it declares a `3d` dependency, so it belongs to the GL core).
-The other nine are in `all-engines.list` but **are not in the currently
-deployed core**, which was built before they were added — they need a
-rebuild, and none has been tested yet. Four of them (`fool`, `harvester`,
-`macs2`, `waynesworld`) are not built by default upstream either, so
-expect some to be as immature as `chamber`.
-
-All confirmed engines were re-validated on 2026-09-06 against a core
-rebased onto current upstream ScummVM (30 titles: 20 chosen because they
-only work due to a code fix in this project, 10 as regression canaries).
-No regressions. Full
-narrative detail (what game, what source, what broke, how it was fixed)
-lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
-table is the at-a-glance summary, kept in sync with it.
-
-<details>
-<summary><strong>Widely Known</strong> (20 engines)</summary>
-
-| Engine | Status | Notes |
-|---|---|---|
-| agi | ✅ | King's Quest I; also Leisure Suit Larry 1-3, Space Quest I-III |
-| glk | ✅ | Zork I; `fonts.dat` WASM crash fixed 2026-09-06 (FreeType autofit signature) |
-| awe | ✅ | Another World |
-| dm | ✅ | Dungeon Master; needed the Level 9 detector precedence fix as well |
-| sword1 | ✅ | Broken Sword — full game, both CDs merged |
-| sword2 | ✅ | Broken Sword II — full game, both CDs merged |
-| sci | ✅ | King's Quest V |
-| bladerunner | ✅ | Only title on this engine, under the 2GB single-title exception (1.947GB) |
-| ultima | ✅ | Ultima VIII: Pagan via `ultima8` (a GOG dump's own detection entry is structurally undetectable — libretro only scans the anchor's own directory, not the zip root; used a single-subdirectory dump instead) |
-| twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
-| mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
-| mediastation | ✅ | Via Beatrix Potter (size-limit swap for Muppet Treasure Island); not kept in the live library by user preference |
-| nancy | ✅ | Nancy Drew: Secrets Can Kill |
-| groovie | ✅ | Via The 11th Hour Interactive Demo (7th Guest dumps failed MD5 despite matching size) |
-| sky | ✅ | Beneath a Steel Sky, official freeware |
-| adl | ✅ | Mystery House, bundled ScummVM freeware |
-| lastexpress | ✅ | Via official Interactive Demo (full retail is 3 CDs, over size limit) |
-| ags | ✅ | Via 5 Days a Stranger (Chzo Mythos), freeware |
-| toon | ✅ | Toonstruck CD1 only (2-CD Sold Out budget release; full retail exceeds size limit) |
-| startrek | ⏸️ | Only raw floppy disk images found, needs disk-image tooling |
-
-</details>
-
-<details>
-<summary><strong>Genre-Notable</strong> (43 engines)</summary>
-
-| Engine | Status | Notes |
-|---|---|---|
-| kyra | ✅ | Legend of Kyrandia: Book One |
-| mm | ✅ | World of Xeen via `xeen` subengine |
-| tsage | ✅ | Return to Ringworld via `ringworld2` subengine |
-| sherlock | ✅ | The Case of the Serrated Scalpel |
-| queen | ✅ | Flight of the Amazon Queen, official freeware |
-| lure | ✅ | Lure of the Temptress, freed by Revolution Software |
-| gob | ✅ | Gobliiins, with music |
-| cine | ✅ | Future Wars |
-| cruise | ✅ | Cruise for a Corpse |
-| cryo | ✅ | Lost Eden (English DOS) |
-| cryomni3d | ⏸️ | Versailles 1685 needs an InstallShield installer run; no unshield/innoextract/DOSBox available |
-| darkseed | ✅ | Dark Seed |
-| dgds | ✅ | Via Heart of China |
-| director | ✅ | The Journeyman Project — plays normally past the `ADGF_UNSTABLE` "Start anyway?" warning dialog |
-| dragons | ⏸️ | Blazing Dragons is PS1-only; no archive.org disc image found |
-| drascula | ✅ | Drascula: The Vampire Strikes Back |
-| dreamweb | ✅ | DreamWeb, freeware since 2011 |
-| griffon | ✅ | The Griffon Legend; `fonts.dat` crash fixed (this is the game that first exposed it) |
-| hopkins | ✅ | Hopkins FBI (freeware Linux port; audio is French despite `EN_ANY` tag) |
-| hugo | ✅ | Hugo's House of Horrors |
-| icb | ⏸️ | Tried El Dorado (also on this engine); dump doesn't match any known hash signature, not a packaging issue |
-| immortal | ⏸️ | Apple IIgs-only engine, no clean disk dump found |
-| lab | ⏸️ | No usable DOS/Windows package found |
-| macventure | ⏸️ | Mac/Apple IIgs-only engine, needs HFS disk-image tooling |
-| made | ✅ | Via Rodney's Funscreen |
-| mads | ⏸️ | Only raw floppy disk images found |
-| mtropolis | ✅ | Via Muppet Treasure Island (Obsidian, original candidate, is multi-CD, no smaller cut) |
-| neverhood | ✅ | The Neverhood; `fonts.dat` crash fixed |
-| parallaction | ✅ | The Big Red Adventure, official freeware |
-| pegasus | ✅ | The Journeyman Project 3: Pegasus Prime (official ScummVM-team demo) |
-| buried | ✅ | The Journeyman Project 2: Buried in Time demo |
-| plumbers | ✅ | Plumbers Don't Wear Ties |
-| private | ✅ | Private Eye (EN_GRB variant) |
-| saga | ✅ | I Have No Mouth, and I Must Scream |
-| sludge | ⚠️ | Worked (The Interview) but excluded — unsigned `.exe`, engine marked unstable/WIP by ScummVM itself |
-| titanic | ⏸️ | Starship Titanic — GOG version hash-matches exactly, but `Assets/` alone is 1.19GiB (over size limit); single-game engine, no alt title |
-| tony | ✅ | Tony Tough; `fonts.dat` crash fixed |
-| touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
-| voyeur | ✅ | Perfect hash match to full-game detection entry, no ambiguity |
-| zvision | ⏸️ | Full retail (3 CDs) exceeds 1GB; only lighter alt found fails detection |
-| asylum | ✅ | Sanitarium CD1 only (full retail's 3 CDs exceed size limit; demo installer couldn't be unpacked) |
-| sword25 | ✅ | Broken Sword 2.5, official freeware fan game |
-| agos | ✅ | Simon the Sorcerer (base + `agos2` subengine via Simon 2) |
-
-</details>
-
-<details>
-<summary><strong>Niche/Obscure</strong> (36 engines)</summary>
-
-| Engine | Status | Notes |
-|---|---|---|
-| access | ✅ | Amazon: Guardians of Eden |
-| agds | ⏸️ | Both titles (Black Mirror, NiBiRu) too large for size budget |
-| alg | ✅ | Crime Patrol (was missing `CP.SCN` + resource files skipped during initial packaging, fixed) |
-| avalanche | ✅ | Lord Avalot d'Argent, freeware |
-| bagel | ✅ | Hodj 'n' Podj (used instead of The Space Bar, too large) |
-| bbvs | ✅ | Beavis and Butt-Head; needed Indeo codecs + the AVI loadStream double-free fix |
-| cge | ✅ | Soltys, bundled ScummVM freeware |
-| cge2 | ✅ | Sfinx, official English release |
-| chamber | 🚫 | Reaches title screen then hangs in every render mode, plus corrupt EGA backgrounds. Three independent engine faults; upstream engine is still in public testing. See [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3) |
-| chewy | ✅ | English DOS release exists, corrects old "German-only" note |
-| composer | ✅ | Magic Tales: Baba Yaga and the Magic Geese |
-| draci | ✅ | Dragon History, English fan translation |
-| efh | ✅ | Escape from Hell |
-| gnap | ✅ | U.F.O.s; needed Indeo codecs + the AVI double-free fix |
-| hadesch | ⏸️ | Hades Challenge — confirmed `ol.pod` dump mismatch, not fixable by repackaging |
-| hdb | ✅ | Hyperspace Delivery Boy!, official freeware |
-| hypno | ✅ | Wetlands (US) |
-| illusions | ✅ | Duckman: The Graphic Adventures of a Private Dick |
-| kingdom | ✅ | Kingdom: The Far Reaches |
-| lilliput | ✅ | The Adventures of Robin Hood |
-| m4 | ✅ | Orion Burger (was missing all 9 SECTION*.HAG per-chapter archives, fixed) |
-| mortevielle | ✅ | Mortville Manor, French data presents in English via `mort.dat` overlay |
-| mutationofjb | ✅ | Mutation of J.B.; German-only, no English exists. Indeo + AVI double-free fix |
-| ngi | ✅ | Full Pipe; needed Indeo codecs (IV50) + the AVI double-free fix |
-| petka | ✅ | Red Comrades 2, Russian-only, testing purposes |
-| pink | ✅ | Pink Panther: Passport to Peril — original dump was corrupted beyond the first 5000 bytes, fixed by resourcing from MyAbandonware |
-| prince | ⬜ | Polish-only, fan patch unverified |
-| qdengine | ⬜ | Russian-origin |
-| saga2 | ✅ | Faery Tale Adventure II (was missing SAMPLE.AD/SAMPLE.OPL, fixed) |
-| supernova | ✅ | Mission Supernova, official EN_ANY entry shares the German hash |
-| teenagent | ✅ | TeenAgent, official freeware |
-| toltecs | ✅ | 3 Skulls of the Toltecs |
-| got | ✅ | God of Thunder, official freeware |
-| trecision | ⏸️ | Nightlong — predicted 3-CD-file caveat confirmed, only 2 of 3 exist in the accessible release |
-| tucker | ✅ | Bud Tucker in Double Trouble |
-| wage | ✅ | Via "Magic Rings" (WAGE Collection freeware bundle) |
-
-</details>
-
-<details>
-<summary><strong>Unclear / Unidentified</strong> (3 engines)</summary>
-
-| Engine | Status | Notes |
-|---|---|---|
-| crab | ❓ | Could not confidently identify |
-| tot | ❓ | Could not confidently identify ("ToT") |
-| vcruise | ❓ | Could not confidently identify |
-
-</details>
-
-<details>
-<summary><strong>Deferred — needs the separate GL-core build</strong> (11 engines)</summary>
-
-These need `build/engine-lists/gl-core.list`'s dedicated OpenGL-enabled
-core (`FORCE_OPENGLES2=1`), which hasn't been built yet — none are
-testable until it exists.
-
-| Engine | Most Popular Game |
-|---|---|
-| grim | Grim Fandango |
-| myst3 | Myst III: Exile |
-| stark | The Longest Journey |
-| twp | Thimbleweed Park |
-| tinsel | Discworld |
-| freescape | Driller |
-| tetraedge | Syberia (franchise) |
-| hpl1 | Penumbra: Overture |
-| alcachofa | Yesterday |
-| watchmaker | The Watchmaker |
-| wintermute | Helga Deep In Trouble (freeware, ready to test once the core exists) |
-
-</details>
 
 ## Quickstart
 
@@ -381,23 +192,23 @@ The packaging rule, in order of how often you'll need each part:
    engine's source for hardcoded relative paths before assuming flat is
    always correct.
 
-4. **If you keep subdirectory structure, add the intended root-level
-   anchor file to the zip *first* -- before any subdirectory entries.**
-   A zip with nothing at the true root silently produces an empty
-   ScummVM game list (no crash, no error, just nothing detected), and
-   EmulatorJS's own file-selection for a multi-file zip is fully
-   deterministic: it always picks whichever file was written **first**
-   into the zip's own entry order, full stop -- confirmed by tracing
-   EmulatorJS's source directly (`downloadRom()` in `emulator.js`) and
-   independently corroborated by [EmulatorJS issue
-   #884](https://github.com/EmulatorJS/EmulatorJS/issues/884), an
-   acknowledged, unfixed upstream limitation ("EmulatorJS will just send
-   the first one it finds"). So it's not enough to *have* a root file
-   somewhere in the zip -- it must be the first entry added. With
-   Python's `zipfile`, that just means calling
-   `zf.write()`/`zf.writestr()` for the anchor file before looping over
-   the subdirectory contents. See GOTCHAS.md's "Zips with subdirectories
-   but no file at the true root" section for the full trace.
+4. **Zip entry order no longer matters for detection.** Earlier versions
+   of this guide told you to write a root-level "anchor" file into the
+   zip first, because the core scanned only the directory containing
+   whichever file EmulatorJS happened to hand it. Since 2026-09-02 the
+   core scans the virtual filesystem root directly on Emscripten builds,
+   so a game is detected wherever its files sit in the archive. **Do not
+   repackage anything for this.** Measured against the 435 zips of the
+   official ScummVM collection, 22 would have failed detection under the
+   old behaviour, including stock dumps of Full Throttle, Gabriel Knight
+   and Toonstruck; all of them work untouched now.
+
+   Entry order still decides which file EmulatorJS passes as the content
+   path, which matters only for `.scummvm` hook files (see below). That
+   selection is deterministic -- always the first entry written -- as
+   traced through EmulatorJS's `downloadRom()` and corroborated by
+   [EmulatorJS issue
+   #884](https://github.com/EmulatorJS/EmulatorJS/issues/884).
 
 5. **Multi-disc games: merge all discs into one zip, not one zip per
    disc.** When both discs ship a file with the *same name* but
@@ -471,9 +282,9 @@ a plain autodetected zip goes through. Not required -- plain autodetection
 (no hook file) already works for every game this project ships -- but
 useful if you want faster, more precise startup for a specific game.
 
-**This is subject to the same zip-entry-order rule as the root-anchor
-issue above -- the hook file must be the literal first entry written
-into the zip, not merely present somewhere in it.** ScummVM's own
+**A hook file must be the literal first entry written into the zip, not
+merely present somewhere in it** -- this is the one case where zip entry
+order still matters. ScummVM's own
 `retro_load_game()` only takes the hook-file branch if the specific path
 EmulatorJS hands it as `game->path` itself ends in `.scummvm` -- and per
 the traced rule, that path is always whichever file was written first
@@ -587,6 +398,220 @@ found," even with a correctly-placed hook file.
   `latest`) -- this build was verified against whatever "latest" resolved
   to in August 2026. If a future emsdk release breaks something, that's
   the first thing to check.
+
+## Engine Status
+
+Legend: ✅ confirmed working (a real game boots and plays) · 🚫 blocked
+(packaged correctly, blocked by an engine/core bug) · ⏸️ deferred
+(sourcing/tooling blocker, not yet worked around) · 🔒 blocked on a
+separate OpenGL core build that doesn't exist yet · ❓ engine not
+confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
+purpose
+
+**81 of 111 confirmed** (plus the `agos2` subengine). 1 blocked
+(`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
+14 deferred on sourcing/tooling, 15 waiting on a GL-core build that hasn't
+happened yet, 3 unidentified, the rest untested.
+
+All confirmed engines were re-validated on 2026-09-06 against a core rebased
+onto current upstream ScummVM — 30 titles: 20 chosen because they only work due
+to a code fix in this project, 10 as regression canaries. No regressions.
+
+That rebase also brought 10 engines that did not exist when this project
+started: `bolt`, `eem`, `fool`, `gamos`, `harvester`, `macs2`, `pelrock`,
+`phoenixvr`, `waynesworld`, plus `colony` (deferred to the GL core — it declares
+a `3d` dependency). The nine 2D ones are now in `all-engines.list` but **are not
+in the currently deployed core**, which was built before they were added: they
+need a rebuild and none has been tested. Four (`fool`, `harvester`, `macs2`,
+`waynesworld`) are not built by default upstream, so expect some to be as
+immature as `chamber`. Full
+narrative detail (what game, what source, what broke, how it was fixed)
+lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
+table is the at-a-glance summary, kept in sync with it.
+
+<details>
+<summary><strong>Widely Known</strong> (20 engines)</summary>
+
+| Engine | Status | Notes |
+|---|---|---|
+| agi | ✅ | King's Quest I; also Leisure Suit Larry 1-3, Space Quest I-III |
+| glk | ✅ | Zork I confirmed. Was long mislabelled as a `fonts.dat` crash; the real cause was two FreeType autofit function-pointer signature mismatches, fixed 2026-09-04 |
+| awe | ✅ | Another World |
+| dm | ✅ | Dungeon Master (DOS v3.4). Needed the `dm` engine synced from upstream ScummVM for DOS support, plus a fix to the GLK Level 9 detector that was misclaiming its save file |
+| sword1 | ✅ | Broken Sword — full game, both CDs merged |
+| sword2 | ✅ | Broken Sword II — full game, both CDs merged |
+| sci | ✅ | King's Quest V |
+| bladerunner | ✅ | Only title on this engine, under the 2GB single-title exception (1.947GB) |
+| ultima | ✅ | Ultima VIII: Pagan via `ultima8` |
+| twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
+| mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
+| mediastation | ✅ | Via Beatrix Potter (size-limit swap for Muppet Treasure Island); not kept in the live library by user preference |
+| nancy | ✅ | Nancy Drew: Secrets Can Kill |
+| groovie | ✅ | Via The 11th Hour Interactive Demo (7th Guest dumps failed MD5 despite matching size) |
+| sky | ✅ | Beneath a Steel Sky, official freeware |
+| adl | ✅ | Mystery House, bundled ScummVM freeware |
+| lastexpress | ✅ | Via official Interactive Demo (full retail is 3 CDs, over size limit) |
+| ags | ✅ | Via 5 Days a Stranger (Chzo Mythos), freeware |
+| toon | ✅ | Toonstruck CD1 only (2-CD Sold Out budget release; full retail exceeds size limit) |
+| startrek | ⏸️ | Only raw floppy disk images found, needs disk-image tooling |
+
+</details>
+
+<details>
+<summary><strong>Genre-Notable</strong> (43 engines)</summary>
+
+| Engine | Status | Notes |
+|---|---|---|
+| kyra | ✅ | Legend of Kyrandia: Book One |
+| mm | ✅ | World of Xeen via `xeen` subengine |
+| tsage | ✅ | Return to Ringworld via `ringworld2` subengine |
+| sherlock | ✅ | The Case of the Serrated Scalpel |
+| queen | ✅ | Flight of the Amazon Queen, official freeware |
+| lure | ✅ | Lure of the Temptress, freed by Revolution Software |
+| gob | ✅ | Gobliiins, with music |
+| cine | ✅ | Future Wars |
+| cruise | ✅ | Cruise for a Corpse |
+| cryo | ✅ | Lost Eden (English DOS) |
+| cryomni3d | ⏸️ | Versailles 1685 needs an InstallShield installer run; no unshield/innoextract/DOSBox available |
+| darkseed | ✅ | Dark Seed |
+| dgds | ✅ | Via Heart of China |
+| director | ✅ | The Journeyman Project — plays normally past the `ADGF_UNSTABLE` "Start anyway?" warning dialog |
+| dragons | ⏸️ | Blazing Dragons is PS1-only; no archive.org disc image found |
+| drascula | ✅ | Drascula: The Vampire Strikes Back |
+| dreamweb | ✅ | DreamWeb, freeware since 2011 |
+| griffon | ✅ | The Griffon Legend plays. Saving currently freezes the tab — tracked separately |
+| hopkins | ✅ | Hopkins FBI (freeware Linux port; audio is French despite `EN_ANY` tag) |
+| hugo | ✅ | Hugo's House of Horrors |
+| icb | ⏸️ | Tried El Dorado (also on this engine); dump doesn't match any known hash signature, not a packaging issue |
+| immortal | ⏸️ | Apple IIgs-only engine, no clean disk dump found |
+| lab | ⏸️ | No usable DOS/Windows package found |
+| macventure | ⏸️ | Mac/Apple IIgs-only engine, needs HFS disk-image tooling |
+| made | ✅ | Via Rodney's Funscreen |
+| mads | ⏸️ | Only raw floppy disk images found |
+| mtropolis | ✅ | Via Muppet Treasure Island (Obsidian, original candidate, is multi-CD, no smaller cut) |
+| neverhood | ✅ | The Neverhood |
+| parallaction | ✅ | The Big Red Adventure, official freeware |
+| pegasus | ✅ | The Journeyman Project 3: Pegasus Prime (official ScummVM-team demo) |
+| buried | ✅ | The Journeyman Project 2: Buried in Time demo |
+| plumbers | ✅ | Plumbers Don't Wear Ties |
+| private | ✅ | Private Eye (EN_GRB variant) |
+| saga | ✅ | I Have No Mouth, and I Must Scream |
+| sludge | ⚠️ | Worked (The Interview) but excluded — unsigned `.exe`, engine marked unstable/WIP by ScummVM itself |
+| titanic | ⏸️ | Starship Titanic — GOG version hash-matches exactly, but `Assets/` alone is 1.19GiB (over size limit); single-game engine, no alt title |
+| tony | ✅ | Tony Tough and the Night of the Roasted Moths |
+| touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
+| voyeur | ✅ | Perfect hash match to full-game detection entry, no ambiguity |
+| zvision | ⏸️ | Full retail (3 CDs) exceeds 1GB; only lighter alt found fails detection |
+| asylum | ✅ | Sanitarium CD1 only (full retail's 3 CDs exceed size limit; demo installer couldn't be unpacked) |
+| sword25 | ✅ | Broken Sword 2.5, official freeware fan game |
+| agos | ✅ | Simon the Sorcerer (base + `agos2` subengine via Simon 2) |
+
+</details>
+
+<details>
+<summary><strong>Niche/Obscure</strong> (36 engines)</summary>
+
+| Engine | Status | Notes |
+|---|---|---|
+| access | ✅ | Amazon: Guardians of Eden |
+| agds | ⏸️ | Both titles (Black Mirror, NiBiRu) too large for size budget |
+| alg | ✅ | Crime Patrol (was missing `CP.SCN` + resource files skipped during initial packaging, fixed) |
+| avalanche | ✅ | Lord Avalot d'Argent, freeware |
+| bagel | ✅ | Hodj 'n' Podj (used instead of The Space Bar, too large) |
+| bbvs | ✅ | Beavis and Butt-Head in Virtual Stupidity. Needed Indeo 3 enabled plus a double-free fix in the AVI loader |
+| cge | ✅ | Soltys, bundled ScummVM freeware |
+| cge2 | ✅ | Sfinx, official English release |
+| chamber | 🚫 | Reaches title screen then hangs; likely genuine engine immaturity (not built by default upstream, no compatibility wiki entry) |
+| chewy | ✅ | English DOS release exists, corrects old "German-only" note |
+| composer | ✅ | Magic Tales: Baba Yaga and the Magic Geese |
+| draci | ✅ | Dragon History, English fan translation |
+| efh | ✅ | Escape from Hell |
+| gnap | ✅ | U.F.O.s / Gnap |
+| hadesch | ⏸️ | Hades Challenge — confirmed `ol.pod` dump mismatch, not fixable by repackaging |
+| hdb | ✅ | Hyperspace Delivery Boy!, official freeware |
+| hypno | ✅ | Wetlands (US) |
+| illusions | ✅ | Duckman: The Graphic Adventures of a Private Dick |
+| kingdom | ✅ | Kingdom: The Far Reaches |
+| lilliput | ✅ | The Adventures of Robin Hood |
+| m4 | ✅ | Orion Burger (was missing all 9 SECTION*.HAG per-chapter archives, fixed) |
+| mortevielle | ✅ | Mortville Manor, French data presents in English via `mort.dat` overlay |
+| mutationofjb | ✅ | Mutation of J.B. (German-only, no English release exists) |
+| ngi | ✅ | Full Pipe. Needed Indeo 5 enabled |
+| petka | ✅ | Red Comrades 2, Russian-only, testing purposes |
+| pink | ✅ | Pink Panther: Passport to Peril — original dump was corrupted beyond the first 5000 bytes, fixed by resourcing from MyAbandonware |
+| prince | ⬜ | Polish-only, fan patch unverified |
+| qdengine | ⬜ | Russian-origin |
+| saga2 | ✅ | Faery Tale Adventure II (was missing SAMPLE.AD/SAMPLE.OPL, fixed) |
+| supernova | ✅ | Mission Supernova, official EN_ANY entry shares the German hash |
+| teenagent | ✅ | TeenAgent, official freeware |
+| toltecs | ✅ | 3 Skulls of the Toltecs |
+| got | ✅ | God of Thunder, official freeware |
+| trecision | ⏸️ | Nightlong — predicted 3-CD-file caveat confirmed, only 2 of 3 exist in the accessible release |
+| tucker | ✅ | Bud Tucker in Double Trouble |
+| wage | ✅ | Via "Magic Rings" (WAGE Collection freeware bundle) |
+
+</details>
+
+<details>
+<summary><strong>Unclear / Unidentified</strong> (3 engines)</summary>
+
+| Engine | Status | Notes |
+|---|---|---|
+| crab | ❓ | Could not confidently identify |
+| tot | ❓ | Could not confidently identify ("ToT") |
+| vcruise | ❓ | Could not confidently identify |
+
+</details>
+
+<details>
+<summary><strong>New — added by the 2026-09-06 upstream rebase</strong> (9 engines)</summary>
+
+Present in `all-engines.list` but **not in the currently deployed core**, which
+was built before they existed. They need a rebuild before any can be tested.
+"default" is upstream's own `add_engine` build-by-default flag — the four marked
+`no` are ones upstream does not ship by default, the same status `chamber` had
+until this rebase.
+
+| Engine | Upstream description | Upstream default | Status |
+|---|---|---|---|
+| bolt | Bolt | yes | ⬜ needs rebuild |
+| eem | Eagle Eye Mysteries | yes | ⬜ needs rebuild |
+| gamos | Gamos | yes | ⬜ needs rebuild |
+| pelrock | Alfred Pelrock | yes | ⬜ needs rebuild |
+| phoenixvr | Phoenix VR | yes | ⬜ needs rebuild |
+| fool | The Fool's Errand | no | ⬜ needs rebuild |
+| harvester | Harvester | no | ⬜ needs rebuild |
+| macs2 | Macs2 | no | ⬜ needs rebuild |
+| waynesworld | Wayne's World | no | ⬜ needs rebuild |
+
+</details>
+
+<details>
+<summary><strong>Deferred — needs the separate GL-core build</strong> (15 engines)</summary>
+
+These need `build/engine-lists/gl-core.list`'s dedicated OpenGL-enabled
+core (`FORCE_OPENGLES2=1`), which hasn't been built yet — none are
+testable until it exists.
+
+| Engine | Most Popular Game |
+|---|---|
+| grim | Grim Fandango |
+| myst3 | Myst III: Exile |
+| stark | The Longest Journey |
+| twp | Thimbleweed Park |
+| tinsel | Discworld |
+| freescape | Driller |
+| tetraedge | Syberia (franchise) |
+| hpl1 | Penumbra: Overture |
+| alcachofa | Yesterday |
+| watchmaker | The Watchmaker |
+| wintermute | Helga Deep In Trouble (freeware, ready to test once the core exists) |
+| foxtail | FoxTail |
+| herocraft | (HeroCraft titles) |
+| wme3d | Wintermute 3D titles |
+| colony | The Colony (added by the 2026-09-06 rebase; declares a `3d` dependency) |
+
+</details>
 
 ## Contributing
 
