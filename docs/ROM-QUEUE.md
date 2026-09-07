@@ -37,6 +37,36 @@ Phantasmagoria clears limit 2 by only 74 MB, so it is close to the largest game
 this architecture can run at all. Unpacked size alone predicts nothing. Full
 analysis in issue #5.
 
+
+## Displaced test files: "confirmed working" may not describe the current file
+
+The collection merge replaced many previously-tested ROMs with the
+collection's own copy, moving the original to `duplicates/`. **42 titles now
+have a different file in `roms/` than the one originally confirmed**, and
+several are not repacks but different editions entirely:
+
+| Tested file (now in `duplicates/`) | Current file in `roms/` |
+|---|---|
+| `Maniac Mansion.scm` | `Maniac Mansion (NES, English, USA).zip` |
+| `The Secret of Monkey Island (Talkie).scm` | `The Secret of Monkey Island (Sega CD).zip` |
+| `Simon the Sorcerer.scm` | `Simon the Sorcerer (Amiga - OCS Floppy).zip` |
+| `Full Throttle.scm` | `Full Throttle (CD Mac).zip` |
+| `Day of the Tentacle.scm` | `Day Of The Tentacle (CD Mac).zip` |
+| `Loom (Talkie).scm` | `Loom (Floppy Mac EGA).zip` |
+| `Indiana Jones and the Last Crusade (EGA).scm` | `... (Talkie) (FM Towns).zip` |
+| `Zak Mckracken ... (CD-ROM)` | `... (Talkie) (FM Towns).zip` |
+
+This does **not** invalidate the engine-level results -- the engine was proven
+either way -- but it does mean a "confirmed working" row in README's table may
+describe a file that is no longer in the library. A NES or Sega CD build is a
+materially different target from the DOS build that was tested.
+
+**What is still current:** the 30 titles re-validated on 2026-09-06 during the
+rebase regression pass were selected from the library's contents at that time,
+so those rows describe the files actually present.
+
+Full list of displaced pairs: see `docs/displaced-test-files.tsv`.
+
 ## Awaiting test
 
 | Engine | ROM filename | Source | Notes |
