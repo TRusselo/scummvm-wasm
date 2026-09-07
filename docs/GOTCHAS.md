@@ -1896,6 +1896,35 @@ they fail only because the compressed copy shares the space. Full
 analysis and the proposed upstream fix are in
 [issue #5](https://github.com/TRusselo/scummvm-wasm/issues/5).
 
+## scummvm.org/demos is an archive, not a compatibility list (2026-09-06)
+
+Downloading a demo from https://www.scummvm.org/demos/ does **not** guarantee
+ScummVM can detect it, even though the page lists an explicit engine target for
+each row.
+
+Worked example: "Escape From Monkey Island (Macintosh Demo)"
+(`efmi_large_demo.sea`) is listed with target `grim:monkey4`. It extracts
+cleanly (`unar`, Compact Pro format — `7z` cannot read it), but **0 of its 43
+files** match any entry in `engines/grim/detection_tables.h`. Checked against
+current ScummVM master, not just our base, so it is not a staleness problem.
+Every `monkey4` demo entry requires `magdemo.lab` (19826116) on Windows; there
+are no `kPlatformMacintosh` demo entries at all.
+
+By contrast the Grim Fandango demo from the same page works, because Grim's
+demo entries match what is hosted.
+
+**Before sourcing a demo from that page**, check the target engine's
+`detection_tables.h` for an entry matching the platform you are downloading.
+A quick way to test a whole extracted directory at once:
+
+```python
+# hash every file's first 5000 bytes, compare against sizes+md5s in the table
+sizes = set(re.findall(r'"[^"]+",\s*"[0-9a-f]+",\s*(\d+)', table))
+md5s  = set(re.findall(r'"([0-9a-f]{32})"', table))
+```
+
+Reported upstream so the page can be corrected or the entry added.
+
 ## Exact size AND 5000-byte-prefix hash match still doesn't guarantee an intact file
 
 `pink` (The Pink Panther: Passport to Peril) found a failure mode beyond
