@@ -1312,6 +1312,49 @@ either. (An earlier version of this doc proposed splitting into two
 binaries by resolution profile specifically to avoid pillarboxing; that
 was based on the incorrect assumption above and isn't needed.)
 
+## TinyGL software 3D works in this core -- most "GL" engines never needed a second build (proven 2026-09-06)
+
+The `gl-core.list` split was drawn by *GL involvement*, not by what actually
+requires a GPU. ScummVM's own `configure` shows the distinction:
+
+```sh
+echo_n "Building any 3D game... "
+if test "$_tinygl" = yes || test "$_opengl_game_classic" = yes || test "$_opengl_game_shaders" = yes; then
+	_3d=yes
+```
+
+`_3d=yes` is satisfied by **TinyGL alone** -- ScummVM's software rasteriser, no
+GPU involved. Checking each deferred engine's `configure.engine`, only three
+genuinely need real OpenGL:
+
+| Requirement | Engines |
+|---|---|
+| `opengl_game_classic` | `watchmaker` |
+| `opengl_game_shaders` | `twp`, `hpl1` |
+| TinyGL (software) | `freescape`, `grim`, `myst3`, `stark`, `tetraedge`, `alcachofa`, `colony`, `wintermute`, `tinsel` |
+
+Two engines have been moved out of the GL list on this basis:
+
+- **`tinsel`** declares no `3d` dependency at all; its only TinyGL use is guarded
+  by `if (getGameID() == GID_NOIR)` (`engines/tinsel/tinsel.cpp:1041`), so
+  Discworld 1 and 2 never touch it. Builds and loads fine (its Discworld dumps
+  fail detection for unrelated sourcing reasons -- see ROM-QUEUE).
+- **`freescape`** builds with `ENABLE_FREESCAPE = STATIC_PLUGIN` and
+  `USE_TINYGL=1`, and **Driller was confirmed working: filled-vector 3D rendered
+  correctly with working mouse-look.** This is the first proof TinyGL functions
+  in the WASM build at all.
+
+**What this implies.** `grim`, `myst3`, `stark`, `tetraedge`, `alcachofa` and
+`colony` use the same rasteriser and differ only in scale, so the remaining
+question for them is *performance*, not capability -- software-rasterising
+1998-era 3D inside WASM is untested and may simply be too slow. But the
+categorical blocker ("needs a GL core that doesn't exist") is disproven for
+everything except `watchmaker`, `twp` and `hpl1`.
+
+Note also `foxtail`, `herocraft` and `wme3d` have no `engines/<name>/` directory
+at all -- they are `wintermute` subengines and only appear in the list because
+`LITE=1` requires subengines to be named explicitly.
+
 ## GL/3D engines: a second core, grouped by GL involvement not by strict necessity
 
 The 13 engines this project's main core excludes (declaring a `3d`
