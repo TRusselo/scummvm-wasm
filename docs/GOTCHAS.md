@@ -1909,6 +1909,38 @@ looks correct.
 
 ## The "flaky" ENOTDIR extraction error: zips carrying explicit directory entries (root cause found 2026-09-04)
 
+### How to repack without reintroducing it (learned the hard way, 2026-09-06)
+
+`7z a -tzip out.zip <directory>` **stores standalone directory entries** and
+therefore reintroduces this bug every time. Repacking Escape from Monkey Island
+that way produced 14 of them (`Movies`, `Textures`, `Textures/mego/...`) and the
+game died in EmulatorJS's extractor with `ErrnoError {errno: 20}` from
+`mkdir`/`mknod` -- despite `artAll.m4b` matching the detection entry on both
+size and 5000-byte MD5, and the engine being correctly compiled in. It looked
+exactly like a detection failure (empty ScummVM launcher).
+
+`zip -rXD` (the `-D` flag suppresses directory entries) is the usual answer, but
+**`zip` is not installed on this dev machine**. The working 7z recipe is to feed
+it an explicit list of *files only*:
+
+```sh
+cd <game-dir>
+find . -type f -printf '%P\n' > /tmp/filelist.txt
+7z a -tzip -mx=5 /tmp/out.zip @/tmp/filelist.txt
+```
+
+Subdirectory paths are still preserved inside each entry's name
+(`Movies/bank.m4b`), so engines that read subdirectories still work -- what
+disappears is the standalone folder record.
+
+**Always verify before shipping a hand-made zip:**
+
+```sh
+7z l -slt out.zip | grep -c 'Folder = +'    # must be 0
+```
+
+
+
 The intermittent `Uncaught ErrnoError {name: 'ErrnoError', errno: 20}`
 during EmulatorJS's ROM extraction is neither flaky nor random. errno 20
 is ENOTDIR, and the trigger is a property of the zip file alone.
