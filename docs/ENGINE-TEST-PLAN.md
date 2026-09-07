@@ -4,7 +4,7 @@ Phase 1 (this document): compile a prioritized list of ScummVM engines to
 test, one representative popular game each, plus a smaller/easier
 candidate ROM for the actual test. Phase 2 (testing) is now underway.
 
-## Confirmed working so far (81 of 111, + agos2 subengine bonus)
+## Confirmed working so far (82 of 112, + agos2 subengine bonus)
 
 `agi`, `sci`, `sky`, `agos` (base + `agos2` subengine), `adl`, `cge`,
 `cge2`, `parallaction`, `drascula`, `lure`, `queen`, `wage`, `dreamweb`,
@@ -69,10 +69,12 @@ in place or discarded.
 
 ## Scope
 
-- **102 top-level engines** below: every engine in
-  `build/engine-lists/all-engines.list` except `scumm` (base SCUMM is
-  already extensively validated — MI1/2, Loom, Sam & Max, Full Throttle,
-  Curse of Monkey Island, The Dig all confirmed working). Subengines
+- **112 top-level engines** in `build/engine-lists/all-engines.list`.
+  This document's per-engine table below covers 111 of them: `scumm`
+  itself has no row because it was already extensively validated before
+  this sweep began (MI1/2, Loom, Sam & Max, Full Throttle, Curse of
+  Monkey Island, The Dig, plus the FM-TOWNS titles), but it **is** counted
+  in the totals above — it is a working engine like any other. Subengines
   (`scumm_7_8`, `he`, `sci32`, `eob`/`lol`, etc.) are grouped under their
   parent, not tested separately, per your call.
 - **11 deferred GL-core engines** in their own section at the end —

@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 81 of 111 engines confirmed load into game.
+TEST STATUS : 82 of 112 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **81 of 111 confirmed working as of this
+plays, not just compiles. **82 of 112 confirmed working as of this
 writing** — see the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -422,7 +422,7 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**81 of 111 confirmed** (plus the `agos2` subengine). 1 blocked
+**82 of 112 confirmed** (plus the `agos2` subengine). 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
 14 deferred on sourcing/tooling, 15 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
@@ -444,10 +444,11 @@ lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
 table is the at-a-glance summary, kept in sync with it.
 
 <details>
-<summary><strong>Widely Known</strong> (20 engines)</summary>
+<summary><strong>Widely Known</strong> (21 engines)</summary>
 
 | Engine | Status | Notes |
 |---|---|---|
+| scumm | ✅ | The engine this project started with, and the most heavily exercised: Monkey Island 1/2, Loom, Sam & Max, Full Throttle, Curse of Monkey Island, The Dig, Day of the Tentacle, Indiana Jones, Zak, plus the FM-TOWNS talkie editions (which needed the `USE_FMTOWNS_PC98_AUDIO` link fix). Includes the `he` and `scumm_7_8` subengines |
 | agi | ✅ | King's Quest I; also Leisure Suit Larry 1-3, Space Quest I-III |
 | glk | ✅ | Zork I confirmed. Was long mislabelled as a `fonts.dat` crash; the real cause was two FreeType autofit function-pointer signature mismatches, fixed 2026-09-04 |
 | awe | ✅ | Another World |
