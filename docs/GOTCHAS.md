@@ -1344,12 +1344,37 @@ Two engines have been moved out of the GL list on this basis:
   correctly with working mouse-look.** This is the first proof TinyGL functions
   in the WASM build at all.
 
-**What this implies.** `grim`, `myst3`, `stark`, `tetraedge`, `alcachofa` and
-`colony` use the same rasteriser and differ only in scale, so the remaining
-question for them is *performance*, not capability -- software-rasterising
-1998-era 3D inside WASM is untested and may simply be too slow. But the
-categorical blocker ("needs a GL core that doesn't exist") is disproven for
-everything except `watchmaker`, `twp` and `hpl1`.
+**Confirmed on real 3D, not just vector graphics (2026-09-06).** Grim
+Fandango's official demo plays with controller input -- full 1998-era 3D
+character animation, software-rasterised inside WASM. That answers the
+performance question that `freescape` (1987 filled vectors) could not.
+`grim` tracks this explicitly as `_softRenderer` (`engines/grim/grim.cpp:297`)
+and instantiates `CreateGfxTinyGL()` at line 317.
+
+**One exception, and it is upstream's, not ours: Wintermute 3D games.**
+`engines/wintermute/base/base_game.cpp:633`:
+
+```c
+#if defined(USE_TINYGL)
+	if (!force2dRenderer && matchingRendererType == Graphics::kRendererTypeTinyGL) {
+		if (_playing3DGame) {
+			warning("3D software renderer is not supported yet");
+			_renderer3D = nullptr;//makeTinyGL3DRenderer(this);
+		}
+	}
+#endif
+```
+
+The constructor is commented out, so `_renderer` stays null and ScummVM exits
+cleanly -- RetroArch then falls back to its own menu, which looks nothing like
+the usual empty-ScummVM-launcher failure. J.U.L.I.A. fails this way on both our
+dump and ScummVM's official demo; **no core we build can run it.** 2D Wintermute
+games are unaffected (Dirty Split, The White Chamber, Pigeons, Rosemary all
+play) because they take `makeOSystemRenderer` instead.
+
+Checked for the same stub pattern across the other TinyGL engines -- `grim`,
+`myst3`, `stark`, `tetraedge`, `alcachofa` all have real renderer
+implementations and instantiate them. Wintermute is the only one.
 
 Note also `foxtail`, `herocraft` and `wme3d` have no `engines/<name>/` directory
 at all -- they are `wintermute` subengines and only appear in the list because

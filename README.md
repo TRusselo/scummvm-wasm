@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 84 of 114 engines confirmed load into game.
+TEST STATUS : 85 of 114 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **84 of 114 confirmed working as of this
+plays, not just compiles. **85 of 114 confirmed working as of this
 writing** — see the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -437,7 +437,7 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**84 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
+**85 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
 14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
@@ -647,13 +647,14 @@ Software-rasterised via TinyGL, no GPU needed. All compile into this core.
 | Engine | Game | Status |
 |---|---|---|
 | freescape | Driller, Total Eclipse | ✅ confirmed |
-| wintermute | Dirty Split, The White Chamber | ✅ confirmed (11 games in the library) |
+| wintermute | Dirty Split, White Chamber, Pigeons, Rosemary | ✅ confirmed (2D games only — see below) |
 | tinsel | Discworld 1/2 | ⬜ built; no dump matches a signature |
-| grim | Grim Fandango | ⬜ built; `GRIM.TAB` 362164 matches no signature |
+| grim | Grim Fandango | ✅ **confirmed** — official demo plays with controller input; full 1998-era 3D software-rasterised. Retail dump still needed (`GRIM.TAB` 362164 matches no signature) |
 | monkey4 | Escape from Monkey Island | ⬜ built; `ADGF_UNSTABLE` |
 | myst3 | Myst III: Exile | ⬜ built; dump over the 2 GiB limit |
 | stark | The Longest Journey | ⬜ built; dump over the 2 GiB limit |
 | tetraedge | Syberia | ⬜ built, untested |
+| wme3d | J.U.L.I.A. and other 3D Wintermute games | 🚫 **impossible upstream** — `base_game.cpp:633` warns "3D software renderer is not supported yet" and leaves `_renderer3D` null with `makeTinyGL3DRenderer()` commented out. Fails identically on our dump and ScummVM's own demo |
 | alcachofa | Yesterday | ⬜ built, untested |
 | colony | The Colony | ⬜ built, untested |
 
