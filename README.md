@@ -446,6 +446,15 @@ All confirmed engines were re-validated on 2026-09-06 against a core rebased
 onto current upstream ScummVM — 30 titles: 20 chosen because they only work due
 to a code fix in this project, 10 as regression canaries. No regressions.
 
+**Caveat on the other rows:** the collection merge replaced many previously
+tested ROMs with the collection's own copy, moving the original to
+`duplicates/`. 42 titles now have a *different* file in `roms/` than the one
+originally confirmed, several being different editions rather than repacks —
+Maniac Mansion is now the NES build, The Secret of Monkey Island the Sega CD
+build, Simon the Sorcerer the Amiga OCS floppy. The engine-level results stand
+either way; the specific file a row describes may not. Full pairing in
+`docs/displaced-test-files.tsv`.
+
 That rebase also brought 10 engines that did not exist when this project
 started: `bolt`, `eem`, `fool`, `gamos`, `harvester`, `macs2`, `pelrock`,
 `phoenixvr`, `waynesworld`, plus `colony` (deferred to the GL core — it declares
