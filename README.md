@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 82 of 112 engines confirmed load into game.
+TEST STATUS : 82 of 113 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **82 of 112 confirmed working as of this
+plays, not just compiles. **82 of 113 confirmed working as of this
 writing** — see the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -366,14 +366,28 @@ found," even with a correctly-placed hook file.
   games. That gap is the reason the proposal is gated and feature-detected
   rather than a straight replacement.
 - **14 engines are not compiled into this core, and a game on one of them
-  fails silently.** `alcachofa`, `foxtail`, `freescape`, `grim`, `herocraft`,
-  `hpl1`, `myst3`, `stark`, `tetraedge`, `tinsel`, `twp`, `watchmaker`,
-  `wintermute` and `wme3d` need an OpenGL-capable core that has not been built
-  yet (`build/engine-lists/gl-core.list`). Launching one of their games does not
-  produce an error -- with no engine present, detection simply matches nothing
-  and you land in an empty ScummVM launcher. Discworld (`tinsel`) is the easy
-  way to see this. Worth knowing before debugging a "detection failure" that is
-  really a missing engine.
+  fails silently.** `alcachofa`, `colony`, `foxtail`, `freescape`, `grim`,
+  `herocraft`, `hpl1`, `myst3`, `stark`, `tetraedge`, `twp`, `watchmaker`,
+  `wintermute` and `wme3d` are in `build/engine-lists/gl-core.list`, whose
+  dedicated core has not been built. Launching one of their games produces no
+  error -- with no engine present, detection matches nothing and you land in an
+  empty ScummVM launcher. Worth knowing before debugging a "detection failure"
+  that is really a missing engine.
+
+  **An empty launcher does not always mean a missing engine, though.** It looks
+  identical when the engine *is* present but no detection entry matches the
+  dump. Discworld is the worked example: `tinsel` builds into this core as of
+  2026-09-06, yet all three Discworld dumps still land in the launcher because
+  their second required file does not match any signature (`DW.GRA` 781656
+  matches, but its `ENGLISH.TXT` is 228542 where the entry wants 237774). Check
+  whether the engine is in `all-engines.list` before assuming either cause.
+
+  Note most of that list does not actually need real OpenGL: only `watchmaker`
+  (`opengl_game_classic`), `twp` and `hpl1` (`opengl_game_shaders`) do. The rest
+  render through TinyGL, ScummVM's software rasteriser, and ScummVM's own
+  `configure` sets `_3d=yes` from TinyGL alone. `tinsel` was the first engine
+  moved out on that basis; `freescape` (Driller, Castle Master, Total Eclipse --
+  all under 1 MB) is the obvious next candidate.
 - **Music is AdLib-only, which makes some games depend on files their dump may
   omit.** `SharedArrayBuffer`-era browsers give us no MIDI hardware (the WebMIDI
   plugin is excluded -- see `docs/GOTCHAS.md`), FluidSynth is compiled in but
@@ -422,9 +436,9 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**82 of 112 confirmed** (plus the `agos2` subengine). 1 blocked
+**82 of 113 confirmed** (plus the `agos2` subengine). 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
-14 deferred on sourcing/tooling, 15 waiting on a GL-core build that hasn't
+14 deferred on sourcing/tooling, 14 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
 
 All confirmed engines were re-validated on 2026-09-06 against a core rebased
@@ -598,11 +612,18 @@ until this rebase.
 | harvester | Harvester | no | ⬜ needs rebuild |
 | macs2 | Macs2 | no | ⬜ needs rebuild |
 | waynesworld | Wayne's World | no | ⬜ needs rebuild |
+| tinsel | Discworld 1/2 (moved out of the GL list — see below) | yes | ⬜ built, no recognised dump |
+
+`tinsel` was moved out of the GL-core list on 2026-09-06: it declares no `3d`
+dependency, and its only TinyGL use is guarded by `if (getGameID() == GID_NOIR)`
+(`engines/tinsel/tinsel.cpp:1041`), so Discworld 1 and 2 never touch it. It now
+builds into this core. It is not confirmed working, but for a sourcing reason
+rather than an engine one — see `docs/ROM-QUEUE.md`.
 
 </details>
 
 <details>
-<summary><strong>Deferred — needs the separate GL-core build</strong> (15 engines)</summary>
+<summary><strong>Deferred — needs the separate GL-core build</strong> (14 engines)</summary>
 
 These need `build/engine-lists/gl-core.list`'s dedicated OpenGL-enabled
 core (`FORCE_OPENGLES2=1`), which hasn't been built yet — none are
@@ -614,7 +635,6 @@ testable until it exists.
 | myst3 | Myst III: Exile |
 | stark | The Longest Journey |
 | twp | Thimbleweed Park |
-| tinsel | Discworld |
 | freescape | Driller |
 | tetraedge | Syberia (franchise) |
 | hpl1 | Penumbra: Overture |
