@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 85 of 114 engines confirmed load into game.
+TEST STATUS : 90 of 114 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **85 of 114 confirmed working as of this
+plays, not just compiles. **90 of 114 confirmed working as of this
 writing** — see the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -437,7 +437,7 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**85 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
+**90 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
 14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
@@ -523,10 +523,10 @@ table is the at-a-glance summary, kept in sync with it.
 | hugo | ✅ | Hugo's House of Horrors |
 | icb | ⏸️ | Tried El Dorado (also on this engine); dump doesn't match any known hash signature, not a packaging issue |
 | immortal | ⏸️ | Apple IIgs-only engine, no clean disk dump found |
-| lab | ⏸️ | No usable DOS/Windows package found |
+| lab | ✅ | Labyrinth of Time |
 | macventure | ⏸️ | Mac/Apple IIgs-only engine, needs HFS disk-image tooling |
 | made | ✅ | Via Rodney's Funscreen |
-| mads | ⏸️ | Only raw floppy disk images found |
+| mads | ✅ | Rex Nebular and the Cosmic Gender Bender |
 | mtropolis | ✅ | Via Muppet Treasure Island (Obsidian, original candidate, is multi-CD, no smaller cut) |
 | neverhood | ✅ | The Neverhood |
 | parallaction | ✅ | The Big Red Adventure, official freeware |
@@ -536,11 +536,11 @@ table is the at-a-glance summary, kept in sync with it.
 | private | ✅ | Private Eye (EN_GRB variant) |
 | saga | ✅ | I Have No Mouth, and I Must Scream |
 | sludge | ⚠️ | Worked (The Interview) but excluded — unsigned `.exe`, engine marked unstable/WIP by ScummVM itself |
-| titanic | ⏸️ | Starship Titanic — GOG version hash-matches exactly, but `Assets/` alone is 1.19GiB (over size limit); single-game engine, no alt title |
+| titanic | ✅ | Starship Titanic — the collection's copy fits (0.93GiB zip). Its bundled `titanic.dat` was version 3 and shadowed our embedded version 5; stripping it from the zip fixed the "out of date" error |
 | tony | ✅ | Tony Tough and the Night of the Roasted Moths |
 | touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
 | voyeur | ✅ | Perfect hash match to full-game detection entry, no ambiguity |
-| zvision | ⏸️ | Full retail (3 CDs) exceeds 1GB; only lighter alt found fails detection |
+| zvision | ✅ | Zork Nemesis: The Forbidden Lands (1.21GiB). Zork: Grand Inquisitor is still over the 2GiB download limit |
 | asylum | ✅ | Sanitarium CD1 only (full retail's 3 CDs exceed size limit; demo installer couldn't be unpacked) |
 | sword25 | ✅ | Broken Sword 2.5, official freeware fan game |
 | agos | ✅ | Simon the Sorcerer (base + `agos2` subengine via Simon 2) |
@@ -566,7 +566,7 @@ table is the at-a-glance summary, kept in sync with it.
 | draci | ✅ | Dragon History, English fan translation |
 | efh | ✅ | Escape from Hell |
 | gnap | ✅ | U.F.O.s / Gnap |
-| hadesch | ⏸️ | Hades Challenge — confirmed `ol.pod` dump mismatch, not fixable by repackaging |
+| hadesch | 🚫 | Hades Challenge — added a detection entry for this variant (`ol.pod` revised, other two files byte-identical); it now detects but loads to a black screen with a movable cursor and `WARNING: stream is 0!`. The variant is genuinely different, not merely uncatalogued |
 | hdb | ✅ | Hyperspace Delivery Boy!, official freeware |
 | hypno | ✅ | Wetlands (US) |
 | illusions | ✅ | Duckman: The Graphic Adventures of a Private Dick |
@@ -622,7 +622,7 @@ until this rebase.
 | harvester | Harvester | no | ⬜ needs rebuild |
 | macs2 | Macs2 | no | ⬜ needs rebuild |
 | waynesworld | Wayne's World | no | ⬜ needs rebuild |
-| tinsel | Discworld 1/2 (moved out of the GL list — see below) | yes | ⬜ built, no recognised dump |
+| tinsel | Discworld 1, Discworld 2 | yes | ✅ **confirmed** — all three dumps play; two needed new detection entries |
 | freescape | Driller, Total Eclipse | yes | ✅ **Confirmed** — Driller and Total Eclipse both play; first proof TinyGL software 3D renders in this core. Castle Master's dump matches no signature |
 
 `tinsel` was moved out of the GL-core list on 2026-09-06: it declares no `3d`
