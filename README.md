@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 83 of 114 engines confirmed load into game.
+TEST STATUS : 84 of 114 engines confirmed load into game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -24,7 +24,7 @@ Since then the build itself was widened to include every other ScummVM
 engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **83 of 114 confirmed working as of this
+plays, not just compiles. **84 of 114 confirmed working as of this
 writing** — see the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -365,35 +365,30 @@ found," even with a correctly-placed hook file.
   could run the core today but could not use a streaming loader for oversized
   games. That gap is the reason the proposal is gated and feature-detected
   rather than a straight replacement.
-- **13 engines are not compiled into this core, and a game on one of them
-  fails silently.** `alcachofa`, `colony`, `foxtail`, `grim`, `herocraft`,
-  `hpl1`, `myst3`, `stark`, `tetraedge`, `twp`, `watchmaker`, `wintermute` and
-  `wme3d` are in `build/engine-lists/gl-core.list`, whose
-  dedicated core has not been built. Launching one of their games produces no
-  error -- with no engine present, detection matches nothing and you land in an
-  empty ScummVM launcher. Worth knowing before debugging a "detection failure"
-  that is really a missing engine.
+- **Only 3 engines are not compiled into this core**: `hpl1`, `twp` and
+  `watchmaker` (`build/engine-lists/gl-core.list`). They are the only ones that
+  genuinely require a GPU -- `watchmaker` declares `opengl_game_classic`, `twp`
+  and `hpl1` declare `opengl_game_shaders`. Launching one of their games
+  produces no error: with no engine present, detection matches nothing and you
+  land in an empty ScummVM launcher.
+
+  **The rest of the old "GL core" list was never necessary, and that is now
+  proven.** ScummVM's `configure` sets `_3d=yes` from TinyGL alone -- its
+  software rasteriser, no GPU involved -- so `tinsel`, `freescape`, `grim`,
+  `monkey4`, `myst3`, `stark`, `tetraedge`, `alcachofa`, `colony` and
+  `wintermute` all build into this core. Two have been confirmed playing:
+  **`freescape`** (Driller, Total Eclipse -- filled-vector 3D with working
+  mouse-look) and **`wintermute`** (Dirty Split, The White Chamber). Whether
+  TinyGL is fast enough for 1998-era 3D (`grim`, `myst3`, `stark`) is still
+  untested, and blocked on sourcing dumps that match a detection entry.
 
   **An empty launcher does not always mean a missing engine, though.** It looks
   identical when the engine *is* present but no detection entry matches the
-  dump. Discworld is the worked example: `tinsel` builds into this core as of
-  2026-09-06, yet all three Discworld dumps still land in the launcher because
-  their second required file does not match any signature (`DW.GRA` 781656
-  matches, but its `ENGLISH.TXT` is 228542 where the entry wants 237774). Check
-  whether the engine is in `all-engines.list` before assuming either cause.
+  dump -- all three Discworld dumps land there despite `tinsel` being built --
+  and identical again when the archive carries standalone directory entries and
+  trips the ENOTDIR extraction bug. Check `all-engines.list`, then the dump's
+  file sizes, then `7z l -slt x.zip | grep -c 'Folder = +'`.
 
-  **Most of that list does not actually need real OpenGL, and this is now
-  proven, not theorised.** Only `watchmaker` (`opengl_game_classic`), `twp` and
-  `hpl1` (`opengl_game_shaders`) require it. The rest render through TinyGL,
-  ScummVM's software rasteriser, and ScummVM's own `configure` sets `_3d=yes`
-  from TinyGL alone. `tinsel` was moved out first on that reasoning;
-  `freescape` followed and **Driller was confirmed working on 2026-09-06 --
-  filled-vector 3D rendering correctly, with working mouse-look**. That is the
-  first evidence TinyGL functions at all in this WASM build, which is the
-  question gating `grim`, `myst3`, `stark`, `tetraedge`, `alcachofa` and
-  `colony`: they use the same rasteriser and differ only in scale. Whether
-  1998-era 3D is fast enough software-rendered in WASM is a separate, untested
-  question.
 - **Music is AdLib-only, which makes some games depend on files their dump may
   omit.** `SharedArrayBuffer`-era browsers give us no MIDI hardware (the WebMIDI
   plugin is excluded -- see `docs/GOTCHAS.md`), FluidSynth is compiled in but
@@ -442,9 +437,9 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**83 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
+**84 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
-14 deferred on sourcing/tooling, 13 waiting on a GL-core build that hasn't
+14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
 
 All confirmed engines were re-validated on 2026-09-06 against a core rebased
@@ -619,7 +614,7 @@ until this rebase.
 | macs2 | Macs2 | no | ⬜ needs rebuild |
 | waynesworld | Wayne's World | no | ⬜ needs rebuild |
 | tinsel | Discworld 1/2 (moved out of the GL list — see below) | yes | ⬜ built, no recognised dump |
-| freescape | Driller, Total Eclipse, Castle Master | yes | ✅ **Driller confirmed working** — first proof TinyGL software 3D renders in this core |
+| freescape | Driller, Total Eclipse | yes | ✅ **Confirmed** — Driller and Total Eclipse both play; first proof TinyGL software 3D renders in this core. Castle Master's dump matches no signature |
 
 `tinsel` was moved out of the GL-core list on 2026-09-06: it declares no `3d`
 dependency, and its only TinyGL use is guarded by `if (getGameID() == GID_NOIR)`
@@ -630,27 +625,37 @@ rather than an engine one — see `docs/ROM-QUEUE.md`.
 </details>
 
 <details>
-<summary><strong>Deferred — needs the separate GL-core build</strong> (13 engines)</summary>
+<summary><strong>Deferred — genuinely needs a GPU</strong> (3 engines)</summary>
 
-These need `build/engine-lists/gl-core.list`'s dedicated OpenGL-enabled
-core (`FORCE_OPENGLES2=1`), which hasn't been built yet — none are
-testable until it exists.
+These declare `opengl_game_classic`/`opengl_game_shaders` and cannot use
+TinyGL's software rasteriser, so they need a dedicated OpenGL-enabled core that
+hasn't been built (`build/engine-lists/gl-core.list`).
 
-| Engine | Most Popular Game |
-|---|---|
-| grim | Grim Fandango |
-| myst3 | Myst III: Exile |
-| stark | The Longest Journey |
-| twp | Thimbleweed Park |
-| tetraedge | Syberia (franchise) |
-| hpl1 | Penumbra: Overture |
-| alcachofa | Yesterday |
-| watchmaker | The Watchmaker |
-| wintermute | Helga Deep In Trouble (freeware, ready to test once the core exists) |
-| foxtail | FoxTail |
-| herocraft | (HeroCraft titles) |
-| wme3d | Wintermute 3D titles |
-| colony | The Colony (added by the 2026-09-06 rebase; declares a `3d` dependency) |
+| Engine | Most Popular Game | Requires |
+|---|---|---|
+| twp | Thimbleweed Park | `opengl_game_shaders` |
+| hpl1 | Penumbra: Overture | `opengl_game_shaders` |
+| watchmaker | The Watchmaker | `opengl_game_classic` |
+
+</details>
+
+<details>
+<summary><strong>Moved out of the GL list — build with TinyGL</strong> (10 engines)</summary>
+
+Software-rasterised via TinyGL, no GPU needed. All compile into this core.
+
+| Engine | Game | Status |
+|---|---|---|
+| freescape | Driller, Total Eclipse | ✅ confirmed |
+| wintermute | Dirty Split, The White Chamber | ✅ confirmed (11 games in the library) |
+| tinsel | Discworld 1/2 | ⬜ built; no dump matches a signature |
+| grim | Grim Fandango | ⬜ built; `GRIM.TAB` 362164 matches no signature |
+| monkey4 | Escape from Monkey Island | ⬜ built; `ADGF_UNSTABLE` |
+| myst3 | Myst III: Exile | ⬜ built; dump over the 2 GiB limit |
+| stark | The Longest Journey | ⬜ built; dump over the 2 GiB limit |
+| tetraedge | Syberia | ⬜ built, untested |
+| alcachofa | Yesterday | ⬜ built, untested |
+| colony | The Colony | ⬜ built, untested |
 
 </details>
 
