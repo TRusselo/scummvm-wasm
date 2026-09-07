@@ -1919,9 +1919,15 @@ game died in EmulatorJS's extractor with `ErrnoError {errno: 20}` from
 size and 5000-byte MD5, and the engine being correctly compiled in. It looked
 exactly like a detection failure (empty ScummVM launcher).
 
-`zip -rXD` (the `-D` flag suppresses directory entries) is the usual answer, but
-**`zip` is not installed on this dev machine**. The working 7z recipe is to feed
-it an explicit list of *files only*:
+**Preferred: `zip -rXD`.** The `-D` flag suppresses directory entries outright
+(`zip` was installed on this dev machine on 2026-09-06 specifically for this):
+
+```sh
+cd <game-dir>
+zip -rXD /tmp/out.zip .
+```
+
+If only 7z is available, feed it an explicit list of *files only*:
 
 ```sh
 cd <game-dir>
