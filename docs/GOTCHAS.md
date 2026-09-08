@@ -2127,3 +2127,44 @@ already contained them.
 **Always `rm scummvm-core/backends/platform/libretro/base/plugins.o` before
 rebuilding after any engine-list change.** It is one object file, so the cost is
 negligible next to diagnosing an engine that silently refuses to detect.
+
+
+## The engine lists can only ever enable what ScummVM builds by default (2026-09-08)
+
+`build/engine-lists/all-engines.list` is copied over `lite_engines.list` and fed
+to `configure_engines.sh`, which disables everything and then re-enables each
+name in the list. That re-enable **cannot** turn on an engine upstream marks
+build-by-default `no`. Listing one is inert: configure ignores it silently, no
+warning, and it never reaches the core.
+
+The authority is the third field of every `add_engine` declaration in
+upstream's own `engines/*/configure.engine`:
+
+```
+# add_engine [name] [desc] [build-by-default] [subengines] [base games] [deps] [components]
+add_engine grim    "Grim"                      yes "monkey4" ...
+add_engine monkey4 "Escape from Monkey Island" no  ""        ...
+```
+
+Upstream has **154 declarations: 130 yes, 24 no.** Our build enables exactly
+those 130 -- it is faithful to upstream, and always was.
+
+**Two traps, both of which cost real time on 2026-09-08:**
+
+1. **Parse every line, not the first.** Subengines are declared on later
+   `add_engine` lines in the same file, so reading one match per file misses
+   them entirely -- that is how `monkey4` was missed.
+2. **Do not field-split on whitespace.** `awk '{print $4}'` only lands on the
+   flag when the description happens to be two words (`"The Colony"`); for
+   `"Cryo"` it reads the wrong column. Match
+   `add_engine\s+(\S+)\s+"[^"]*"\s+(\S+)` instead.
+
+Before that was understood, 16 default-`no` engines sat in `all-engines.list`
+doing nothing while every count derived from the list overstated what the core
+ships. They have been removed; the list now describes reality.
+
+**Related, still open:** `gl-core.list` currently has no effect either.
+`colony` and `watchmaker` are default-`no` upstream so they were never built
+anyway, and `hpl1`/`twp` are default-`yes` so they are compiled into the main
+core despite being "excluded". If those two genuinely need to be kept out, the
+exclusion has to happen somewhere configure actually honours.

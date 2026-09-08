@@ -21,7 +21,7 @@ gamepad input all confirmed working):
 - Day of the Tentacle (including the CD/talkie version)
 
 Since then the build itself was widened to include every other ScummVM
-engine that doesn't require OpenGL (144 engines total, SCUMM plus 143
+engine that doesn't require OpenGL (128 engines total, SCUMM plus 127
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
 plays, not just compiles. **94 of 114 confirmed working as of this
