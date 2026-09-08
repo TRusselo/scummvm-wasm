@@ -2129,13 +2129,19 @@ rebuilding after any engine-list change.** It is one object file, so the cost is
 negligible next to diagnosing an engine that silently refuses to detect.
 
 
-## The engine lists can only ever enable what ScummVM builds by default (2026-09-08)
+## Our engine list overrides ScummVM's "broken or unsupported" flag (2026-09-08)
 
 `build/engine-lists/all-engines.list` is copied over `lite_engines.list` and fed
 to `configure_engines.sh`, which disables everything and then re-enables each
-name in the list. That re-enable **cannot** turn on an engine upstream marks
-build-by-default `no`. Listing one is inert: configure ignores it silently, no
-warning, and it never reaches the core.
+name in the list. That re-enable calls ScummVM's `engine_enable`, which sets
+`_engine_<name>_build = yes` **unconditionally** -- it does not consult the
+engine's build-by-default flag.
+
+So naming a `default=no` engine in our list really does build it. That is not
+theoretical: `dm`, `avalanche`, `cryo`, `lilliput`, `mediastation` and
+`mutationofjb` were all shipped in the core this way, while `colony` -- removed
+from the list -- is genuinely absent from the same binary. Same flag, opposite
+outcomes, decided purely by list membership.
 
 The authority is the third field of every `add_engine` declaration in
 upstream's own `engines/*/configure.engine`:
@@ -2146,8 +2152,29 @@ add_engine grim    "Grim"                      yes "monkey4" ...
 add_engine monkey4 "Escape from Monkey Island" no  ""        ...
 ```
 
-Upstream has **154 declarations: 130 yes, 24 no.** Our build enables exactly
-those 130 -- it is faithful to upstream, and always was.
+Upstream has **154 declarations: 130 yes, 24 no.**
+
+`default=no` is ScummVM's *"broken or unsupported"* set -- not an inference from
+the help text, but how the code selects it:
+
+```sh
+engine_enable_all_unstable() {
+    for engine in $_engines; do
+        if test `get_engine_build_default $engine` = no ; then
+            set_var _engine_${engine}_build "yes"
+        fi
+    done
+}
+```
+
+A stock `./configure` leaves them off, so **ScummVM's releases do not ship
+them.** (`--enable-all-engines` appears in their CI and IDE project generators,
+but that is compile-coverage to catch breakage, not a shipping decision.)
+
+Our list named 16 of them, so we were shipping engines upstream considers broken
+or unsupported. They have been removed to match ScummVM's release set. That a
+title booted for us does not overrule that classification -- booting once says
+nothing about completability, and this project is not the authority on it.
 
 **Two traps, both of which cost real time on 2026-09-08:**
 
