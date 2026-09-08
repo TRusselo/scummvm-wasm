@@ -646,11 +646,12 @@ hasn't been built (`build/engine-lists/gl-core.list`).
 | hpl1 | Penumbra: Overture | `opengl_game_shaders` |
 | watchmaker | The Watchmaker | `opengl_game_classic` |
 | colony | The Colony | real OpenGL — its `configure.engine` declares `3d` in deps but **no** `tinygl` component, unlike every other engine folded into this core. Fails at runtime with `ERROR: Colony: no renderer available (built without OpenGL support?)` |
+| wme3d | J.U.L.I.A. and other 3D Wintermute games | real OpenGL — but decided **at runtime, per game**, not in `configure.engine` (`base_game.cpp:625-637`). Desktop ScummVM takes the `USE_OPENGL_GAME` branch, which is why these rate well on ScummVM's compatibility list; our core has no GL and falls to the `USE_TINYGL` branch, where `makeTinyGL3DRenderer()` is commented out — added 2025-09-29 and disabled 2025-10-03 by its own author as unfinished. The 2D fallback is gated on `!_playing3DGame`, so a 3D title gets no renderer at all. **2D Wintermute games are unaffected and play** |
 
 </details>
 
 <details>
-<summary><strong>Moved out of the GL list — build with TinyGL</strong> (9 engines)</summary>
+<summary><strong>Moved out of the GL list — build with TinyGL</strong> (8 engines)</summary>
 
 Software-rasterised via TinyGL, no GPU needed. All compile into this core.
 
@@ -664,7 +665,6 @@ Software-rasterised via TinyGL, no GPU needed. All compile into this core.
 | myst3 | Myst III: Exile | ⬜ built; dump over the 2 GiB limit |
 | stark | The Longest Journey | ⬜ built; dump over the 2 GiB limit |
 | tetraedge | Syberia | ⬜ built, untested |
-| wme3d | J.U.L.I.A. and other 3D Wintermute games | 🚫 **impossible upstream** — `base_game.cpp:633` warns "3D software renderer is not supported yet" and leaves `_renderer3D` null with `makeTinyGL3DRenderer()` commented out. Fails identically on our dump and ScummVM's own demo |
 | alcachofa | Yesterday | ⬜ built, untested |
 
 </details>
