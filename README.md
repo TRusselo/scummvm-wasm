@@ -437,7 +437,7 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**91 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
+**92 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
 14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
@@ -585,7 +585,7 @@ table is the at-a-glance summary, kept in sync with it.
 | teenagent | ✅ | TeenAgent, official freeware |
 | toltecs | ✅ | 3 Skulls of the Toltecs |
 | got | ✅ | God of Thunder, official freeware |
-| trecision | ⏸️ | Nightlong — predicted 3-CD-file caveat confirmed, only 2 of 3 exist in the accessible release |
+| trecision | ✅ | Nightlong: Union City Conspiracy — loads and plays **with sound**. The earlier release genuinely had only 2 of 3 CD-animation files; the copy already in `/roms` is a different release with all three (`NLANIM.CD1/2/3`) and matches the clean `ADGF_NO_FLAGS` English entry (`DATA.NL` 436228 / `7665db13…`) |
 | tucker | ✅ | Bud Tucker in Double Trouble |
 | wage | ✅ | Via "Magic Rings" (WAGE Collection freeware bundle) |
 
