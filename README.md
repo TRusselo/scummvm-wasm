@@ -21,10 +21,10 @@ gamepad input all confirmed working):
 - Day of the Tentacle (including the CD/talkie version)
 
 Since then the build itself was widened to include every other ScummVM
-engine that doesn't require OpenGL (103 engines total, SCUMM plus 102
+engine that doesn't require OpenGL (144 engines total, SCUMM plus 143
 more — see `build/engine-lists/all-engines.list`), and a systematic sweep
 is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **90 of 114 confirmed working as of this
+plays, not just compiles. **94 of 114 confirmed working as of this
 writing** — see the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -437,7 +437,7 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**92 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
+**94 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
 14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
@@ -515,7 +515,7 @@ table is the at-a-glance summary, kept in sync with it.
 | darkseed | ✅ | Dark Seed |
 | dgds | ✅ | Via Heart of China |
 | director | ✅ | The Journeyman Project — plays normally past the `ADGF_UNSTABLE` "Start anyway?" warning dialog |
-| dragons | ⏸️ | Blazing Dragons is PS1-only; no archive.org disc image found |
+| dragons | ✅ | Blazing Dragons — the PS1 German disc (`SLES_003.06`) plays. `BIGFILE.DAT` 45099008 / `9854fed0…` matches the clean `DE_DEU` entry |
 | drascula | ✅ | Drascula: The Vampire Strikes Back |
 | dreamweb | ✅ | DreamWeb, freeware since 2011 |
 | griffon | ✅ | The Griffon Legend plays. Saving currently freezes the tab — tracked separately |
@@ -597,7 +597,7 @@ table is the at-a-glance summary, kept in sync with it.
 | Engine | Status | Notes |
 |---|---|---|
 | crab | ❓ | Could not confidently identify |
-| tot | ❓ | Could not confidently identify ("ToT") |
+| tot | ✅ | Trick or Treat (Merit Studios, 1994) — English DOS, plays. The CD carries the game under `TOT/`, but `tot`'s detector sets no `_maxScanDepth` or `directoryGlobs`, so it only looks in the directory it is handed; the ROM has to present the *installed* layout with those files at the root |
 | vcruise | ❓ | Could not confidently identify |
 
 </details>
@@ -645,11 +645,12 @@ hasn't been built (`build/engine-lists/gl-core.list`).
 | twp | Thimbleweed Park | `opengl_game_shaders` |
 | hpl1 | Penumbra: Overture | `opengl_game_shaders` |
 | watchmaker | The Watchmaker | `opengl_game_classic` |
+| colony | The Colony | real OpenGL — its `configure.engine` declares `3d` in deps but **no** `tinygl` component, unlike every other engine folded into this core. Fails at runtime with `ERROR: Colony: no renderer available (built without OpenGL support?)` |
 
 </details>
 
 <details>
-<summary><strong>Moved out of the GL list — build with TinyGL</strong> (10 engines)</summary>
+<summary><strong>Moved out of the GL list — build with TinyGL</strong> (9 engines)</summary>
 
 Software-rasterised via TinyGL, no GPU needed. All compile into this core.
 
@@ -665,7 +666,6 @@ Software-rasterised via TinyGL, no GPU needed. All compile into this core.
 | tetraedge | Syberia | ⬜ built, untested |
 | wme3d | J.U.L.I.A. and other 3D Wintermute games | 🚫 **impossible upstream** — `base_game.cpp:633` warns "3D software renderer is not supported yet" and leaves `_renderer3D` null with `makeTinyGL3DRenderer()` commented out. Fails identically on our dump and ScummVM's own demo |
 | alcachofa | Yesterday | ⬜ built, untested |
-| colony | The Colony | ⬜ built, untested |
 
 </details>
 

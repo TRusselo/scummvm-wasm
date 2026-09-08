@@ -2097,3 +2097,33 @@ there was no demonstrated defect to justify that blast radius.
 first.** A ROM with `HOME/` or `TMP/` at its top level would collide the same
 way, and the failure mode is silent: the title still boots from whatever sits at
 the root, so only the missing content gives it away.
+
+
+## Changing the engine list does not rebuild `plugins.o` (found 2026-09-07)
+
+`build/build-core.sh` copies the chosen engine list over
+`scummvm-core/backends/platform/libretro/lite_engines.list` and re-runs
+configure, which correctly regenerates `config.h` and `config.mk.engines`. But
+the libretro Makefile declares no dependency from
+`backends/platform/libretro/base/plugins.o` -- the static plugin registry -- on
+those generated files, so **it is never rebuilt when the engine set changes.**
+
+Removing an engine surfaces it as a link error:
+
+```
+wasm-ld: error: libretro_emscripten.a(plugins.o): undefined symbol: g_COLONY_type
+```
+
+The stale object still registers an engine whose code is no longer compiled in.
+When this was hit, `plugins.o` was dated a full day before the engine-list
+change while `config.mk.engines` had just been regenerated.
+
+**The quiet direction is worse.** *Adding* engines produces no error at all --
+the registry simply doesn't know about them, so they never appear in detection
+and look like a packaging or dump problem. Engine-list edits before this was
+found happened to work only because `plugins.o` had been built while the list
+already contained them.
+
+**Always `rm scummvm-core/backends/platform/libretro/base/plugins.o` before
+rebuilding after any engine-list change.** It is one object file, so the cost is
+negligible next to diagnosing an engine that silently refuses to detect.
