@@ -437,7 +437,7 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**90 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
+**91 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
 14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
@@ -566,7 +566,7 @@ table is the at-a-glance summary, kept in sync with it.
 | draci | ✅ | Dragon History, English fan translation |
 | efh | ✅ | Escape from Hell |
 | gnap | ✅ | U.F.O.s / Gnap |
-| hadesch | 🚫 | Hades Challenge — added a detection entry for this variant (`ol.pod` revised, other two files byte-identical); it now detects but loads to a black screen with a movable cursor and `WARNING: stream is 0!`. The variant is genuinely different, not merely uncatalogued |
+| hadesch | ✅ | Hades Challenge — a legitimate copy launches to the menu. An earlier dump was misread as uncatalogued: it *did* match, but only upstream's `ADGF_PIRATED` entries, and `cleanupPirated()` ([`advancedDetector.cpp:231`](https://github.com/scummvm/scummvm/blob/master/engines/advancedDetector.cpp)) strips those, leaving zero matches. A local duplicate entry with the flag removed was added to force detection for testing; it reached the engine but black-screened, and has been reverted. A legitimate `ol.pod` hashes `7cabba8d1d4f1239e312e045ef4e9735` at 5,621,074 bytes — the same size as the cracked one, so size alone will not tell them apart |
 | hdb | ✅ | Hyperspace Delivery Boy!, official freeware |
 | hypno | ✅ | Wetlands (US) |
 | illusions | ✅ | Duckman: The Graphic Adventures of a Private Dick |
@@ -657,7 +657,7 @@ Software-rasterised via TinyGL, no GPU needed. All compile into this core.
 |---|---|---|
 | freescape | Driller, Total Eclipse | ✅ confirmed |
 | wintermute | Dirty Split, White Chamber, Pigeons, Rosemary | ✅ confirmed (2D games only — see below) |
-| tinsel | Discworld 1/2 | ⬜ built; no dump matches a signature |
+| tinsel | Discworld 1/2 | ✅ confirmed — all three dumps play; two needed new detection entries (see the rebase table above) |
 | grim | Grim Fandango | ✅ **confirmed** — official demo plays with controller input; full 1998-era 3D software-rasterised. Retail dump still needed (`GRIM.TAB` 362164 matches no signature) |
 | monkey4 | Escape from Monkey Island | ⬜ built; `ADGF_UNSTABLE` |
 | myst3 | Myst III: Exile | ⬜ built; dump over the 2 GiB limit |
