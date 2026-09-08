@@ -476,7 +476,7 @@ table is the at-a-glance summary, kept in sync with it.
 | agi | ✅ | King's Quest I; also Leisure Suit Larry 1-3, Space Quest I-III |
 | glk | ✅ | Zork I confirmed. Was long mislabelled as a `fonts.dat` crash; the real cause was two FreeType autofit function-pointer signature mismatches, fixed 2026-09-04 |
 | awe | ✅ | Another World |
-| dm | ✅ | Dungeon Master (DOS v3.4). Needed the `dm` engine synced from upstream ScummVM for DOS support, plus a fix to the GLK Level 9 detector that was misclaiming its save file |
+| dm | ✅ | Dungeon Master (DOS v3.4). Needed the `dm` engine synced from upstream ScummVM for DOS support, plus a fix to the GLK Level 9 detector that was misclaiming its save file — an operator-precedence bug (`scanner(...) < 0` assigned to `offset`, collapsing it to 0/1 so the `offset < 0` guard never fired and every scanned file matched). Reported as [scummvm/scummvm#7902](https://github.com/scummvm/scummvm/pull/7902) and **fixed upstream** 2026-09-07 as `05f236adb` |
 | sword1 | ✅ | Broken Sword — full game, both CDs merged |
 | sword2 | ✅ | Broken Sword II — full game, both CDs merged |
 | sci | ✅ | King's Quest V |
