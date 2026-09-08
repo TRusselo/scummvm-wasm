@@ -2056,3 +2056,44 @@ thinks, and fatal here, where the frontend waits for acknowledgement.
 
 If another engine ever hangs on exit, look for the same shape: an early
 return in the engine's event handler placed ahead of its quit check.
+
+
+## A ROM's top-level folder can collide with EmulatorJS's own root directories (benign so far, 2026-09-07)
+
+The virtual-FS root is not the ROM's alone. EmulatorJS creates `/data` there and
+mounts IDBFS into it for save persistence (`data/src/GameManager.js`):
+
+```js
+69:  this.mkdir("/data");
+70:  this.mkdir("/data/saves");
+71:  this.FS.mount(this.FS.filesystems.IDBFS, { autoPersist: true }, "/data/saves");
+```
+
+emscripten and RetroArch add `/home`, `/tmp`, `/dev`, `/proc` and `/shader`, and
+this build embeds its engine data at `/engine-data`. ROM content is extracted
+alongside all of them.
+
+ScummVM's `FSDirectory::cacheDirectory()` matches case-insensitively, so a ROM
+shipping a top-level `DATA/` collides with `/data` and ScummVM caches neither:
+
+```
+WARNING: FSDirectory::cacheDirectory: name clash when building cache, ignoring sub-directory 'DATA'!
+WARNING: Clash in case for match of pattern "DATA" found in directory "/": "data"!
+WARNING: Clash in case for match of pattern "DATA" found in directory "/": "DATA"!
+```
+
+**As far as we know this is benign.** Nightlong: Union City Conspiracy ships a
+top-level `DATA/` containing `NLDATA.CD0`, `NLSPEECH.CD0` and `NLANIM.CD1/2/3`,
+triggers all three warnings, and plays correctly **with sound**. So the clash
+affects `FSDirectory`'s cache, not the engine's actual file access.
+
+It was briefly mis-diagnosed as the cause of missing audio in that game. The
+real cause was a hardware volume dial. A fix was written -- relocating ROM
+content into a dedicated `/game` root and scanning that instead of `/` -- and
+then reverted: changing the scan root affects detection for *every* game, and
+there was no demonstrated defect to justify that blast radius.
+
+**If a game ever does come up short on files, grep the log for `name clash`
+first.** A ROM with `HOME/` or `TMP/` at its top level would collide the same
+way, and the failure mode is silent: the title still boots from whatever sits at
+the root, so only the missing content gives it away.
