@@ -51,19 +51,6 @@ This fixes the assertion only; the engine's hangs and EGA background corruption
 are separate and reported at bugs.scummvm.org.
 ```
 
-## PR 4 — `GRIFFON: Check for quit before the attack/pause early return`
-split from `b591d4d34fc` · +13/−3
-
-```
-checkInputs() returns early while _attacking || (_forcePause && !_itemSelOn),
-and that return sat above the EVENT_QUIT check, so a quit arriving in either
-state was discarded and the engine never left its main loop.
-
-Unnoticed on desktop, where the window manager closes the window regardless.
-On a frontend that waits for the engine to acknowledge the quit, it hangs
-shutdown.
-```
-
 ## PR 5 — `SCUMM: Override getSaveStateName() to match makeSavegameName()`
 split from `955aef0429e` · +15
 
@@ -129,21 +116,6 @@ to that thread.
 Requires <PR 5> and <PR 6>.
 ```
 
-## PR 10 — `LIBRETRO: Stop an unacknowledged quit from hanging the frontend`
-split from `b591d4d34fc` · +25
-
-```
-close_emu_thread() pushes an EVENT_QUIT and hands the emulator thread a
-timeslice, looping until the engine observes it and returns from
-scummvm_main(). An engine that keeps yielding but never observes the quit spins
-there forever, and as this runs on the frontend's thread it hangs with no
-diagnostic.
-
-Bound the loop, warn, and tear down anyway. A leaked engine thread on a core
-being unloaded costs less than a hung frontend, and the save-state bridge in
-this file already uses the same pattern.
-```
-
 ## PR 11 — `LIBRETRO: scan the virtual-FS root on Emscripten`
 `4b6607e97d3` · +20 · **body rewritten, see Internal**
 
@@ -161,9 +133,12 @@ EMSCRIPTEN -- on a native build "/" is the real OS root.
 
 # Internal — not for the PRs
 
-**Splits.** `b591d4d34fc` → PR 4 + PR 10. `955aef0429e` → PR 5 + PR 6 + PR 9.
-Neither can be submitted whole; each touches `engines/` and
-`backends/platform/libretro/`.
+**Splits.** `955aef0429e` → PR 5 + PR 6 + PR 9; it cannot be submitted whole
+because it touches both `engines/` and `backends/platform/libretro/`.
+
+`b591d4d34fc` split the same way, into a griffon half and a libretro half.
+Both were dropped on 2026-09-09 -- see below. Nothing from that commit is
+being submitted.
 
 **PR 11's original message was wrong** and must not be reused. It claimed the
 VFS root holds only the ROM and "nothing else is ever mounted there". EJS
@@ -178,8 +153,18 @@ each other.
 **Hold** `f09251ff1d1` (assumes the engine-data embed, still an open question
 with EmulatorJS). **Never submit** `84f2bd11f5a` (fork-only CI change).
 
-**Issue #1 blocks nothing here.** Its evidence says plain Exit works, so the
-quit-hang fix is unrelated.
+**Dropped 2026-09-09 -- both halves of `b591d4d34fc`.**
+PR 4 reordered griffon's `EVENT_QUIT` check above `checkInputs()`'s
+`_attacking`/`_forcePause` early return, on the theory that the early return
+was eating quits. Instrumented builds disproved it: `checkInputs()` only runs
+in `kGameModePlay`, and every observed hang was in another game mode, so that
+path never executed. PR 10 bounded `close_emu_thread()`'s previously unbounded
+spin -- sound in principle, but its only evidence is griffon, and it does not
+fix the symptom: griffon still never returns to the frontend after the bound
+fires. Keep the bound in our fork, where it is what turned a silent hang into
+a log line; do not put it to a maintainer without a reproducible case.
 
-**Order.** scummvm: 1, 2, 3, 4, 5 (6 held). libretro: 7, 8, 10, 11, then 9
-after 5 and 6 land.
+**Issue #1 is griffon-only** and gates nothing in this file.
+
+**Order.** scummvm: 1, 2, 3, 5 (6 held). libretro: 7, 8, 11, then 9 after 5
+and 6 land.
