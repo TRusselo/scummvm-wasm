@@ -566,7 +566,7 @@ table is the at-a-glance summary, kept in sync with it.
 | bbvs | ✅ | Beavis and Butt-Head in Virtual Stupidity. Needed Indeo 3 enabled plus a double-free fix in the AVI loader |
 | cge | ✅ | Soltys, bundled ScummVM freeware |
 | cge2 | ✅ | Sfinx, official English release |
-| chamber | 🚫 | Reaches title screen then hangs; likely genuine engine immaturity (not built by default upstream, no compatibility wiki entry) |
+| chamber | 🚫 | Reaches title screen then hangs, in every render mode. All 5 detection entries are `ADGF_TESTING`, so it is out of scope by the no-unstable/testing-games rule. A separate assertion crash (Hercules blit path) was fixed in `a607b761ebe`; the hang is unrelated and still open — [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3) |
 | chewy | ✅ | English DOS release exists, corrects old "German-only" note |
 | composer | ✅ | Magic Tales: Baba Yaga and the Magic Geese |
 | draci | ✅ | Dragon History, English fan translation |
