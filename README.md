@@ -1,6 +1,6 @@
 # scummvm-wasm
 
-TEST STATUS : 84 of the 128 engines in the build confirmed to load into a game.
+TEST STATUS : 89 of 105 engines confirmed to load into a game.
 
 A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 105
 non-OpenGL engines it supports, not just SCUMM — packaged as an
@@ -25,7 +25,8 @@ engine that doesn't require OpenGL (128 list entries — 105 top-level
 engines plus 23 subengines that must be named explicitly; see
 `build/engine-lists/all-engines.list`), and a systematic sweep is underway
 to source a real game and confirm each one actually boots and plays, not
-just compiles. **84 of 128 confirmed working as of this writing** — see
+just compiles. **89 of the 105 top-level engines confirmed working as of
+this writing** — see
 the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
@@ -435,12 +436,14 @@ Legend: ✅ confirmed working (a real game boots and plays) · 🚫 blocked
 (packaged correctly, blocked by an engine/core bug) · ⏸️ deferred
 (sourcing/tooling blocker, not yet worked around) · 🔒 blocked on a
 separate OpenGL core build that doesn't exist yet · ❓ engine not
-confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
-purpose
+confidently identified · ⬜ not yet attempted · ⚠️ worked, but no longer
+shipped (ScummVM marks it `build-by-default: no`)
 
-**84 of 128 confirmed.** 6 more were confirmed but are no longer shipped
-(⚠️ below): ScummVM classifies them `build-by-default: no` — its "broken or
-unsupported" set — and its own releases omit them, so ours now does too. 1 blocked
+**89 of the 105 top-level engines confirmed** (the list also carries 23
+subengines, tracked with their parents). A further 6 were confirmed but are
+no longer shipped (⚠️ below): ScummVM classifies them `build-by-default: no`
+— its "broken or unsupported" set — and its own releases omit them, so ours
+now does too. 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
 14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
@@ -538,7 +541,7 @@ table is the at-a-glance summary, kept in sync with it.
 | plumbers | ✅ | Plumbers Don't Wear Ties |
 | private | ✅ | Private Eye (EN_GRB variant) |
 | saga | ✅ | I Have No Mouth, and I Must Scream |
-| sludge | ⚠️ | Worked (The Interview) but excluded — unsigned `.exe`, engine marked unstable/WIP by ScummVM itself |
+| sludge | ✅ | The Interview. ROM later deleted (unsigned `.exe`, source not trusted); the engine itself is confirmed and ScummVM ships it (`build-by-default: yes`) |
 | titanic | ✅ | Starship Titanic — the collection's copy fits (0.93GiB zip). Its bundled `titanic.dat` was version 3 and shadowed our embedded version 5; stripping it from the zip fixed the "out of date" error |
 | tony | ✅ | Tony Tough and the Night of the Roasted Moths |
 | touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
