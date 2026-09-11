@@ -215,11 +215,19 @@ excluding the plugin loses nothing.
 to be permanent stubs (`return 0`/`return false`) -- meaning EmulatorJS's
 own "Save State"/"Load State" toolbar buttons always failed, even though
 ScummVM's own in-game Save/Load menu worked fine. Getting real save-state
-support working required finding and fixing **three separate, unrelated
+support working required finding and fixing **four separate, unrelated
 bugs** across two different codebases (ScummVM and RetroArch/EmulatorJS)
 that all happened to produce the exact same user-visible symptom
-("FAILED TO SAVE STATE"). If you're touching this code, read all three --
-fixing only one or two still leaves it broken.
+("FAILED TO SAVE STATE"). If you're touching this code, read all of them --
+fixing only some still leaves it broken.
+
+**A fifth is still open, and it crashes (2026-09-10).** The bridge never asks
+`canSaveGameStateCurrently()` before saving. Engines use that guard to say
+saving is illegal right now -- griffon's returns false outside `kGameModePlay`
+-- and ignoring it drove griffon into `drawView()` with no map loaded, giving
+`memory access out of bounds`. Nothing in this backend calls it. Honour it (and
+`canLoadGameStateCurrently()` on the load path) and fail the state cleanly
+instead. Until then this code should not go upstream; see issue #1.
 
 **The design**, for context on why the fix looks the way it does: ScummVM
 has no API to serialize a running engine's state into a memory buffer --
@@ -1337,14 +1345,30 @@ if test "$_tinygl" = yes || test "$_opengl_game_classic" = yes || test "$_opengl
 ```
 
 `_3d=yes` is satisfied by **TinyGL alone** -- ScummVM's software rasteriser, no
-GPU involved. Checking each deferred engine's `configure.engine`, only three
-genuinely need real OpenGL:
+GPU involved. Checking each deferred engine's `configure.engine`, four cannot
+run on TinyGL -- three that name a real-GL token, and one that names none:
 
 | Requirement | Engines |
 |---|---|
 | `opengl_game_classic` | `watchmaker` |
 | `opengl_game_shaders` | `twp`, `hpl1` |
-| TinyGL (software) | `freescape`, `grim`, `myst3`, `stark`, `tetraedge`, `alcachofa`, `colony`, `wintermute`, `tinsel` |
+| `3d` dep but **no `tinygl` component** | `colony` |
+| TinyGL (software) | `freescape`, `grim`, `myst3`, `stark`, `tetraedge`, `alcachofa`, `wintermute`, `tinsel` |
+
+**Read the components field, not just the deps field.** That is what separates
+`colony` from the TinyGL group, and it is the field this analysis originally
+overlooked:
+
+```
+add_engine colony    "The Colony"  no  "" "" "highres 16bit 3d" ""
+add_engine freescape "Freescape"  yes  "" "" "highres 16bit 3d" "tinygl sid_audio"
+```
+
+Identical deps; only `freescape` declares the `tinygl` component. `colony` was
+moved into the main list on the strength of its `3d` dep alone, and failed at
+runtime with `ERROR: Colony: no renderer available` -- a declared 3D dependency
+with no renderer component to satisfy it. It is back in `gl-core.list`
+(`8aafd00`). A `configure.engine` read is not a substitute for running the game.
 
 Two engines have been moved out of the GL list on this basis:
 
@@ -1399,10 +1423,12 @@ The 13 engines this project's main core excludes (declaring a `3d`
 dependency or `tinygl` component in their own `configure.engine`) turned
 out to split into two very different groups on closer inspection, not one:
 
-- **Only 3 (`hpl1`, `twp`, `watchmaker`) actually require anything.** Their
+- **Only 3 (`hpl1`, `twp`, `watchmaker`) name a real-GL token.** Their
   deps include the literal `opengl_game_shaders`/`opengl_game_classic`
   tokens, which `Makefile.common` genuinely gates behind
-  `FORCE_OPENGLES2=1` (adds them to `UNAVAILABLE_DEPS` otherwise).
+  `FORCE_OPENGLES2=1` (adds them to `UNAVAILABLE_DEPS` otherwise). A fourth,
+  `colony`, also cannot run here -- it declares `3d` with no `tinygl`
+  component, so nothing provides it a renderer. See the table above.
 - **The other 10 (`alcachofa`, `freescape`, `grim`, `myst3`, `stark`,
   `tetraedge`, `tinsel`, `wintermute`, plus the internal-only `testbed`/
   `playground3d`) only reference `3d`/`tinygl`.** `USE_TINYGL = 1` is
@@ -2049,26 +2075,34 @@ it is EmulatorJS's extractor.
 for "ENOTDIR" always returns zero and looks like a clean run. Grep for
 `ErrnoError` instead.
 
-## Quitting can hang the browser tab if an engine drops EVENT_QUIT (fixed 2026-09-04)
+## Quitting hangs the browser tab if an engine never acknowledges EVENT_QUIT (bounded 2026-09-04, cause still unknown)
 
-Exiting Griffon Legend froze the tab with nothing logged at all.
+Exiting Griffon Legend froze the tab with nothing logged at all. Only griffon
+does this; every other game tested quits cleanly.
 
 `close_emu_thread()` in libretro-core.cpp looped without a bound: each pass
 pushes an `EVENT_QUIT` and hands the emulator thread a timeslice, waiting
 for the engine to observe it and return from `scummvm_main()`. An engine
 that keeps yielding but never observes the quit spins there forever, and
 because the loop runs on the frontend's own thread the tab locks up with no
-diagnostic whatsoever. Now bounded, with a warning, tearing down regardless.
+diagnostic whatsoever. Now bounded at 600 attempts (~5 s), with a warning,
+tearing down regardless.
 
-Griffon triggers it: `GriffonEngine::checkInputs()` returns early while
-`_attacking` or `_forcePause` is set, and that early return sat *above* the
-`EVENT_QUIT` check, so a quit arriving in either state was discarded
-outright. Upstream ScummVM has the same ordering -- harmless on desktop,
-where the window manager closes the window regardless of what the engine
-thinks, and fatal here, where the frontend waits for acknowledgement.
+**The bound makes the failure visible; it does not fix it.** Griffon still
+never returns to the frontend -- its logs end at the warning, where a healthy
+quit (DOTT) continues on into the frontend navigating away.
 
-If another engine ever hangs on exit, look for the same shape: an early
-return in the engine's event handler placed ahead of its quit check.
+**Why griffon drops the quit is not known.** This section previously blamed
+`GriffonEngine::checkInputs()` returning early on `_attacking`/`_forcePause`
+ahead of its `EVENT_QUIT` check. Instrumented builds on 2026-09-09 disproved
+that: `checkInputs()` only runs in `kGameModePlay`, and every observed hang was
+in another game mode, so the path never executed. Also disproved: `eventText()`'s
+`while (1)` loop, the other three event-discarding poll sites, and the
+confirm-exit modal. Full evidence and the remaining hypothesis are in issue #1.
+
+Do not generalise from griffon. If another engine ever hangs on exit, gather
+evidence first -- the one mechanism that looked obvious here was wrong, and two
+upstream PRs were drafted on it before instrumentation caught it.
 
 
 ## A ROM's top-level folder can collide with EmulatorJS's own root directories (benign so far, 2026-09-07)
@@ -2195,6 +2229,11 @@ or unsupported. They have been removed to match ScummVM's release set. That a
 title booted for us does not overrule that classification -- booting once says
 nothing about completability, and this project is not the authority on it.
 
+Removing them from the list is not the same as them leaving the *binary*. Every
+core built before 2026-09-10 still contained all 16: the build machine's
+checkout was seven commits behind the commit that removed them, and the
+stale-artifact trap above would have kept them regardless. Both are now fixed.
+
 **Two traps, both of which cost real time on 2026-09-08:**
 
 1. **Parse every line, not the first.** Subengines are declared on later
@@ -2205,26 +2244,13 @@ nothing about completability, and this project is not the authority on it.
    `"Cryo"` it reads the wrong column. Match
    `add_engine\s+(\S+)\s+"[^"]*"\s+(\S+)` instead.
 
-Before that was understood, 16 default-`no` engines sat in `all-engines.list`
-and were **being built** -- that is the whole point of the correction above:
-naming an engine builds it whatever its flag says. They have been removed from
-the list, so that the core ships what ScummVM itself ships.
+**`gl-core.list` works.** `colony`, `hpl1`, `twp` and `watchmaker` have zero
+`ENABLE_` entries in the generated `config.mk.engines`. The mechanism is the one
+above, in the other direction: `LITE=1` treats the list as an allowlist, so
+membership decides both ways -- named engines build whatever their flag says,
+absent engines do not build whatever their flag says. `gl-core.list` records
+*why* those four are held back; the exclusion itself is their absence from
+`all-engines.list`.
 
-Removing them from the list is not the same as them leaving the *binary*. Every
-core built before 2026-09-10 still contained all 16, because the build machine's
-checkout was seven commits behind the commit that removed them, and because the
-stale-artifact trap above would have kept them anyway. Both are now fixed.
-
-**Correction (2026-09-10): `gl-core.list` does work.** This section previously
-claimed the exclusion had no effect and that `hpl1`/`twp` were compiled into the
-main core anyway. That was collateral from the same backwards reasoning
-corrected above, and it is false. Verified against the generated
-`config.mk.engines`: `colony`, `hpl1`, `twp` and `watchmaker` all have **zero**
-`ENABLE_` entries.
-
-The mechanism is the one this section documents, applied in the other
-direction. `LITE=1` treats the list as an allowlist, so membership decides in
-both directions: named engines are built whatever their flag says, and engines
-absent from the list are not built whatever their flag says. `gl-core.list` is
-documentation of *why* those four are held back; the exclusion itself comes
-from their absence from `all-engines.list`.
+*(Retracted 2026-09-10: this section used to say the exclusion had no effect and
+that `hpl1`/`twp` were compiled in anyway. Same backwards reasoning as above.)*
