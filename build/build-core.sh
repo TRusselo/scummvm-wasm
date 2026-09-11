@@ -2,12 +2,42 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Scope the build's engine set. Defaults to all-engines.list (103 engines,
-# every ScummVM engine except the 13 requiring OpenGL -- see
-# build/engine-lists/README.md); override by pointing ENGINES_LIST_FILE at
-# a different file with one ScummVM engine name per line.
+# Scope the build's engine set. Defaults to all-engines.list -- every ScummVM
+# engine except those requiring real OpenGL, which live in gl-core.list (see
+# build/engine-lists/README.md). Override by pointing ENGINES_LIST_FILE at a
+# different file with one ScummVM engine name per line.
 ENGINES_LIST_FILE="${ENGINES_LIST_FILE:-build/engine-lists/all-engines.list}"
-cp "$ENGINES_LIST_FILE" scummvm-core/backends/platform/libretro/lite_engines.list
+
+LIBRETRO_DIR="scummvm-core/backends/platform/libretro"
+LITE_LIST="${LIBRETRO_DIR}/lite_engines.list"
+
+# Changing the engine list must invalidate everything derived from it.
+#
+# make rebuilds a target when a declared prerequisite is newer. The generated
+# engine configuration is not a declared prerequisite of the three artifacts
+# that embed it, so a changed list leaves them untouched: make finds every
+# object up to date, relinks, and produces a freshly timestamped core that
+# still contains the previous engine set. Nothing fails, which is what makes
+# it dangerous -- the only symptom is an engine that should be present being
+# absent (or vice versa) at runtime, which reads like a ROM-packaging problem.
+#
+#   libdetect.a      the detection tables
+#   libdeps.a        the dependency archive
+#   base/plugins.o   the plugin registry; deleting it also forces the
+#                    containing base/libbase.a to be rebuilt, so that
+#                    archive does not need removing separately
+#
+# Only invalidate when the list actually changed, so ordinary incremental
+# builds stay fast.
+if cmp -s "$ENGINES_LIST_FILE" "$LITE_LIST"; then
+  echo "Engine list unchanged ($(grep -cve '^[[:space:]]*$' "$LITE_LIST") engines); incremental build."
+else
+  echo "Engine list changed -- invalidating engine-derived artifacts."
+  cp "$ENGINES_LIST_FILE" "$LITE_LIST"
+  rm -fv "${LIBRETRO_DIR}/libdetect.a" \
+         "${LIBRETRO_DIR}/libdeps.a" \
+         "${LIBRETRO_DIR}/base/plugins.o"
+fi
 
 source toolchain/emsdk/emsdk_env.sh
 
@@ -46,3 +76,26 @@ EMCC_CFLAGS="-pthread -sSHARED_MEMORY" emmake make platform=emscripten LITE=1 \
 
 echo "Build artifact:"
 ls -la scummvm_libretro_emscripten.bc
+
+# Independent check that the core actually contains the engines that were
+# asked for. This catches the stale-artifact trap above no matter what caused
+# it, including a stale tree or a hand-run make that skipped this script.
+# Printed last so it cannot scroll away; non-fatal, because a future upstream
+# change to how ENABLE_ entries are generated should not break the build.
+ENGINES_CONFIG="../../../config.mk.engines"
+if [ -f "$ENGINES_CONFIG" ]; then
+  requested="$(grep -ve '^[[:space:]]*$' "../../../../${ENGINES_LIST_FILE}" | tr 'A-Z' 'a-z' | sort -u)"
+  enabled="$(grep '^ENABLE_' "$ENGINES_CONFIG" | sed 's/^ENABLE_//; s/[ =].*//' | tr 'A-Z' 'a-z' | sort -u)"
+  missing="$(comm -23 <(echo "$requested") <(echo "$enabled") | tr '\n' ' ')"
+  extra="$(comm -13 <(echo "$requested") <(echo "$enabled") | tr '\n' ' ')"
+  if [ -z "$missing" ] && [ -z "$extra" ]; then
+    echo "Engine set verified: $(echo "$requested" | wc -l) engines, matches ${ENGINES_LIST_FILE}."
+  else
+    echo "########################################################################"
+    echo "WARNING: built engine set does not match ${ENGINES_LIST_FILE}"
+    [ -n "$missing" ] && echo "  requested but NOT built: $missing"
+    [ -n "$extra" ]   && echo "  built but NOT requested: $extra"
+    echo "  This is the stale-artifact trap. See docs/GOTCHAS.md."
+    echo "########################################################################"
+  fi
+fi
