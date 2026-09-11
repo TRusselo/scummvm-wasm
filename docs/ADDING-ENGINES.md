@@ -3,8 +3,8 @@
 This project started out shipping only ScummVM's SCUMM engine
 (LucasArts adventure games), but the build has since been widened to
 include every other ScummVM engine that doesn't require OpenGL --
-`build/engine-lists/all-engines.list` currently lists 103 (SCUMM plus
-102 more), and a systematic testing sweep confirming each one with a
+`build/engine-lists/all-engines.list` currently lists 128 entries (105
+top-level engines plus 23 subengines), and a systematic testing sweep confirming each one with a
 real game is underway (see [ENGINE-TEST-PLAN.md](ENGINE-TEST-PLAN.md)
 and the README's status table for current results). So for any engine
 already in `all-engines.list`, the build-side work described below is
@@ -13,10 +13,10 @@ real game for it and confirming it boots, which is what the testing
 sweep is doing.
 
 This doc is still useful for two other cases: building a *smaller*
-core scoped to one or a few engines instead of the full 103-engine
+core scoped to one or a few engines instead of the full 128-entry
 build (e.g. for a lighter release, or isolating an engine for
 debugging), or adding an engine that needs the separate OpenGL-enabled
-core (`build/engine-lists/gl-core.list`, 11 engines, not built by
+core (`build/engine-lists/gl-core.list`, 4 engines, not built by
 default -- see the README). Either way, this covers what's actually
 SCUMM-specific in this repo (very little) vs. generic (almost
 everything), and what to expect to hit.
@@ -42,12 +42,12 @@ subset of engines instead of everything (see
 `scummvm-core/backends/platform/libretro/Makefile`'s `LITE=1` handling).
 One engine name per line, using ScummVM's own internal engine ID (the
 same IDs used in `scummvm-core/engines/*/`, e.g. `scumm`, `sci`, `agi`,
-`wintermute`). The default, `all-engines.list`, already lists 103 engines
+`wintermute`). The default, `all-engines.list`, already lists 128 entries
 -- so unless you're deliberately scoping down, there's nothing to add
 here for an engine that's already in it.
 
 To build a *smaller* core instead (recommended if you want independent
-testing/release cycles for one engine, since the full 103-engine `.bc` is
+testing/release cycles for one engine, since the full 128-entry `.bc` is
 one large monolithic build), point `ENGINES_LIST_FILE` at a different
 file with just the engine(s) you want, one per line, e.g.:
 

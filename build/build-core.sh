@@ -64,7 +64,7 @@ cd scummvm-core/backends/platform/libretro
 # USE_HIGHRES defaults to 1 (Makefile.common) and is left at that default
 # here deliberately. It's a compile-time engine-scoping gate: any engine
 # whose own configure.engine declares a "highres" dependency (48 of the
-# 103 in all-engines.list, including Broken Sword 1/2, Little Big
+# engines in all-engines.list when last counted, including Broken Sword 1/2, Little Big
 # Adventure, Director, and SCUMM's own `he` subengine) is silently
 # excluded from the build when USE_HIGHRES=0. No pillarboxing cost from
 # leaving it at 1, confirmed by live testing -- RES_W_OVERLAY/RES_H_OVERLAY

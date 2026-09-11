@@ -1,8 +1,8 @@
 # scummvm-wasm
 
-TEST STATUS : 90 of 114 engines confirmed load into game.
+TEST STATUS : 84 of the 128 engines in the build confirmed to load into a game.
 
-A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 102
+A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 105
 non-OpenGL engines it supports, not just SCUMM — packaged as an
 [EmulatorJS](https://emulatorjs.org/) libretro core, so ScummVM-supported
 adventure games can be played directly in a browser.
@@ -21,11 +21,12 @@ gamepad input all confirmed working):
 - Day of the Tentacle (including the CD/talkie version)
 
 Since then the build itself was widened to include every other ScummVM
-engine that doesn't require OpenGL (128 engines total, SCUMM plus 127
-more — see `build/engine-lists/all-engines.list`), and a systematic sweep
-is underway to source a real game and confirm each one actually boots and
-plays, not just compiles. **94 of 114 confirmed working as of this
-writing** — see the status table near the end of this file, or
+engine that doesn't require OpenGL (128 list entries — 105 top-level
+engines plus 23 subengines that must be named explicitly; see
+`build/engine-lists/all-engines.list`), and a systematic sweep is underway
+to source a real game and confirm each one actually boots and plays, not
+just compiles. **84 of 128 confirmed working as of this writing** — see
+the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
 
@@ -262,7 +263,7 @@ Two options:
   own early convention, not a requirement -- see GOTCHAS.md, plain
   `.zip` works identically). Game files here are gitignored; this repo
   ships no copyrighted game data.
-- **A hosted ROMM instance** (the actual method used for the 102-engine
+- **A hosted ROMM instance** (the actual method used for the engine
   sweep, and the more realistic real-world deployment target): run
   `build/deploy-to-romm.sh <path-to-romm-checkout>` to stage the built
   core into a ROMM fork, then drop the packaged zip into that instance's
@@ -437,7 +438,9 @@ separate OpenGL core build that doesn't exist yet · ❓ engine not
 confidently identified · ⬜ not yet attempted · ⚠️ worked, excluded on
 purpose
 
-**94 of 114 confirmed** (plus the `agos2` subengine). 1 blocked
+**84 of 128 confirmed.** 6 more were confirmed but are no longer shipped
+(⚠️ below): ScummVM classifies them `build-by-default: no` — its "broken or
+unsupported" set — and its own releases omit them, so ours now does too. 1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
 14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
 happened yet, 3 unidentified, the rest untested.
@@ -476,7 +479,7 @@ table is the at-a-glance summary, kept in sync with it.
 | agi | ✅ | King's Quest I; also Leisure Suit Larry 1-3, Space Quest I-III |
 | glk | ✅ | Zork I confirmed. Was long mislabelled as a `fonts.dat` crash; the real cause was two FreeType autofit function-pointer signature mismatches, fixed 2026-09-04 |
 | awe | ✅ | Another World |
-| dm | ✅ | Dungeon Master (DOS v3.4). Needed the `dm` engine synced from upstream ScummVM for DOS support, plus a fix to the GLK Level 9 detector that was misclaiming its save file — an operator-precedence bug (`scanner(...) < 0` assigned to `offset`, collapsing it to 0/1 so the `offset < 0` guard never fired and every scanned file matched). Reported as [scummvm/scummvm#7902](https://github.com/scummvm/scummvm/pull/7902) and **fixed upstream** 2026-09-07 as `05f236adb` |
+| dm | ⚠️ | Dungeon Master (DOS v3.4). Needed the `dm` engine synced from upstream ScummVM for DOS support, plus a fix to the GLK Level 9 detector that was misclaiming its save file — an operator-precedence bug (`scanner(...) < 0` assigned to `offset`, collapsing it to 0/1 so the `offset < 0` guard never fired and every scanned file matched). Reported as [scummvm/scummvm#7902](https://github.com/scummvm/scummvm/pull/7902) and **fixed upstream** 2026-09-07 as `05f236adb` |
 | sword1 | ✅ | Broken Sword — full game, both CDs merged |
 | sword2 | ✅ | Broken Sword II — full game, both CDs merged |
 | sci | ✅ | King's Quest V |
@@ -484,7 +487,7 @@ table is the at-a-glance summary, kept in sync with it.
 | ultima | ✅ | Ultima VIII: Pagan via `ultima8` |
 | twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
 | mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
-| mediastation | ✅ | Via Beatrix Potter (size-limit swap for Muppet Treasure Island); not kept in the live library by user preference |
+| mediastation | ⚠️ | Via Beatrix Potter (size-limit swap for Muppet Treasure Island); not kept in the live library by user preference |
 | nancy | ✅ | Nancy Drew: Secrets Can Kill |
 | groovie | ✅ | Via The 11th Hour Interactive Demo (7th Guest dumps failed MD5 despite matching size) |
 | sky | ✅ | Beneath a Steel Sky, official freeware |
@@ -510,7 +513,7 @@ table is the at-a-glance summary, kept in sync with it.
 | gob | ✅ | Gobliiins, with music |
 | cine | ✅ | Future Wars |
 | cruise | ✅ | Cruise for a Corpse |
-| cryo | ✅ | Lost Eden (English DOS) |
+| cryo | ⚠️ | Lost Eden (English DOS). Booted, but no longer shipped: `build-by-default: no` upstream |
 | cryomni3d | ⏸️ | Versailles 1685 needs an InstallShield installer run; no unshield/innoextract/DOSBox available |
 | darkseed | ✅ | Dark Seed |
 | dgds | ✅ | Via Heart of China |
@@ -555,7 +558,7 @@ table is the at-a-glance summary, kept in sync with it.
 | access | ✅ | Amazon: Guardians of Eden |
 | agds | ⏸️ | Both titles (Black Mirror, NiBiRu) too large for size budget |
 | alg | ✅ | Crime Patrol (was missing `CP.SCN` + resource files skipped during initial packaging, fixed) |
-| avalanche | ✅ | Lord Avalot d'Argent, freeware |
+| avalanche | ⚠️ | Lord Avalot d'Argent, freeware. Booted, but no longer shipped: `build-by-default: no` upstream |
 | bagel | ✅ | Hodj 'n' Podj (used instead of The Space Bar, too large) |
 | bbvs | ✅ | Beavis and Butt-Head in Virtual Stupidity. Needed Indeo 3 enabled plus a double-free fix in the AVI loader |
 | cge | ✅ | Soltys, bundled ScummVM freeware |
@@ -571,10 +574,10 @@ table is the at-a-glance summary, kept in sync with it.
 | hypno | ✅ | Wetlands (US) |
 | illusions | ✅ | Duckman: The Graphic Adventures of a Private Dick |
 | kingdom | ✅ | Kingdom: The Far Reaches |
-| lilliput | ✅ | The Adventures of Robin Hood |
+| lilliput | ⚠️ | The Adventures of Robin Hood. Booted, but no longer shipped: `build-by-default: no` upstream |
 | m4 | ✅ | Orion Burger (was missing all 9 SECTION*.HAG per-chapter archives, fixed) |
 | mortevielle | ✅ | Mortville Manor, French data presents in English via `mort.dat` overlay |
-| mutationofjb | ✅ | Mutation of J.B. (German-only, no English release exists) |
+| mutationofjb | ⚠️ | Mutation of J.B. (German-only, no English release exists). Booted, but no longer shipped: `build-by-default: no` upstream |
 | ngi | ✅ | Full Pipe. Needed Indeo 5 enabled |
 | petka | ✅ | Red Comrades 2, Russian-only, testing purposes |
 | pink | ✅ | Pink Panther: Passport to Peril — original dump was corrupted beyond the first 5000 bytes, fixed by resourcing from MyAbandonware |

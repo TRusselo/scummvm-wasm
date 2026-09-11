@@ -1419,9 +1419,10 @@ at all -- they are `wintermute` subengines and only appear in the list because
 
 ## GL/3D engines: a second core, grouped by GL involvement not by strict necessity
 
-The 13 engines this project's main core excludes (declaring a `3d`
+The engines this project's main core originally excluded (declaring a `3d`
 dependency or `tinygl` component in their own `configure.engine`) turned
-out to split into two very different groups on closer inspection, not one:
+out to split into two very different groups on closer inspection, not one.
+Only 4 remain excluded today, in `gl-core.list`:
 
 - **Only 3 (`hpl1`, `twp`, `watchmaker`) name a real-GL token.** Their
   deps include the literal `opengl_game_shaders`/`opengl_game_classic`

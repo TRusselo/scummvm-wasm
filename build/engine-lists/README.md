@@ -24,9 +24,9 @@ dev/test harnesses (`build-by-default: no`), not real games.
 
 ## all-engines.list
 
-123 engines: 103 top-level engines (every ScummVM engine except the 11 in
-`gl-core.list`, and `testbed`/`playground3d`, excluded from both) plus 20
-`build-by-default: yes` subengines that never get their own `engines/*/`
+128 engines: 105 top-level engines (every ScummVM engine except the 4 in
+`gl-core.list`, the 16 ScummVM marks `build-by-default: no`, and
+`testbed`/`playground3d`, excluded from all) plus 23 subengines that never get their own `engines/*/`
 directory and so aren't picked up by scanning directory names --
 `scumm_7_8`/`he`, `agos2`, `eob`/`lol`, `ihnm`, `sci32`, `ultima4`/
 `ultima6`/`ultima8`, `mm1`/`xeen`, `myst`/`mystme`/`riven`, `groovie2`,
@@ -40,7 +40,7 @@ Built with `USE_HIGHRES=1` (this project's default -- see
 `docs/GOTCHAS.md`'s `USE_HIGHRES` section for why; confirmed by live
 testing that this carries no pillarboxing cost for SCUMM or any other
 lowres-native engine). An earlier `USE_HIGHRES=0` compile-only pass
-linked only 55 of the then-103 top-level engines in this list -- the
+linked only 55 of the then-103 top-level engines in this list (the list has since changed size; that figure is historical) -- the
 other 48 all declare
 `highres` as a dependency and were silently disabled, not broken. That's
 why this list now requires `USE_HIGHRES=1`.
