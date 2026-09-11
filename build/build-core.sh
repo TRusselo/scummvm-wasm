@@ -99,3 +99,12 @@ if [ -f "$ENGINES_CONFIG" ]; then
     echo "########################################################################"
   fi
 fi
+
+# Check the lists and the docs against what ScummVM upstream actually declares.
+# Engine flags and build-by-default values change under us on every rebase, and
+# a claim written down once is trusted for weeks -- four were wrong at once on
+# 2026-09-10. Informational: never fails the build (pass --strict by hand for
+# that).
+if [ -x "../../../../build/check-engines.py" ]; then
+  ../../../../build/check-engines.py || true
+fi
