@@ -411,13 +411,26 @@ per-engine archives (`engines/scumm/libscumm.a`) matched the current
 build's timestamp; `libdetect.a`/`libdeps.a` were dated from an earlier
 build in the same checkout, hours/builds prior.
 
-**Fix:** delete both before rebuilding whenever `lite_engines.list`
-changes:
+**Fix: `build/build-core.sh` now does this for you.** It compares the chosen
+list against the copy in the submodule and, only when they differ, copies the
+new list and removes all *three* engine-derived artifacts. It also verifies
+after the build that the enabled set matches the list, and prints the result
+last. You only need the manual form below when running `make` directly, or
+when working in a tree where the script has not been run.
+
+Note this workaround was incomplete for a long time: it named two files but
+not `base/plugins.o`, which carries the plugin registry. See
+"Changing the engine list does not rebuild `plugins.o`" below. All three must
+go together:
 
 ```bash
 rm -f scummvm-core/backends/platform/libretro/libdetect.a \
-      scummvm-core/backends/platform/libretro/libdeps.a
+      scummvm-core/backends/platform/libretro/libdeps.a \
+      scummvm-core/backends/platform/libretro/base/plugins.o
 ```
+
+Removing `plugins.o` also forces the containing `base/libbase.a` to be
+rebuilt, so that archive needs no separate handling.
 
 **Verify:** `ls -la` both files after the rebuild and confirm the mtime is
 current and (for `libdetect.a` specifically) the size actually changed --
@@ -2124,9 +2137,15 @@ and look like a packaging or dump problem. Engine-list edits before this was
 found happened to work only because `plugins.o` had been built while the list
 already contained them.
 
-**Always `rm scummvm-core/backends/platform/libretro/base/plugins.o` before
-rebuilding after any engine-list change.** It is one object file, so the cost is
-negligible next to diagnosing an engine that silently refuses to detect.
+**`build/build-core.sh` now removes this automatically** whenever the engine
+list differs from the copy in the submodule, together with `libdetect.a` and
+`libdeps.a`. It also verifies the built engine set against the list afterwards,
+so this trap announces itself instead of hiding.
+
+Run `rm scummvm-core/backends/platform/libretro/base/plugins.o` by hand only
+when invoking `make` directly and bypassing the script. It is one object file,
+so the cost is negligible next to diagnosing an engine that silently refuses to
+detect.
 
 
 ## Our engine list overrides ScummVM's "broken or unsupported" flag (2026-09-08)
@@ -2187,11 +2206,25 @@ nothing about completability, and this project is not the authority on it.
    `add_engine\s+(\S+)\s+"[^"]*"\s+(\S+)` instead.
 
 Before that was understood, 16 default-`no` engines sat in `all-engines.list`
-doing nothing while every count derived from the list overstated what the core
-ships. They have been removed; the list now describes reality.
+and were **being built** -- that is the whole point of the correction above:
+naming an engine builds it whatever its flag says. They have been removed from
+the list, so that the core ships what ScummVM itself ships.
 
-**Related, still open:** `gl-core.list` currently has no effect either.
-`colony` and `watchmaker` are default-`no` upstream so they were never built
-anyway, and `hpl1`/`twp` are default-`yes` so they are compiled into the main
-core despite being "excluded". If those two genuinely need to be kept out, the
-exclusion has to happen somewhere configure actually honours.
+Removing them from the list is not the same as them leaving the *binary*. Every
+core built before 2026-09-10 still contained all 16, because the build machine's
+checkout was seven commits behind the commit that removed them, and because the
+stale-artifact trap above would have kept them anyway. Both are now fixed.
+
+**Correction (2026-09-10): `gl-core.list` does work.** This section previously
+claimed the exclusion had no effect and that `hpl1`/`twp` were compiled into the
+main core anyway. That was collateral from the same backwards reasoning
+corrected above, and it is false. Verified against the generated
+`config.mk.engines`: `colony`, `hpl1`, `twp` and `watchmaker` all have **zero**
+`ENABLE_` entries.
+
+The mechanism is the one this section documents, applied in the other
+direction. `LITE=1` treats the list as an allowlist, so membership decides in
+both directions: named engines are built whatever their flag says, and engines
+absent from the list are not built whatever their flag says. `gl-core.list` is
+documentation of *why* those four are held back; the exclusion itself comes
+from their absence from `all-engines.list`.
