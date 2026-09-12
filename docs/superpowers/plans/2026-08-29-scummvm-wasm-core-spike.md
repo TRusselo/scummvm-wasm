@@ -100,7 +100,7 @@ Vendor libretro/scummvm and EmulatorJS/RetroArch as pinned submodules
 
 RetroArch pinned commit: <paste from /tmp/retroarch-pinned-commit.txt>
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Assisted-by: Claude:claude-sonnet-5
 EOF
 )"
 ```
@@ -178,7 +178,7 @@ Reproduces the build verified during design: overwrite
 lite_engines.list to scope to the scumm engine only, then
 emmake make platform=emscripten LITE=1.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Assisted-by: Claude:claude-sonnet-5
 EOF
 )"
 ```
@@ -271,7 +271,7 @@ C++ codebase needs libc++abi's RTTI support, which emcc alone doesn't
 link in. Packages into both -wasm.data and -legacy-wasm.data since
 EmulatorJS's loader requests the legacy variant by default.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Assisted-by: Claude:claude-sonnet-5
 EOF
 )"
 ```
@@ -371,7 +371,7 @@ EJS_gameUrl left empty deliberately -- isolates "does the core
 download/init" from "does a game load," matching how the design
 spike diagnosed the two failure modes separately.
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Assisted-by: Claude:claude-sonnet-5
 EOF
 )"
 ```
@@ -435,7 +435,7 @@ git add docs/superpowers/notes/2026-08-29-autolaunch-diagnosis.md
 git commit -m "$(cat <<'EOF'
 Document root cause of the auto-launch gap found during the spike
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Assisted-by: Claude:claude-sonnet-5
 EOF
 )"
 ```
@@ -488,7 +488,7 @@ Fix game auto-launch gap
 <one line: which candidate, and the actual root cause per Task 5's
 diagnosis>
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Assisted-by: Claude:claude-sonnet-5
 EOF
 )"
 ```
