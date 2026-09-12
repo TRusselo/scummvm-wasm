@@ -165,11 +165,19 @@ PR 9 is up so the two can reference each other.
 saveGameState() without consulting the engine's own guards, which is the crash
 in issue #1: griffon's canSaveGameStateCurrently() is false outside
 kGameModePlay, and saving anyway at its title screen reaches drawView() with no
-map loaded. `afdcbd2fffe` adds the guards, so the PR is now two commits. Built
-and deployed; Day of the Tentacle still saves normally, confirming the guard
-does not refuse legitimate saves. The refusal path itself has not been observed
-yet -- the griffon retest went through ScummVM's own in-game Save menu, which
-never reaches retro_serialize().
+map loaded. `afdcbd2fffe` adds the guards, so the PR is now two commits.
+
+Verified in both directions on a build confirmed by core md5 against the
+running container:
+
+| case | guard | result |
+|---|---|---|
+| Day of the Tentacle, gameplay | allows | saves normally |
+| griffon, gameplay | allows | saves normally |
+| griffon, menu | refuses | "FAILED TO SAVE STATE", no crash |
+
+The third row is the case that used to fault inside drawView(). It now returns
+false from the serialize and the frontend reports it.
 
 **Hold** `f09251ff1d1` (assumes the engine-data embed, still an open question
 with EmulatorJS). **Never submit** `84f2bd11f5a` (fork-only CI change).
