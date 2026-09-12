@@ -1,7 +1,26 @@
-# Upstream PR drafts
+# Upstream PRs
 
-Bodies below are **exactly what goes in the PR** — nothing else. Strip every
-`Co-Authored-By` / `Claude-Session` trailer from the commits first.
+Submitted 2026-09-12. Six are open; PR 2 was withdrawn. Bodies below are the
+PR text itself — nothing else. Trailers are stripped from every submitted
+commit.
+
+| PR | where | status |
+|---|---|---|
+| 1 | scummvm/scummvm#7925 | open |
+| 2 | scummvm/scummvm#7926 | **withdrawn** |
+| 3 | scummvm/scummvm#7928 | open |
+| 5 | scummvm/scummvm#7927 | open |
+| 6 | — | held until 9 is up |
+| 7 | libretro/scummvm#110 | open |
+| 8 | libretro/scummvm#111 | open |
+| 9 | — | needs 5 and 6 merged first |
+| 11 | libretro/scummvm#112 | open |
+
+Branches: engine fixes are cut from `scummvm/scummvm` master and pushed to
+`TRusselo/scummvm-scummvm`; libretro fixes are cut from `libretro/scummvm`
+master and pushed to `TRusselo/scummvm`. Note `TRusselo/scummvm-scummvm` sits
+in the existing fork network with `libretro/scummvm` as its parent, so branches
+must be based on `upstream/master` explicitly or the diff is enormous.
 
 Our own notes are in "Internal" at the bottom, deliberately out of the bodies.
 
@@ -23,11 +42,29 @@ silent double free natively, a call_indirect trap on WebAssembly.
 Detach the stream before close() on both paths.
 ```
 
-## PR 2 — `TINSEL: Add two uncatalogued Discworld 1 English CD variants`
-`3f09158c8a9` · +43
+## PR 2 — `TINSEL: Add two uncatalogued Discworld 1 English CD variants` — WITHDRAWN
+`3f09158c8a9` · +43 · opened as scummvm/scummvm#7926, closed the same day
+
+Body as submitted said "Both play." That is an overclaim: the two releases were
+verified only as far as detecting and booting into gameplay, neither was played
+through, and this project's testing does not overrule ScummVM's own. Submitting
+a detection entry asserts a release is supported, which is a compatibility claim
+we have not earned.
+
+Adding detection entries by PR **is** an accepted route -- 60 merged PRs with
+"detection" in the title, several within the last month -- so the mechanism was
+not the problem; the claim was. Resubmit only if a release is played to
+completion, or reported through the unknown-variant route instead, which asks
+for the MD5s without asserting support.
+
+For reference, the entries were `EN_ANY` / `kPlatformDOS` / `GID_DW1`:
 
 ```
-One .gra release differing only in english.txt, and one .scn release. Both play.
+dw.gra        c8808ccd988d603dd35dff42013ae7fd   781656
+english.txt   6a371099c0bd0777fa32e8d442cad204   228542
+
+dw.scn        70955425870c7720d6eebed903b2ef41   776188
+english.txt   7526cfc3a64e00f223795de476b4e2c9   228878
 ```
 
 ## PR 3 — `CHAMBER: take the Hercules blit path only when Hercules was requested`
@@ -85,7 +122,7 @@ failures that only warn. RELEASE_BUILD stays.
 ```
 
 ## PR 8 — `LIBRETRO: exclude WebMIDI plugin`
-`48dea85dc88` · +13/−4
+`48dea85dc88` · +7/−4 · **revised after submission**
 
 ```
 backends/midi/webmidi.cpp is compiled in for any EMSCRIPTEN build, but its
@@ -140,6 +177,29 @@ EMSCRIPTEN -- on a native build "/" is the real OS root.
 ---
 
 # Internal — not for the PRs
+
+**Two things caught by reading the PRs after opening them, both worth repeating
+before the next batch.**
+
+*Scope, stated up front.* PR 8 removed WebMIDI and the body never said what else
+that touched. Both edits sit inside existing `EMSCRIPTEN` guards, no other
+platform is affected, and the core still reaches MIDI through the frontend's
+`RETRO_ENVIRONMENT_GET_MIDI_INTERFACE` -- all true, none of it written down. It
+also left the removed lines commented out rather than deleted, which upstreams
+generally reject; git history is the record. Revised to `+7/-4` and the body now
+answers the scope question before a reviewer has to ask it.
+
+*Claims, kept to what was verified.* PR 2 said "Both play." Booting into
+gameplay is not playing through, and a detection entry asserts a release is
+supported. Withdrawn rather than softened. The rule this violates is the
+project's own: our testing does not overrule ScummVM's, and a title booting once
+says nothing about completability. PR 3's body is the shape to copy -- it claims
+an assertion fixed and explicitly disclaims the engine's remaining hangs.
+
+*Build hygiene.* `backends/platform/libretro/lite_engines.list` is always dirty
+in this tree -- `build-core.sh` writes it. `git commit -a` swept 96 unrelated
+lines into PR 5's commit; caught before pushing. Stage files explicitly.
+
 
 **Splits.** `955aef0429e` → PR 5 + PR 6 + PR 9; it cannot be submitted whole
 because it touches both `engines/` and `backends/platform/libretro/`.
