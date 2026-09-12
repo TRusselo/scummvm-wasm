@@ -266,8 +266,14 @@ nor an org-level `.github`): rebase first, one topic per PR, squash to a single
 commit, base on `v1.22.2` (their default; #45 and #38 merged there), fill the
 template's Description / Related Issues / Related Pull Requests / Reviewers.
 
-**Hold until `EmulatorJS/scummvm` exists** — entries for a core they do not
-build yet are noise. Open with:
+**Gate: this PR is part of the "submit core" process, not a standalone fix.**
+The arrays are keyed by core name, and their link script only sees a
+`scummvm` `.bc` if `cores.json` has a `scummvm` entry, which needs an
+`EmulatorJS/scummvm` fork to clone. So it hinges on EmulatorJS accepting the
+core at all (the #1263 conversation), then forking, and it is opened together
+with the `cores.json` entry in `EmulatorJS/build` — either one alone breaks
+their build of the core. Opened earlier it is entries for a core they do not
+have. Open with:
 
 ```
 git -C retroarch push fork ejs-build-scummvm-arrays
