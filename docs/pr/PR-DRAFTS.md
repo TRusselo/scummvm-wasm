@@ -1,20 +1,45 @@
 # Upstream PRs
 
-Submitted 2026-09-12. Six are open; PR 2 was withdrawn. Bodies below are the
-PR text itself — nothing else. Trailers are stripped from every submitted
-commit.
+Submitted 2026-09-12. **All three scummvm/scummvm PRs were closed unmerged
+the same day**; the three libretro ones are open. PR 2 was withdrawn. Bodies
+below are the PR text itself — nothing else.
+
+## Read this before submitting anything else upstream
+
+Maintainer `mduggan` closed PRs 1, 3 and 5 within 106 seconds of each other,
+each with one line: *"Please read AI-GUIDELINES.md."* Nobody reviewed the code.
+`scummvm/scummvm` **and** `libretro/scummvm` carry an identical
+`AI-GUIDELINES.md` with two hard rules:
+
+- *"AI agents must never have (Co-) authorship of your code."* A
+  `Co-Authored-By: Claude ...` or `Claude-Session:` trailer is an instant
+  reject. PRs 1 and 3 carried both.
+- *"AI assistance MUST be disclosed in the commit message"* — as
+  `Assisted-by: Claude:claude-opus-5`. PR 5 carried no disclosure at all, the
+  opposite failure.
+
+The claim that trailers were stripped from every submitted commit, which this
+file used to make, was simply false. Check each upstream repo for
+`AI-GUIDELINES.md` / `CONTRIBUTING.md` before the first commit; it overrides
+our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 
 | PR | where | files touched | reach | status |
 |---|---|---|---|---|
-| 1 | scummvm/scummvm#7925 | `video/avi_decoder.cpp` | all platforms, any AVI | open |
+| 1 | scummvm/scummvm#7925 | `video/avi_decoder.cpp` | all platforms, any AVI | **closed** — AI co-authorship |
 | 2 | scummvm/scummvm#7926 | `engines/tinsel/detection_tables.h` | detection only | **withdrawn** |
-| 3 | scummvm/scummvm#7928 | `engines/chamber/cga.cpp` | all platforms, chamber only | open |
-| 5 | scummvm/scummvm#7927 | `engines/scumm/scumm.h` | all platforms, SCUMM only | open |
+| 3 | scummvm/scummvm#7928 | `engines/chamber/cga.cpp` | all platforms, chamber only | **closed** — AI co-authorship |
+| 5 | scummvm/scummvm#7927 | `engines/scumm/scumm.h` | all platforms, SCUMM only | **closed** — no AI disclosure |
 | 6 | — | `engines/engine.h`, `engines/scumm/scumm.h` | new base-class virtual | held until 9 is up |
-| 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | open |
-| 8 | libretro/scummvm#111 | `backends/module.mk`, `base/plugins.cpp` | EMSCRIPTEN builds only | open |
-| 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | needs 5 and 6 merged first |
-| 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | open |
+| 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | open, `Assisted-by` added |
+| 8 | libretro/scummvm#111 | `backends/module.mk`, `base/plugins.cpp` | EMSCRIPTEN builds only | open, `Assisted-by` added |
+| 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | blocked — 5 was closed, not merged |
+| 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | open, `Assisted-by` added |
+| — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | open since 2026-09-06 |
+
+None of the three closures disputed the code. Re-submitting means rewriting
+those commits with `Assisted-by:` and no co-author, and asking `mduggan`
+whether a resubmission is welcome rather than silently reopening — the policy
+warns repeat undisclosed use can bring a permanent ban.
 
 **Read the "files touched" column before submitting anything.** A line count
 says nothing about blast radius; the path does. `engines/<name>/` is engine code
@@ -26,7 +51,8 @@ from this column.
 
 Branches: engine fixes are cut from `scummvm/scummvm` master and pushed to
 `TRusselo/scummvm-scummvm`; libretro fixes are cut from `libretro/scummvm`
-master and pushed to `TRusselo/scummvm`. Note `TRusselo/scummvm-scummvm` sits
+master and pushed to the same fork — `TRusselo/scummvm` was renamed to
+`TRusselo/scummvm-scummvm`, so the two names are one repository. Note `TRusselo/scummvm-scummvm` sits
 in the existing fork network with `libretro/scummvm` as its parent, so branches
 must be based on `upstream/master` explicitly or the diff is enormous.
 
