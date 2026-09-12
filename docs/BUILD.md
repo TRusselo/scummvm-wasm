@@ -142,8 +142,9 @@ real bug was involved):
 - `EMCC_CFLAGS="--pre-js ../build/midi-stub-pre.js"` -- injects a stub
   `var midiOutputMap = new Map();` global before the module's own code
   runs. Kept as defense-in-depth even though the WebMIDI plugin that used
-  to need it is now fully excluded at the ScummVM-source level (see
-  GOTCHAS.md's WebMIDI section) -- nothing currently reads this global,
+  to need it is no longer linked into the core (guarded on `__LIBRETRO__` in
+  `base/plugins.cpp`, see GOTCHAS.md's WebMIDI section) -- nothing currently
+  reads this global,
   but it's harmless to leave in place.
 - `TARGET=scummvm_libretro.js` -- names the output files
   (`scummvm_libretro.js` / `.wasm`).

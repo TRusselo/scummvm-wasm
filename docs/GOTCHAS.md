@@ -155,7 +155,7 @@ exact same stack-limit numbers reappearing unchanged. If you're chasing a
 stack-related crash, check which limits the error message actually
 reports before changing either flag; they're not interchangeable.
 
-## The WebMIDI plugin: exclude it, don't patch around it
+## The WebMIDI plugin: don't link it, don't patch around it
 
 This was the single biggest time sink in this project, and it's worth
 understanding fully because the failure mode is deeply misleading: it
@@ -188,20 +188,24 @@ auditing the main-loop callback for asyncify re-entrancy bugs -- is a
 dead end. **Fix the MIDI crash first; the overflow disappears on its
 own.**
 
-**The fix requires two separate edits, not one:**
+**The fix is one line** in `scummvm-core/base/plugins.cpp` (`f3c5255`,
+submitted upstream as scummvm/scummvm#7947): guard the registration with
+`#if defined(EMSCRIPTEN) && !defined(__LIBRETRO__)`, so `LINK_PLUGIN(WEBMIDI)`
+is skipped for the libretro core and kept for ScummVM's own Emscripten shell.
+`midi/webmidi.o` still compiles; it is simply never entered in the plugin
+table, so nothing calls into it. `-D__LIBRETRO__` is set unconditionally by
+`backends/platform/libretro/Makefile.common`.
 
-1. `scummvm-core/backends/module.mk` -- remove `midi/webmidi.o` from the
-   `ifdef EMSCRIPTEN` block's `MODULE_OBJS`.
-2. `scummvm-core/base/plugins.cpp` -- comment out
-   `#ifdef EMSCRIPTEN / LINK_PLUGIN(WEBMIDI) / #endif`.
-
-Doing only (1) produces a **link failure**, not a quiet fix:
-`wasm-ld: undefined symbol: g_WEBMIDI_type`. That symbol comes from
+The first version of this fix (`48dea85`, 2026-08-30 to 2026-09-12) also
+removed `midi/webmidi.o` from `backends/module.mk`. That edit was unnecessary,
+but the trap it uncovered is worth keeping: removing an object from
+`module.mk` *without* touching `base/plugins.cpp` is a **link failure**, not a
+quiet fix: `wasm-ld: undefined symbol: g_WEBMIDI_type`. That symbol comes from
 `REGISTER_PLUGIN_STATIC(WEBMIDI, ...)` in `webmidi.cpp`, referenced by a
 separate, hand-written static-plugin registration table in
 `base/plugins.cpp` that is **completely independent of the object-file
-list** in `module.mk`. If you're excluding any other plugin the same way,
-check `base/plugins.cpp` for a `LINK_PLUGIN(...)` reference to it too --
+list** in `module.mk`. If you're excluding any other plugin, the
+`LINK_PLUGIN(...)` line in `base/plugins.cpp` is the one that matters --
 this is a general pattern in ScummVM's build, not specific to WebMIDI.
 
 Real MIDI hardware output was never a goal for this project (these are
@@ -221,13 +225,16 @@ that all happened to produce the exact same user-visible symptom
 ("FAILED TO SAVE STATE"). If you're touching this code, read all of them --
 fixing only some still leaves it broken.
 
-**A fifth is still open, and it crashes (2026-09-10).** The bridge never asks
-`canSaveGameStateCurrently()` before saving. Engines use that guard to say
-saving is illegal right now -- griffon's returns false outside `kGameModePlay`
--- and ignoring it drove griffon into `drawView()` with no map loaded, giving
-`memory access out of bounds`. Nothing in this backend calls it. Honour it (and
-`canLoadGameStateCurrently()` on the load path) and fail the state cleanly
-instead. Until then this code should not go upstream; see issue #1.
+**A fifth was found 2026-09-10 and fixed 2026-09-11 (`afdcbd2`).** The bridge
+never asked `canSaveGameStateCurrently()` before saving. Engines use that guard
+to say saving is illegal right now -- griffon's returns false outside
+`kGameModePlay` -- and ignoring it drove griffon into `drawView()` with no map
+loaded, giving `memory access out of bounds`. Both guards are now checked
+before either branch does any work, a refusal is reported through
+`retro_osd_notification()`, and the serialize returns false. Verified: griffon
+at its title screen reports "FAILED TO SAVE STATE" with no crash; griffon and
+Day of the Tentacle in gameplay save normally. The quit half of issue #1 is a
+separate problem and still open.
 
 **The design**, for context on why the fix looks the way it does: ScummVM
 has no API to serialize a running engine's state into a memory buffer --

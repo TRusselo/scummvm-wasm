@@ -71,12 +71,11 @@ into it.
 
 ## What to expect when you actually try it
 
-1. **The WebMIDI exclusion is engine-agnostic and already applies.**
-   `scummvm-core/backends/module.mk` excludes `midi/webmidi.o` for *all*
-   Emscripten builds regardless of engine, and `base/plugins.cpp`'s
-   `LINK_PLUGIN(WEBMIDI)` is commented out globally, not per-engine. You
-   don't need to redo this work for a new engine -- it's already handled
-   at the backend level, not the engine level.
+1. **The WebMIDI guard is engine-agnostic and already applies.**
+   `base/plugins.cpp` skips `LINK_PLUGIN(WEBMIDI)` whenever `__LIBRETRO__`
+   is defined, which the libretro Makefile sets for every build regardless
+   of engine. You don't need to redo this work for a new engine -- it's
+   handled at the backend level, not the engine level.
 
 2. **A new engine may have its own equivalent bug.** The WebMIDI failure
    pattern (an `EM_JS`/`EM_ASYNC_JS` block written for ScummVM's own

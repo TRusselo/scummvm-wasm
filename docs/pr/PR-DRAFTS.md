@@ -1,13 +1,15 @@
 # Upstream PRs
 
-Submitted 2026-09-12. **All three scummvm/scummvm PRs were closed unmerged
-the same day**; the three libretro ones are open. PR 2 was withdrawn. Bodies
-below are the PR text itself — nothing else.
+First batch submitted 2026-09-12 03:50; the three scummvm/scummvm PRs were
+closed within the hour and resubmitted clean the same evening. Status as of
+2026-09-12 evening is in the table below. Bodies further down are the PR text
+itself — nothing else.
 
 ## Read this before submitting anything else upstream
 
 Maintainer `mduggan` closed PRs 1, 3 and 5 within 106 seconds of each other,
-each with one line: *"Please read AI-GUIDELINES.md."* Nobody reviewed the code.
+each with one line: *"Please read AI-GUIDELINES.md."* PR 1 then drew two
+technical comments as well (see its row).
 `scummvm/scummvm` **and** `libretro/scummvm` carry an identical
 `AI-GUIDELINES.md` with two hard rules:
 
@@ -25,21 +27,23 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 
 | PR | where | files touched | reach | status |
 |---|---|---|---|---|
-| 1 | scummvm/scummvm#7925 | `video/avi_decoder.cpp` | all platforms, any AVI | **closed** — AI co-authorship |
-| 2 | scummvm/scummvm#7926 | `engines/tinsel/detection_tables.h` | detection only | **withdrawn** |
-| 3 | scummvm/scummvm#7928 | `engines/chamber/cga.cpp` | all platforms, chamber only | **closed** — AI co-authorship |
-| 5 | scummvm/scummvm#7927 | `engines/scumm/scumm.h` | all platforms, SCUMM only | **closed** — no AI disclosure |
+| 1 | scummvm/scummvm#7925 → #7944 | `video/avi_decoder.cpp` | all platforms, any AVI | #7925 **closed** — AI co-authorship, then `bluegr`: unnecessary, and `lephilousophe`: **superseded by #7935** (his general fix, all decoders). #7944 was resubmitted before those two comments were read and **withdrawn** 2026-09-12 citing #7935 |
+| 2 | scummvm/scummvm#7926 | `engines/tinsel/detection_tables.h` | detection only | **withdrawn** — booted, not played through |
+| 3 | scummvm/scummvm#7928 → #7946 | `engines/chamber/cga.cpp` | all platforms, chamber only | #7928 closed — AI co-authorship; **#7946 open**, no comment yet |
+| 5 | scummvm/scummvm#7927 → #7945 | `engines/scumm/scumm.h` | all platforms, SCUMM only | #7927 closed — no AI disclosure, and comment far too long; **#7945 open**, no comment yet |
 | 6 | — | `engines/engine.h`, `engines/scumm/scumm.h` | new base-class virtual | held until 9 is up |
-| 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | open, `Assisted-by` added |
-| 8 | libretro/scummvm#111 | `backends/module.mk`, `base/plugins.cpp` | EMSCRIPTEN builds only | open, `Assisted-by` added |
-| 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | blocked — 5 was closed, not merged |
-| 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | open, `Assisted-by` added |
-| — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | open since 2026-09-06 |
+| 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | **merged** 2026-09-12 into `staging_master` (not `master` yet); `spleen1981` asked for the code comment to go, and it did |
+| 8 | libretro/scummvm#111 → scummvm/scummvm#7947 | `base/plugins.cpp` | EMSCRIPTEN builds only | #111 closed — `spleen1981`: belongs upstream. Rewritten as a one-line `__LIBRETRO__` guard, **#7947 open**; fork carries it as `f3c5255` |
+| 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | blocked until 5 and 6 land |
+| 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | open; `spleen1981` questioned the premise (zips unsupported); reply posted explaining the EmulatorJS case, no answer yet |
+| — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | open since 2026-09-06, no comment |
 
-None of the three closures disputed the code. Re-submitting means rewriting
-those commits with `Assisted-by:` and no co-author, and asking `mduggan`
-whether a resubmission is welcome rather than silently reopening — the policy
-warns repeat undisclosed use can bring a permanent ban.
+Two of the three closures disputed only the trailers; PR 1's also disputed the
+approach, and that was missed for eight hours because the thread was not
+re-read before resubmitting. **Re-read every comment on a closed PR before
+opening its replacement.** Resubmitting means rewriting the commit with
+`Assisted-by:` and no co-author — the policy warns repeat undisclosed use can
+bring a permanent ban.
 
 **Read the "files touched" column before submitting anything.** A line count
 says nothing about blast radius; the path does. `engines/<name>/` is engine code
@@ -62,8 +66,13 @@ Our own notes are in "Internal" at the bottom, deliberately out of the bodies.
 
 # scummvm/scummvm
 
-## PR 1 — `VIDEO: Fix double free of the stream on AVIDecoder::loadStream failure`
-`cac3a252862` · +5
+## PR 1 — `VIDEO: Fix double free of the stream on AVIDecoder::loadStream failure` — SUPERSEDED
+`cac3a252862` · +5 · #7925 closed, #7944 withdrawn
+
+Superseded by scummvm/scummvm#7935 (`lephilousophe`), which makes every
+decoder's `loadStream()` free the stream on failure and removes the
+caller-side delete in `VideoDecoder::loadFile()` — the opposite direction from
+ours. Keep `cac3a25` on the fork until #7935 merges, then drop it on rebase.
 
 ```
 loadStream() assigns _fileStream = stream, then calls close() on its two late
@@ -155,8 +164,13 @@ warning() call out of the binary, so release builds gave no diagnostics for
 failures that only warn. RELEASE_BUILD stays.
 ```
 
-## PR 8 — `LIBRETRO: exclude WebMIDI plugin`
-`48dea85dc88` · +7/−4 · **revised after submission**
+## PR 8 — `LIBRETRO: exclude WebMIDI plugin` — REDIRECTED
+`48dea85dc88` · +7/−4 · #111 closed: not a libretro change
+
+Now scummvm/scummvm#7947, `BACKENDS: Do not link WebMIDI in libretro
+Emscripten builds`: one line in `base/plugins.cpp`,
+`#if defined(EMSCRIPTEN) && !defined(__LIBRETRO__)`. `module.mk` untouched.
+The fork carries the same change as `f3c5255`. Body as originally submitted:
 
 ```
 backends/midi/webmidi.cpp is compiled in for any EMSCRIPTEN build, but its

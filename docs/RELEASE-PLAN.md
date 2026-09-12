@@ -85,15 +85,18 @@ follow-up only.
 
 Ours, upstreamable, independent of each other:
 
-| commit | change | issue |
+| commit | change | status (2026-09-12) |
 |---|---|---|
-| `cac3a252862` | VIDEO: AVIDecoder::loadStream double free | — |
-| `a607b761ebe` | CHAMBER: Hercules blit path guard | #3 |
-| `b591d4d34fc` | Dropped quit event hangs the tab on exit | #1 |
-| `3f09158c8a9` | TINSEL: two uncatalogued Discworld 1 variants | — |
+| `cac3a252862` | VIDEO: AVIDecoder::loadStream double free | superseded by scummvm#7935 (maintainer's general fix); our #7944 withdrawn. Keep locally until #7935 merges |
+| `a607b761ebe` | CHAMBER: Hercules blit path guard | open as scummvm#7946 |
+| `955aef0429e` (part) | SCUMM: getSaveStateName() override | open as scummvm#7945 |
+| `f3c52552c73` | BACKENDS: WebMIDI guard on `__LIBRETRO__` | open as scummvm#7947 |
+| `3f09158c8a9` | TINSEL: two uncatalogued Discworld 1 variants | withdrawn (#7926): booted, not played through |
+| `b591d4d34fc` | Dropped quit event hangs the tab on exit | dropped 2026-09-09, theory disproved; not submitted |
 
-Precedent is good: #7902 (Level 9 detector) was accepted and applied as
-`05f236adb`, and digitall explicitly invited more.
+Precedent: #7902 (Level 9 detector) was closed and the fix applied as digitall's
+own commit `05f236adb`, with an invitation to file more. The commit message was
+called out as far too long; see `docs/pr/PR-DRAFTS.md` for the rules learned.
 
 **Note:** `4dc59596241` (our Level 9 commit) is now redundant — it will drop
 out on the next rebase. Expect it to vanish; that is correct, not lost work.
@@ -109,10 +112,11 @@ are the easiest sells; chamber should reference issue #3's evidence.
 Inherently ours, and must land there for RC-A:
 
 - `955aef0429e` real save-state support (`retro_serialize`/`retro_unserialize`)
-- `4b6607e97d3` scan the virtual-FS root on Emscripten
-- `f09251ff1d1` register embedded `/engine-data` in the search set
-- `48dea85dc88` exclude the WebMIDI plugin
-- `8ad2b918334` keep `warning()` in release builds
+- `4b6607e97d3` scan the virtual-FS root on Emscripten — open as libretro#112
+- `f09251ff1d1` register embedded `/engine-data` in the search set — held
+- `8ad2b918334` keep `warning()` in release builds — **merged** as libretro#110
+  into `staging_master`; carry it until that reaches `master`
+- (the WebMIDI change belongs to scummvm/scummvm, not here — see 2.2)
 - `8690c2d4e6d` render-mode core option
 - issue #6's two items (unknown-variant reporting, `kFeatureOpenUrl`)
 
@@ -150,7 +154,7 @@ Each needs a decision; not all need a fix before RC.
 
 | issue | disposition |
 |---|---|
-| **#1** Griffon save freezes the tab | Have a fix (`b591d4d34fc`). **Verify it actually resolves #1**, then close or upstream. |
+| **#1** Griffon save-state crash / unacknowledged quit | Save half **fixed** (`afdcbd2`: guards honoured, refusal reported, verified). Quit half still open and unconfirmed; `b591d4d34fc` bounds the hang but does not fix it. |
 | **#2** Options dialog "null function" over an unclosed dialog | Reproducible, no fix. Decide: RC blocker or documented limitation. Leaning *document* — it needs a specific user action. |
 | **#3** Chamber hangs in every render mode | Upstream engine immaturity; every entry is `ADGF_TESTING`. **Forward to bugs.scummvm.org** and close ours. Not an RC blocker — out of scope by the no-unstable-engines rule. |
 | **#6** Silent unknown-variant failures + `kFeatureOpenUrl` | Quality-of-life, upstreamable. Not an RC blocker but high value: silent failure was the single biggest time sink in testing. |

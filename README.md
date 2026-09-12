@@ -118,12 +118,14 @@ loader expects), then packaged into that naming convention by
 
 ### Why `scummvm-core` points at a fork, not upstream
 
-One real source patch was needed to make ScummVM's SCUMM engine boot
-correctly in this specific build (excluding a plugin whose JS glue only
-works in ScummVM's own standalone-Emscripten shell -- see
-[docs/GOTCHAS.md](docs/GOTCHAS.md)'s WebMIDI section for the full story).
-Since there's no push access to `libretro/scummvm` upstream, that one
-commit lives on a dedicated `emulatorjs-wasm-fixes` branch on
+A set of local source changes is needed to make this build work: the
+WebMIDI guard (a plugin whose JS glue only works in ScummVM's own
+standalone-Emscripten shell -- see [docs/GOTCHAS.md](docs/GOTCHAS.md)),
+the save-state bridge, the Emscripten scan root, and a few engine fixes.
+`git log upstream/master..` on the branch lists them, and
+[docs/pr/PR-DRAFTS.md](docs/pr/PR-DRAFTS.md) tracks which have been
+submitted upstream and where they stand. Since there's no push access to
+`libretro/scummvm`, they live on a dedicated `emulatorjs-wasm-fixes` branch on
 [TRusselo/scummvm-scummvm](https://github.com/TRusselo/scummvm-scummvm), and
 `.gitmodules` points there instead of upstream. If you fork this whole
 project, you may want to fork `scummvm-core` too and repoint
@@ -386,7 +388,8 @@ found," even with a correctly-placed hook file.
 
   **An empty launcher does not always mean a missing engine, though.** It looks
   identical when the engine *is* present but no detection entry matches the
-  dump -- all three Discworld dumps land there despite `tinsel` being built --
+  dump -- all three Discworld dumps landed there, with `tinsel` built, until
+  two detection entries were added --
   and identical again when the archive carries standalone directory entries and
   trips the ENOTDIR extraction bug. Check `all-engines.list`, then the dump's
   file sizes, then `7z l -slt x.zip | grep -c 'Folder = +'`.
@@ -534,7 +537,7 @@ table is the at-a-glance summary, kept in sync with it.
 | dragons | ✅ | Blazing Dragons — the PS1 German disc (`SLES_003.06`) plays. `BIGFILE.DAT` 45099008 / `9854fed0…` matches the clean `DE_DEU` entry |
 | drascula | ✅ | Drascula: The Vampire Strikes Back |
 | dreamweb | ✅ | DreamWeb, freeware since 2011 |
-| griffon | ✅ | The Griffon Legend plays. Saving currently freezes the tab — tracked separately |
+| griffon | ✅ | The Griffon Legend plays. Save states are refused outside gameplay (title screen) with no crash since `afdcbd2`; quitting can still hang the tab — [issue #1](https://github.com/TRusselo/scummvm-wasm/issues/1) |
 | hopkins | ✅ | Hopkins FBI (freeware Linux port; audio is French despite `EN_ANY` tag) |
 | hugo | ✅ | Hugo's House of Horrors |
 | icb | ⏸️ | Tried El Dorado (also on this engine); the dump matches no known hash signature, so we need a different dump |
@@ -627,11 +630,11 @@ the staged core until the next rebuild; the other five are built. `fool`,
 
 | Engine | Upstream description | In engine list | Status |
 |---|---|---|---|
-| bolt | Bolt | yes | ⬜ needs rebuild, then testing |
-| eem | Eagle Eye Mysteries | yes | ⬜ needs rebuild, then testing |
-| gamos | Gamos | yes | ⬜ needs rebuild, then testing |
-| pelrock | Alfred Pelrock | yes | ⬜ needs rebuild, then testing |
-| phoenixvr | Phoenix VR | yes | ⬜ needs rebuild, then testing |
+| bolt | Bolt | yes | ⬜ built, untested |
+| eem | Eagle Eye Mysteries | yes | ⬜ built, untested |
+| gamos | Gamos | yes | ⬜ built, untested |
+| pelrock | Alfred Pelrock | yes | ⬜ built, untested |
+| phoenixvr | Phoenix VR | yes | ⬜ built, untested |
 | fool | The Fool's Errand | no | ⬜ not in the core; add the line to test it |
 | harvester | Harvester | no | ⬜ not in the core; add the line to test it |
 | macs2 | Macs2 | yes | ⬜ untested |
