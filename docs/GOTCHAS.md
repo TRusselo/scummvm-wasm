@@ -2183,6 +2183,69 @@ so the cost is negligible next to diagnosing an engine that silently refuses to
 detect.
 
 
+## EmulatorJS shows core-option *values*, never their labels (2026-09-11)
+
+In EJS's Settings > Backend Core Options, `scummvm_gui_aspect_ratio` renders as
+"scummvm gui aspect ratio" with choices `0` and `1` -- not "4:3" and "16:9",
+which is what the core actually declares.
+
+Nothing is mislabelled. The labels cannot reach EJS at all.
+
+`GameManager.js` pulls options through RetroArch's legacy C export:
+
+```js
+getCoreOptions: this.Module.cwrap("get_core_options", "string", []),
+```
+
+which returns one flat line per option, values only:
+
+```
+scummvm_gui_aspect_ratio; 0|1
+```
+
+`emulator.js` then renders that string directly:
+
+```js
+let options    = option[1].split("|");
+let optionName = name.split("|")[0].replace(/_/g, " ").replace(/.+\-(.+)/, "$1");
+availableOptions[options[i]] = this.localization(options[i], ...);
+```
+
+So the display name is **the option key with underscores replaced by spaces**,
+and each choice is **the raw value string**. Our core does publish proper labels
+via `RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2` -- `{"0", "4:3"}` -- but
+`get_core_options` predates v2 and flattens them away.
+
+**Do not "fix" this by renaming the values.** Every value is either passed
+verbatim to ScummVM or parsed numerically:
+
+```c
+snprintf(buffer, ..., "--render-mode=%s", render_mode_setting);  /* verbatim */
+```
+
+`--render-mode` needs the exact strings `cga`/`hercGreen`/`amiga`;
+`scummvm_gui_aspect_ratio` is read with `atoi()` (0 = 4:3, non-zero = 16:9), so
+a value of `"4:3"` would parse as 4 and select 16:9. Renaming also breaks every
+saved config keyed on the old value, and for the 13 upstream options it diverges
+from `libretro/scummvm` for a cosmetic gain.
+
+Options whose values read badly in EJS, worst first -- all upstream's, none
+actionable on our side:
+
+| option | shows | means |
+|---|---|---|
+| `scummvm_mouse_fine_control_speed_reduction` | `2`, `4`, `10` | 50 %, 20 %, 10 % (a divisor, so it reads inverted) |
+| `scummvm_gui_aspect_ratio` | `0`, `1` | 4:3, 16:9 |
+| `scummvm_gui_h_res` | `240`, `480`, `720`, `1080` | LD, SD, HD, FHD |
+| `scummvm_analog_deadzone` | `0`..`30` | percent |
+
+**The real fix already exists core-side.** `1e5d846377 "Add get_core_options_json"`
+came in with the v1.22.2 merge on 2026-09-10 and exports the same options as JSON,
+which can carry labels and categories. Confirmed live in the core --
+`Available core options Object` appears in the console -- but the EmulatorJS build
+ROMM ships has **zero** references to `get_core_options_json` and still calls
+`get_core_options`. Nothing to do on our side until EJS consumes it.
+
 ## Our engine list overrides ScummVM's "broken or unsupported" flag (2026-09-08)
 
 `build/engine-lists/all-engines.list` is copied over `lite_engines.list` and fed
