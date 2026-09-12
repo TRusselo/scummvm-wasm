@@ -2369,7 +2369,11 @@ add_engine grim    "Grim"                      yes "monkey4" ...
 add_engine monkey4 "Escape from Monkey Island" no  ""        ...
 ```
 
-Upstream has **154 declarations: 130 yes, 24 no.**
+Upstream has **154 declarations: 132 yes, 22 no** (`upstream/master`
+`95f876af305`, re-counted 2026-09-11; an earlier 130/24 here was a stale
+snapshot). Count by *executing* the declarations with a stub `add_engine`, never
+by parsing: a one-word engine description shifts the whitespace-split columns,
+and subengines share a file with their parent.
 
 `default=no` is ScummVM's *"broken or unsupported"* set -- not an inference from
 the help text, but how the code selects it:
@@ -2384,14 +2388,35 @@ engine_enable_all_unstable() {
 }
 ```
 
-A stock `./configure` leaves them off, so **ScummVM's releases do not ship
-them.** (`--enable-all-engines` appears in their CI and IDE project generators,
-but that is compile-coverage to catch breakage, not a shipping decision.)
+A stock `./configure` leaves them off. That is not an inference about what
+"stock" means -- upstream's own release packaging passes **no engine options at
+all**, verified in all three recipes:
+
+- `dists/debian/rules:33` -- `--host --datadir --disable-eventrecorder
+  --enable-release --enable-verbose-build --prefix`
+- `dists/redhat/scummvm.spec.in:61` -- `--with-faad-prefix --with-mpeg2-prefix
+  --prefix --enable-release`
+- `dists/snap/snap/snapcraft.yaml:126` -- `--enable-release --enable-tts
+  --enable-opl2lpt --disable-debug`
+
+`--enable-release` sets only `_release_build`, and the four bulk engine
+functions are reachable only from the option parser (`configure:1740-1749`), so
+nothing overwrites the initial value. **ScummVM's releases therefore do not ship
+`default=no` engines** -- the flag is the whole mechanism.
+
+(`--enable-all-engines` does appear in their tree: `.github/workflows/ci.yml`
+in four places, `dists/msvc/create_msvc.bat`, `dists/codeblocks/`. That is
+compile-coverage and IDE project generation, not a shipping decision.)
 
 Our list named 16 of them, so we were shipping engines upstream considers broken
 or unsupported. They have been removed to match ScummVM's release set. That a
 title booted for us does not overrule that classification -- booting once says
 nothing about completability, and this project is not the authority on it.
+
+**Do not invert this when writing docs.** The flag answers "does ScummVM ship
+it?" It never answers "is it in our core?" -- that is list membership, and only
+list membership. Saying an engine is missing from our build *because* it is
+`default=no` is backwards, and has been written into the README twice.
 
 Removing them from the list is not the same as them leaving the *binary*. Every
 core built before 2026-09-10 still contained all 16: the build machine's
