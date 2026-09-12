@@ -124,7 +124,7 @@ works in ScummVM's own standalone-Emscripten shell -- see
 [docs/GOTCHAS.md](docs/GOTCHAS.md)'s WebMIDI section for the full story).
 Since there's no push access to `libretro/scummvm` upstream, that one
 commit lives on a dedicated `emulatorjs-wasm-fixes` branch on
-[TRusselo/scummvm](https://github.com/TRusselo/scummvm), and
+[TRusselo/scummvm-scummvm](https://github.com/TRusselo/scummvm-scummvm), and
 `.gitmodules` points there instead of upstream. If you fork this whole
 project, you may want to fork `scummvm-core` too and repoint
 `.gitmodules` at your own fork, or open a PR against the

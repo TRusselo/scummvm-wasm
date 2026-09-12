@@ -5,7 +5,7 @@
 	# actual checked-out commit is whatever's recorded in this repo's
 	# tree for this path -- this URL just needs to be somewhere that
 	# commit is actually fetchable from, which upstream is not.
-	url = https://github.com/TRusselo/scummvm.git
+	url = https://github.com/TRusselo/scummvm-scummvm.git
 	branch = emulatorjs-wasm-fixes
 [submodule "retroarch"]
 	path = retroarch
