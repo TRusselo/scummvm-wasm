@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Check our engine lists and docs against what ScummVM upstream actually says.
 
-scummvm-core is the source of truth. Everything this project asserts about an
-engine -- whether ScummVM ships it, whether its games are stable, whether it is
-a top-level engine or a subengine -- is read from the submodule here and diffed
-against our lists and README. Those assertions go stale silently on every
-rebase: on 2026-09-10 four of them were wrong at once (colony's renderer,
-sixteen "inert" engines that were being built, sludge's stability, chamber's
-build flag), each written down once and trusted for weeks.
+Every upstream fact here -- whether ScummVM ships an engine, whether its games
+are stable, whether it is a top-level engine or a subengine -- is read from the
+`upstream/master` ref of the scummvm-core checkout, via git, never from the
+working tree. The working tree is whatever we last rebased onto, and a check
+that reads it only agrees with itself: on 2026-09-08 macs2 and macventure were
+dropped from our list because the pinned tree still said `no` after upstream
+had flipped them to `yes`, and this script blessed it for four days.
+
+Fetch first if you want today's answer (`git -C scummvm-core fetch upstream`);
+the header line prints the commit and date actually used. If the ref is
+missing the script falls back to the working tree and says so loudly.
 
 Run it directly, or let build/build-core.sh run it after a build.
 Exit status is 0 unless --strict is passed, so it never breaks a build by
@@ -17,6 +21,7 @@ import argparse
 import collections
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -31,6 +36,9 @@ LISTS = os.path.join(ROOT, "build", "engine-lists")
 UNVOUCHED = ("UNSTABLE", "TESTING", "UNSUPPORTED", "PIRATED")
 
 
+UPSTREAM_REF = "upstream/master"
+
+
 def read_list(name):
     path = os.path.join(LISTS, name)
     if not os.path.exists(path):
@@ -39,7 +47,79 @@ def read_list(name):
         return [ln.strip() for ln in fh if ln.strip()]
 
 
-def upstream_engines():
+class GitSource:
+    """Reads engines/ from a git ref of the scummvm-core checkout."""
+
+    def __init__(self, core, ref):
+        self.core, self.ref = core, ref
+        self._files = None
+
+    def _git(self, *args):
+        return subprocess.run(["git", "-C", self.core, *args],
+                              capture_output=True, text=True, check=True).stdout
+
+    def describe(self):
+        out = self._git("log", "-1", "--format=%h %cs", self.ref).strip()
+        return "%s @ %s" % (self.ref, out)
+
+    def files(self):
+        if self._files is None:
+            out = self._git("ls-tree", "-r", "--name-only", self.ref, "engines/")
+            self._files = out.split()
+        return self._files
+
+    def engine_dirs(self):
+        return sorted({f.split("/")[1] for f in self.files()
+                       if f.count("/") >= 2})
+
+    def read(self, path):
+        try:
+            return self._git("show", "%s:%s" % (self.ref, path))
+        except subprocess.CalledProcessError:
+            return None
+
+
+class TreeSource:
+    """Fallback: the working tree. Only used when the ref is missing."""
+
+    def __init__(self, core):
+        self.core = core
+
+    def describe(self):
+        return "WORKING TREE (no %s ref found -- flags may be stale)" % UPSTREAM_REF
+
+    def files(self):
+        out = []
+        for dirpath, _d, fns in os.walk(os.path.join(self.core, "engines")):
+            for fn in fns:
+                out.append(os.path.relpath(os.path.join(dirpath, fn), self.core))
+        return out
+
+    def engine_dirs(self):
+        base = os.path.join(self.core, "engines")
+        return sorted(e for e in os.listdir(base)
+                      if os.path.isdir(os.path.join(base, e)))
+
+    def read(self, path):
+        try:
+            with open(os.path.join(self.core, path), encoding="utf-8",
+                      errors="ignore") as fh:
+                return fh.read()
+        except OSError:
+            return None
+
+
+def open_source(core):
+    try:
+        subprocess.run(["git", "-C", core, "rev-parse", "--verify", "--quiet",
+                        UPSTREAM_REF + "^{commit}"],
+                       capture_output=True, check=True)
+        return GitSource(core, UPSTREAM_REF)
+    except (subprocess.CalledProcessError, OSError):
+        return TreeSource(core)
+
+
+def upstream_engines(src):
     """Every add_engine declaration upstream, keyed by engine name.
 
     Parses every line of every configure.engine, not just the first, and does
@@ -49,26 +129,26 @@ def upstream_engines():
     """
     out = {}
     pattern = re.compile(r'add_engine\s+(\S+)\s+"([^"]*)"\s+(\S+)')
-    for entry in sorted(os.listdir(CORE)):
-        cfg = os.path.join(CORE, entry, "configure.engine")
-        if not os.path.isfile(cfg):
+    dirs = set(src.engine_dirs())
+    for entry in sorted(dirs):
+        txt = src.read("engines/%s/configure.engine" % entry)
+        if txt is None:
             continue
-        with open(cfg, encoding="utf-8", errors="ignore") as fh:
-            for line in fh:
-                if line.lstrip().startswith("#"):
-                    continue
-                m = pattern.search(line)
-                if m:
-                    name, desc, default = m.group(1), m.group(2), m.group(3)
-                    out[name] = {
-                        "desc": desc,
-                        "default": default,
-                        "toplevel": os.path.isdir(os.path.join(CORE, name)),
-                    }
+        for line in txt.splitlines():
+            if line.lstrip().startswith("#"):
+                continue
+            m = pattern.search(line)
+            if m:
+                name, desc, default = m.group(1), m.group(2), m.group(3)
+                out[name] = {
+                    "desc": desc,
+                    "default": default,
+                    "toplevel": name in dirs,
+                }
     return out
 
 
-def detection_flags(engine):
+def detection_flags(src, engine):
     """Count detection entries that ScummVM vouches for, and ones it does not.
 
     Classified per line, not per flag token. Counting tokens is wrong: an entry
@@ -78,27 +158,25 @@ def detection_flags(engine):
     flags include neither ADGF_UNSTABLE nor ADGF_TESTING.
     """
     counts = collections.Counter()
-    base = os.path.join(CORE, engine)
-    if not os.path.isdir(base):
-        return counts
-    for dirpath, _dirs, files in os.walk(base):
-        for fn in files:
-            if not fn.endswith((".h", ".cpp")):
+    prefix = "engines/%s/" % engine
+    for path in src.files():
+        if not path.startswith(prefix):
+            continue
+        fn = path.rsplit("/", 1)[-1]
+        if not fn.endswith((".h", ".cpp")):
+            continue
+        if not re.search(r"detect|table", fn, re.I):
+            continue
+        txt = src.read(path)
+        if txt is None:
+            continue
+        for line in txt.splitlines():
+            if "ADGF_" not in line:
                 continue
-            if not re.search(r"detect|table", fn, re.I):
+            if re.search(r"#\s*define|^\s*(//|\*)", line):
                 continue
-            try:
-                txt = open(os.path.join(dirpath, fn), encoding="utf-8",
-                           errors="ignore").read()
-            except OSError:
-                continue
-            for line in txt.splitlines():
-                if "ADGF_" not in line:
-                    continue
-                if re.search(r"#\s*define|^\s*(//|\*)", line):
-                    continue
-                unvouched = any(("ADGF_" + f) in line for f in UNVOUCHED)
-                counts["unvouched" if unvouched else "stable"] += 1
+            unvouched = any(("ADGF_" + f) in line for f in UNVOUCHED)
+            counts["unvouched" if unvouched else "stable"] += 1
     return counts
 
 
@@ -133,15 +211,17 @@ def main():
                     help="exit non-zero if anything needs attention")
     args = ap.parse_args()
 
+    core = os.path.dirname(CORE)
     if not os.path.isdir(CORE) or not os.listdir(CORE):
         print("check-engines: scummvm-core/engines is empty -- submodule not "
               "checked out here. Nothing checked.", file=sys.stderr)
         return 0
 
+    src = open_source(core)
     main_list = read_list("all-engines.list")
     gl_list = read_list("gl-core.list")
     ours = set(main_list) | set(gl_list)
-    up = upstream_engines()
+    up = upstream_engines(src)
     status = readme_status()
 
     top = [e for e in main_list if up.get(e, {}).get("toplevel")]
@@ -159,13 +239,16 @@ def main():
     print("  gl-core.list     : %3d" % len(gl_list))
     print("  confirmed        : %3d of %d top-level" % (len(confirmed), len(top)))
     print("  upstream            : %3d declarations" % len(up))
+    print("  source           : %s" % src.describe())
 
     # --- engines upstream that we list nowhere ---
     unlisted = [n for n in sorted(up)
                 if n not in ours and n not in ("testbed", "playground3d")]
-    # Engines ScummVM itself does not ship are expected to be absent from our
-    # lists -- that is the policy, not a finding. Only default=yes engines we
-    # do not carry actually need a decision.
+    # Our list tracks ScummVM's release set (what a stock ./configure builds,
+    # which is the add_engine flag -- see docs/GOTCHAS.md "Our engine list
+    # overrides..."). Engines outside that set are expected to be absent from
+    # our lists; that is the policy, not a finding. Only engines ScummVM ships
+    # and we do not carry need a decision.
     needs_triage = [n for n in unlisted if up[n]["default"] == "yes"]
     expected = [n for n in unlisted if up[n]["default"] != "yes"]
 
@@ -174,14 +257,14 @@ def main():
         print("\nUPSTREAM SHIPS THESE, WE DO NOT -- need triage (%d):"
               % len(needs_triage))
         for n in needs_triage:
-            f = detection_flags(n)
+            f = detection_flags(src, n)
             stable = "no stable games" if f["stable"] == 0 and f["unvouched"] \
                 else ("stable games" if f["unvouched"] == 0 else "mixed")
             print("  %-16s %-18s %s" % (n, stable, up[n]["desc"]))
         print("  -> newly added upstream, or dropped by mistake. Add to"
               " all-engines.list or gl-core.list, or record why not.")
     if expected:
-        print("\nnot carried, as intended (build-by-default=no upstream): %d"
+        print("\nnot in ScummVM's release set, so not in our lists: %d"
               % len(expected))
 
     # --- engines we list that upstream no longer declares ---
@@ -197,16 +280,17 @@ def main():
                              if up.get(e, {}).get("default") == "no")
     if shipped_but_not:
         problems += 1
-        print("\nWE SHIP, SCUMMVM DOES NOT (build-by-default=no) (%d):"
+        print("\nIN OUR LIST, NOT IN SCUMMVM'S RELEASE SET (%d):"
               % len(shipped_but_not))
         for e in shipped_but_not:
             print("  %s" % e)
-        print("  -> ScummVM's releases omit these; ours should too.")
+        print("  -> our list tracks ScummVM's release set; remove these or"
+              " record why not (gl-core.list is the recorded exception).")
 
     # --- what is actually left to test ---
     worth, out_of_scope = [], []
     for e in unconfirmed:
-        f = detection_flags(e)
+        f = detection_flags(src, e)
         (out_of_scope if f["stable"] == 0 and f["unvouched"] else worth).append(e)
     print("\nUNCONFIRMED TOP-LEVEL ENGINES (%d):" % len(unconfirmed))
     print("  worth testing (have stable games) : %2d  %s"
