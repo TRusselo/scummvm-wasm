@@ -2183,13 +2183,24 @@ so the cost is negligible next to diagnosing an engine that silently refuses to
 detect.
 
 
-## EmulatorJS shows core-option *values*, never their labels (2026-09-11)
+## Core-option labels are lost in RetroArch's legacy export, not by EmulatorJS (2026-09-11)
 
 In EJS's Settings > Backend Core Options, `scummvm_gui_aspect_ratio` renders as
 "scummvm gui aspect ratio" with choices `0` and `1` -- not "4:3" and "16:9",
 which is what the core actually declares.
 
-Nothing is mislabelled. The labels cannot reach EJS at all.
+Nothing is mislabelled, and **this is not a limitation of EJS's settings UI**.
+Its own settings display descriptors perfectly well, because `addToMenu()` takes
+a `{value: displayText}` map:
+
+```js
+addToMenu(this.localization("Menubar Mouse Trigger"), "menubarBehavior", {
+    "downward": this.localization("Downward Movement"),
+    "anywhere": this.localization("Movement Anywhere"),
+}, "downward", inputOptions, true);
+```
+
+The widget is capable; the core-options path just has nothing to put in it.
 
 `GameManager.js` pulls options through RetroArch's legacy C export:
 
@@ -2212,9 +2223,14 @@ availableOptions[options[i]] = this.localization(options[i], ...);
 ```
 
 So the display name is **the option key with underscores replaced by spaces**,
-and each choice is **the raw value string**. Our core does publish proper labels
-via `RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2` -- `{"0", "4:3"}` -- but
-`get_core_options` predates v2 and flattens them away.
+and each choice is **the raw value string** -- EJS builds `{value: value}`
+because that is all it was given.
+
+Our core publishes proper labels via `RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2`
+(`{"0", "4:3"}`), and RetroArch stores them: `core_option` carries `val_labels`
+alongside `vals`. `get_core_options` (`runloop.c:8552`) simply never reads them,
+emitting only `option->vals->elems[j].data`. The labels exist on both sides of
+that call and are dropped in the middle.
 
 **Do not "fix" this by renaming the values.** Every value is either passed
 verbatim to ScummVM or parsed numerically:
@@ -2239,12 +2255,30 @@ actionable on our side:
 | `scummvm_gui_h_res` | `240`, `480`, `720`, `1080` | LD, SD, HD, FHD |
 | `scummvm_analog_deadzone` | `0`..`30` | percent |
 
-**The real fix already exists core-side.** `1e5d846377 "Add get_core_options_json"`
-came in with the v1.22.2 merge on 2026-09-10 and exports the same options as JSON,
-which can carry labels and categories. Confirmed live in the core --
-`Available core options Object` appears in the console -- but the EmulatorJS build
-ROMM ships has **zero** references to `get_core_options_json` and still calls
-`get_core_options`. Nothing to do on our side until EJS consumes it.
+**The fix exists and is already in our core.** `1e5d846377
+"Add get_core_options_json"` came in with the v1.22.2 merge on 2026-09-10 and
+exports the same options as JSON, carrying the label explicitly
+(`runloop.c:8680`):
+
+```c
+rjsonwriter_add_string(writer, "value");
+rjsonwriter_add_string(writer, option->vals->elems[j].data);
+
+rjsonwriter_add_string(writer, "label");
+rjsonwriter_add_string(writer,
+      (j < option->val_labels->size)
+            ? option->val_labels->elems[j].data
+            : option->vals->elems[j].data);
+```
+
+along with `desc`, `info`, `current`, `default` and `visible`.
+
+Every piece is therefore in place except the last hop: the core declares the
+labels, RetroArch exports them as JSON, and EJS's `addToMenu()` can render a
+`{value: label}` map. `GameManager.js` still calls the legacy `get_core_options`
+and has **zero** references to `get_core_options_json`. Switching that one call
+would give "4:3"/"16:9" and a proper "GUI aspect ratio" title from `desc`
+instead of the underscore-mangled key. Nothing to do on our side.
 
 ## Our engine list overrides ScummVM's "broken or unsupported" flag (2026-09-08)
 
