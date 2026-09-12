@@ -433,20 +433,30 @@ found," even with a correctly-placed hook file.
 ## Engine Status
 
 Legend: ✅ confirmed working (a real game boots and plays) · 🚫 blocked
-(packaged correctly, blocked by an engine/core bug) · ⏸️ deferred
-(sourcing/tooling blocker, not yet worked around) · 🔒 blocked on a
-separate OpenGL core build that doesn't exist yet · ❓ engine not
-confidently identified · ⬜ not yet attempted · ⚠️ worked, but no longer
-shipped (ScummVM marks it `build-by-default: no`)
+(packaged correctly, blocked by an engine/core bug) · ⏸️ deferred — no
+usable game dump obtained yet · ❓ engine not confidently identified ·
+⬜ not yet attempted · ⚠️ booted here, but deliberately left out of the
+build (see below)
+
+Two things these rows do **not** mean. A ⏸️ note about unpacking a disk
+image or running an installer describes what *we* would have to do to turn
+one particular dump into a testable game — it is never a dependency of this
+project. Building and running the core needs nothing beyond what
+[Quickstart](#quickstart) lists. And every status here is this project's own
+testing, which does not overrule ScummVM's: a ✅ means a real game booted and
+played, not that it is completable.
 
 **89 of the 105 top-level engines confirmed** (the list also carries 23
-subengines, tracked with their parents). A further 6 were confirmed but are
-no longer shipped (⚠️ below): ScummVM classifies them `build-by-default: no`
-— its "broken or unsupported" set — and its own releases omit them, so ours
-now does too. 1 blocked
+subengines, tracked with their parents). A further 6 booted here but are
+**not in `build/engine-lists/all-engines.list`**, so they are not in the core
+(⚠️ below). List membership is the only thing that decides what gets built:
+these six were shipped for a while and were dropped by a deliberate choice to
+track what ScummVM's own releases contain, not by anything in the engine's
+own config. Re-adding a line to that list would build any of them again.
+1 blocked
 (`chamber`, see [issue #3](https://github.com/TRusselo/scummvm-wasm/issues/3)),
-14 deferred on sourcing/tooling, 3 waiting on a GL-core build that hasn't
-happened yet, 3 unidentified, the rest untested.
+7 deferred for want of a usable dump, 4 waiting on a GL-core build that
+hasn't happened yet, 2 unidentified, the rest untested.
 
 All confirmed engines were re-validated on 2026-09-06 against a core rebased
 onto current upstream ScummVM — 30 titles: 20 chosen because they only work due
@@ -464,11 +474,12 @@ either way; the specific file a row describes may not. Full pairing in
 That rebase also brought 10 engines that did not exist when this project
 started: `bolt`, `eem`, `fool`, `gamos`, `harvester`, `macs2`, `pelrock`,
 `phoenixvr`, `waynesworld`, plus `colony` (deferred to the GL core — it declares
-a `3d` dependency). The nine 2D ones are now in `all-engines.list` but **are not
-in the currently deployed core**, which was built before they were added: they
-need a rebuild and none has been tested. Four (`fool`, `harvester`, `macs2`,
-`waynesworld`) are not built by default upstream, so expect some to be as
-immature as `chamber`. Full
+a `3d` dependency). Five of the nine 2D ones (`bolt`, `eem`, `gamos`,
+`pelrock`, `phoenixvr`) are now in `all-engines.list` but **are not in the
+currently deployed core**, which was built before they were added: they need a
+rebuild and none has been tested. The other four (`fool`, `harvester`, `macs2`,
+`waynesworld`) were left out of the list for the same reason as the ⚠️ engines
+above. Full
 narrative detail (what game, what source, what broke, how it was fixed)
 lives in [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) — this
 table is the at-a-glance summary, kept in sync with it.
@@ -482,15 +493,15 @@ table is the at-a-glance summary, kept in sync with it.
 | agi | ✅ | King's Quest I; also Leisure Suit Larry 1-3, Space Quest I-III |
 | glk | ✅ | Zork I confirmed. Was long mislabelled as a `fonts.dat` crash; the real cause was two FreeType autofit function-pointer signature mismatches, fixed 2026-09-04 |
 | awe | ✅ | Another World |
-| dm | ⚠️ | Dungeon Master (DOS v3.4). Needed the `dm` engine synced from upstream ScummVM for DOS support, plus a fix to the GLK Level 9 detector that was misclaiming its save file — an operator-precedence bug (`scanner(...) < 0` assigned to `offset`, collapsing it to 0/1 so the `offset < 0` guard never fired and every scanned file matched). Reported as [scummvm/scummvm#7902](https://github.com/scummvm/scummvm/pull/7902) and **fixed upstream** 2026-09-07 as `05f236adb` |
+| dm | ⚠️ | Dungeon Master (DOS v3.4). Needed the `dm` engine synced from upstream ScummVM for DOS support, plus a fix to the GLK Level 9 detector that was misclaiming its save file — an operator-precedence bug (`scanner(...) < 0` assigned to `offset`, collapsing it to 0/1 so the `offset < 0` guard never fired and every scanned file matched). Reported as [scummvm/scummvm#7902](https://github.com/scummvm/scummvm/pull/7902) and **fixed upstream** 2026-09-07 as `05f236adb`. Booted here; not in the engine list, so not in the core |
 | sword1 | ✅ | Broken Sword — full game, both CDs merged |
 | sword2 | ✅ | Broken Sword II — full game, both CDs merged |
 | sci | ✅ | King's Quest V |
 | bladerunner | ✅ | Only title on this engine, under the 2GB single-title exception (1.947GB) |
 | ultima | ✅ | Ultima VIII: Pagan via `ultima8` |
-| twine | ⏸️ | Only accessible copy is a French CD image, needs disk-image tooling |
+| twine | ⏸️ | No English dump found; the only accessible copy is a French CD image we'd have to unpack first |
 | mohawk | ✅ | Via Myst (original candidate, Zoombinis, is `ADGF_UNSUPPORTED`) |
-| mediastation | ⚠️ | Via Beatrix Potter (size-limit swap for Muppet Treasure Island); not kept in the live library by user preference |
+| mediastation | ⚠️ | Via Beatrix Potter (size-limit swap for Muppet Treasure Island); ROM not kept in the live library by user preference. Booted here; not in the engine list, so not in the core |
 | nancy | ✅ | Nancy Drew: Secrets Can Kill |
 | groovie | ✅ | Via The 11th Hour Interactive Demo (7th Guest dumps failed MD5 despite matching size) |
 | sky | ✅ | Beneath a Steel Sky, official freeware |
@@ -498,7 +509,7 @@ table is the at-a-glance summary, kept in sync with it.
 | lastexpress | ✅ | Via official Interactive Demo (full retail is 3 CDs, over size limit) |
 | ags | ✅ | Via 5 Days a Stranger (Chzo Mythos), freeware |
 | toon | ✅ | Toonstruck CD1 only (2-CD Sold Out budget release; full retail exceeds size limit) |
-| startrek | ⏸️ | Only raw floppy disk images found, needs disk-image tooling |
+| startrek | ⏸️ | Only raw floppy images found; they'd have to be unpacked into an installed layout before testing |
 
 </details>
 
@@ -516,8 +527,8 @@ table is the at-a-glance summary, kept in sync with it.
 | gob | ✅ | Gobliiins, with music |
 | cine | ✅ | Future Wars |
 | cruise | ✅ | Cruise for a Corpse |
-| cryo | ⚠️ | Lost Eden (English DOS). Booted, but no longer shipped: `build-by-default: no` upstream |
-| cryomni3d | ⏸️ | Versailles 1685 needs an InstallShield installer run; no unshield/innoextract/DOSBox available |
+| cryo | ⚠️ | Lost Eden (English DOS). Booted here; not in the engine list, so not in the core |
+| cryomni3d | ⏸️ | The Versailles 1685 dump is an unrun InstallShield installer; extracting it is the blocker, not the engine |
 | darkseed | ✅ | Dark Seed |
 | dgds | ✅ | Via Heart of China |
 | director | ✅ | The Journeyman Project — plays normally past the `ADGF_UNSTABLE` "Start anyway?" warning dialog |
@@ -527,10 +538,10 @@ table is the at-a-glance summary, kept in sync with it.
 | griffon | ✅ | The Griffon Legend plays. Saving currently freezes the tab — tracked separately |
 | hopkins | ✅ | Hopkins FBI (freeware Linux port; audio is French despite `EN_ANY` tag) |
 | hugo | ✅ | Hugo's House of Horrors |
-| icb | ⏸️ | Tried El Dorado (also on this engine); dump doesn't match any known hash signature, not a packaging issue |
-| immortal | ⏸️ | Apple IIgs-only engine, no clean disk dump found |
+| icb | ⏸️ | Tried El Dorado (also on this engine); the dump matches no known hash signature, so we need a different dump |
+| immortal | ⏸️ | Apple IIgs-only; no clean disk dump found |
 | lab | ✅ | Labyrinth of Time |
-| macventure | ⏸️ | Mac/Apple IIgs-only engine, needs HFS disk-image tooling |
+| macventure | ⏸️ | Mac/Apple IIgs-only; the dumps are HFS disk images we'd have to unpack first |
 | made | ✅ | Via Rodney's Funscreen |
 | mads | ✅ | Rex Nebular and the Cosmic Gender Bender |
 | mtropolis | ✅ | Via Muppet Treasure Island (Obsidian, original candidate, is multi-CD, no smaller cut) |
@@ -541,7 +552,7 @@ table is the at-a-glance summary, kept in sync with it.
 | plumbers | ✅ | Plumbers Don't Wear Ties |
 | private | ✅ | Private Eye (EN_GRB variant) |
 | saga | ✅ | I Have No Mouth, and I Must Scream |
-| sludge | ✅ | The Interview. ROM later deleted (unsigned `.exe`, source not trusted); the engine itself is confirmed and ScummVM ships it (`build-by-default: yes`) |
+| sludge | ✅ | The Interview. ROM later deleted (unsigned `.exe`, source not trusted); the engine itself is confirmed, and it is in the engine list |
 | titanic | ✅ | Starship Titanic — the collection's copy fits (0.93GiB zip). Its bundled `titanic.dat` was version 3 and shadowed our embedded version 5; stripping it from the zip fixed the "out of date" error |
 | tony | ✅ | Tony Tough and the Night of the Roasted Moths |
 | touche | ✅ | Touché: The Adventures of the Fifth Musketeer |
@@ -559,9 +570,9 @@ table is the at-a-glance summary, kept in sync with it.
 | Engine | Status | Notes |
 |---|---|---|
 | access | ✅ | Amazon: Guardians of Eden |
-| agds | ⏸️ | Both titles (Black Mirror, NiBiRu) too large for size budget |
+| agds | ⏸️ | Both titles (Black Mirror, NiBiRu) exceed this project's ROM size budget |
 | alg | ✅ | Crime Patrol (was missing `CP.SCN` + resource files skipped during initial packaging, fixed) |
-| avalanche | ⚠️ | Lord Avalot d'Argent, freeware. Booted, but no longer shipped: `build-by-default: no` upstream |
+| avalanche | ⚠️ | Lord Avalot d'Argent, freeware. Booted here; not in the engine list, so not in the core |
 | bagel | ✅ | Hodj 'n' Podj (used instead of The Space Bar, too large) |
 | bbvs | ✅ | Beavis and Butt-Head in Virtual Stupidity. Needed Indeo 3 enabled plus a double-free fix in the AVI loader |
 | cge | ✅ | Soltys, bundled ScummVM freeware |
@@ -577,10 +588,10 @@ table is the at-a-glance summary, kept in sync with it.
 | hypno | ✅ | Wetlands (US) |
 | illusions | ✅ | Duckman: The Graphic Adventures of a Private Dick |
 | kingdom | ✅ | Kingdom: The Far Reaches |
-| lilliput | ⚠️ | The Adventures of Robin Hood. Booted, but no longer shipped: `build-by-default: no` upstream |
+| lilliput | ⚠️ | The Adventures of Robin Hood. Booted here; not in the engine list, so not in the core |
 | m4 | ✅ | Orion Burger (was missing all 9 SECTION*.HAG per-chapter archives, fixed) |
 | mortevielle | ✅ | Mortville Manor, French data presents in English via `mort.dat` overlay |
-| mutationofjb | ⚠️ | Mutation of J.B. (German-only, no English release exists). Booted, but no longer shipped: `build-by-default: no` upstream |
+| mutationofjb | ⚠️ | Mutation of J.B. (German-only, no English release exists). Booted here; not in the engine list, so not in the core |
 | ngi | ✅ | Full Pipe. Needed Indeo 5 enabled |
 | petka | ✅ | Red Comrades 2, Russian-only, testing purposes |
 | pink | ✅ | Pink Panther: Passport to Peril — original dump was corrupted beyond the first 5000 bytes, fixed by resourcing from MyAbandonware |
@@ -611,25 +622,25 @@ table is the at-a-glance summary, kept in sync with it.
 <details>
 <summary><strong>New — added by the 2026-09-06 upstream rebase</strong> (9 engines)</summary>
 
-Present in `all-engines.list` but **not in the currently deployed core**, which
-was built before they existed. They need a rebuild before any can be tested.
-"default" is upstream's own `add_engine` build-by-default flag — the four marked
-`no` are ones upstream does not ship by default, the same status `chamber` had
-until this rebase.
+None of these are in the **currently deployed core**, which was built before
+they existed. Five were added to `all-engines.list` and need only a rebuild;
+the other four were not added, so a rebuild alone will not include them.
 
-| Engine | Upstream description | Upstream default | Status |
+| Engine | Upstream description | In engine list | Status |
 |---|---|---|---|
-| bolt | Bolt | yes | ⬜ needs rebuild |
-| eem | Eagle Eye Mysteries | yes | ⬜ needs rebuild |
-| gamos | Gamos | yes | ⬜ needs rebuild |
-| pelrock | Alfred Pelrock | yes | ⬜ needs rebuild |
-| phoenixvr | Phoenix VR | yes | ⬜ needs rebuild |
-| fool | The Fool's Errand | no | ⬜ needs rebuild |
-| harvester | Harvester | no | ⬜ needs rebuild |
-| macs2 | Macs2 | no | ⬜ needs rebuild |
-| waynesworld | Wayne's World | no | ⬜ needs rebuild |
-| tinsel | Discworld 1, Discworld 2 | yes | ✅ **confirmed** — all three dumps play; two needed new detection entries |
-| freescape | Driller, Total Eclipse | yes | ✅ **Confirmed** — Driller and Total Eclipse both play; first proof TinyGL software 3D renders in this core. Castle Master's dump matches no signature |
+| bolt | Bolt | yes | ⬜ needs rebuild, then testing |
+| eem | Eagle Eye Mysteries | yes | ⬜ needs rebuild, then testing |
+| gamos | Gamos | yes | ⬜ needs rebuild, then testing |
+| pelrock | Alfred Pelrock | yes | ⬜ needs rebuild, then testing |
+| phoenixvr | Phoenix VR | yes | ⬜ needs rebuild, then testing |
+| fool | The Fool's Errand | no | ⬜ not in the core; add the line to test it |
+| harvester | Harvester | no | ⬜ not in the core; add the line to test it |
+| macs2 | Macs2 | no | ⬜ not in the core; add the line to test it |
+| waynesworld | Wayne's World | no | ⬜ not in the core; add the line to test it |
+
+`tinsel` and `freescape` also came out of this rebase window, but they are
+pre-existing engines rather than new ones, so they are listed under "Moved out
+of the GL list" below.
 
 `tinsel` was moved out of the GL-core list on 2026-09-06: it declares no `3d`
 dependency, and its only TinyGL use is guarded by `if (getGameID() == GID_NOIR)`
@@ -640,11 +651,11 @@ rather than an engine one — see `docs/ROM-QUEUE.md`.
 </details>
 
 <details>
-<summary><strong>Deferred — genuinely needs a GPU</strong> (3 engines)</summary>
+<summary><strong>Deferred — genuinely needs a GPU</strong> (4 engines)</summary>
 
-These declare `opengl_game_classic`/`opengl_game_shaders` and cannot use
-TinyGL's software rasteriser, so they need a dedicated OpenGL-enabled core that
-hasn't been built (`build/engine-lists/gl-core.list`).
+These cannot use TinyGL's software rasteriser, so they need a dedicated
+OpenGL-enabled core that hasn't been built. They are the exact contents of
+`build/engine-lists/gl-core.list`.
 
 | Engine | Most Popular Game | Requires |
 |---|---|---|
@@ -652,12 +663,21 @@ hasn't been built (`build/engine-lists/gl-core.list`).
 | hpl1 | Penumbra: Overture | `opengl_game_shaders` |
 | watchmaker | The Watchmaker | `opengl_game_classic` |
 | colony | The Colony | real OpenGL — its `configure.engine` declares `3d` in deps but **no** `tinygl` component, unlike every other engine folded into this core. Fails at runtime with `ERROR: Colony: no renderer available (built without OpenGL support?)` |
-| wme3d | J.U.L.I.A. and other 3D Wintermute games | real OpenGL — but decided **at runtime, per game**, not in `configure.engine` (`base_game.cpp:625-637`). Desktop ScummVM takes the `USE_OPENGL_GAME` branch, which is why these rate well on ScummVM's compatibility list; our core has no GL and falls to the `USE_TINYGL` branch, where `makeTinyGL3DRenderer()` is commented out — added 2025-09-29 and disabled 2025-10-03 by its own author as unfinished. The 2D fallback is gated on `!_playing3DGame`, so a 3D title gets no renderer at all. **2D Wintermute games are unaffected and play** |
+
+**`wme3d` is a separate case and is not in that list — it builds into this
+core.** Whether a Wintermute game needs real OpenGL is decided **at runtime, per
+game** (`base_game.cpp:625-637`), not in `configure.engine`. Desktop ScummVM
+takes the `USE_OPENGL_GAME` branch, which is why these rate well on ScummVM's
+compatibility list; our core has no GL and falls to the `USE_TINYGL` branch,
+where `makeTinyGL3DRenderer()` is commented out — added 2025-09-29 and disabled
+2025-10-03 by its own author as unfinished. The 2D fallback is gated on
+`!_playing3DGame`, so a 3D Wintermute title gets no renderer at all.
+**2D Wintermute games are unaffected and play.**
 
 </details>
 
 <details>
-<summary><strong>Moved out of the GL list — build with TinyGL</strong> (8 engines)</summary>
+<summary><strong>Moved out of the GL list — build with TinyGL</strong> (9 engines)</summary>
 
 Software-rasterised via TinyGL, no GPU needed. All compile into this core.
 
@@ -667,7 +687,7 @@ Software-rasterised via TinyGL, no GPU needed. All compile into this core.
 | wintermute | Dirty Split, White Chamber, Pigeons, Rosemary | ✅ confirmed (2D games only — see below) |
 | tinsel | Discworld 1/2 | ✅ confirmed — all three dumps play; two needed new detection entries (see the rebase table above) |
 | grim | Grim Fandango | ✅ **confirmed** — official demo plays with controller input; full 1998-era 3D software-rasterised. Retail dump still needed (`GRIM.TAB` 362164 matches no signature) |
-| monkey4 | Escape from Monkey Island | ⬜ built; `ADGF_UNSTABLE` |
+| monkey4 | Escape from Monkey Island | ⚠️ TinyGL would render it, but this `grim` subengine is not in the engine list, so it is not in the core. Also `ADGF_UNSTABLE` |
 | myst3 | Myst III: Exile | ⬜ built; dump over the 2 GiB limit |
 | stark | The Longest Journey | ⬜ built; dump over the 2 GiB limit |
 | tetraedge | Syberia | ⬜ built, untested |
