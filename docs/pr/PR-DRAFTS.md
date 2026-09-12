@@ -222,6 +222,81 @@ Scan from "/" instead, which always contains the full tree. Guarded to
 EMSCRIPTEN -- on a native build "/" is the real OS root.
 ```
 
+## PR 13 — `LIBRETRO: Log the unknown-game report when autodetection finds nothing` — DRAFTED, NOT OPENED
+`9ebc6940b1c` · +2 · `backends/platform/libretro/src/libretro-os-utils.cpp` · issue #6 item 1
+
+Platform-agnostic. Uses the backend's existing `logMessage()` and ScummVM's own
+`generateUnknownGameReport()`, the same call `--detect` makes in
+`base/commandLine.cpp`. Reaches the browser console only with EmulatorJS debug
+mode on (RetroArch passes `-v` only then), which is the prerequisite the issue
+records.
+
+```
+testGame() runs detection before --auto-detect ever does, so when nothing
+matches, ScummVM's unknown-game report is never produced: the user gets an
+empty launcher and no clue which files did not match. Log the report the
+Add Game dialog would have shown.
+```
+
+## PR 14 — `LIBRETRO: Implement kFeatureOpenUrl on Emscripten` — DRAFTED, NOT OPENED
+`cdeaa23430d` · +26 · `libretro-os.h`, `libretro-os-utils.cpp` · issue #6 item 2 · EMSCRIPTEN-guarded
+
+Expect the same question `spleen1981` asked on #112: why an EMSCRIPTEN branch in
+the shared core. Answer is the same: native libretro has no URL API; the guard
+keeps every other target at `hasFeature() == false`, which is today's behaviour.
+
+```
+MessageDialogWithURL shows its button regardless of kFeatureOpenUrl and gates
+only the click, so on the libretro core the button appeared and did nothing.
+Declare the feature on Emscripten and open the link from the main thread,
+since the engine runs on a worker where window.open() does not exist.
+```
+
+---
+
+# EmulatorJS/RetroArch
+
+## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
+`5323840b21` on local branch `ejs-build-scummvm-arrays` (worktree in the session
+scratchpad), based on `origin/v1.22.2` · +3/−3 · `emulatorjs/build-emulatorjs.sh`
+
+Their rules, read 2026-09-12 before drafting (`.github/PULL_REQUEST_TEMPLATE.md`,
+`CONTRIBUTING.md`; no AI policy anywhere in EmulatorJS or its RetroArch fork,
+nor an org-level `.github`): rebase first, one topic per PR, squash to a single
+commit, base on `v1.22.2` (their default; #45 and #38 merged there), fill the
+template's Description / Related Issues / Related Pull Requests / Reviewers.
+
+**Hold until `EmulatorJS/scummvm` exists** — entries for a core they do not
+build yet are noise. Open with:
+
+```
+git -C retroarch push fork ejs-build-scummvm-arrays
+gh pr create -R EmulatorJS/RetroArch --base v1.22.2 --head TRusselo:ejs-build-scummvm-arrays
+```
+
+Body (their template, filled):
+
+```
+## Description
+
+Adds `scummvm` to `largeStack`, `largeHeap` and `needsAsync` in
+`emulatorjs/build-emulatorjs.sh`.
+
+The ScummVM libretro core embeds its engine-data files, so its static data
+exceeds the 128 MB default at link time (`wasm-ld: error: initial memory too
+small, 186199984 bytes needed`), and it runs on real pthreads with Asyncify
+like `dosbox_pure`.
+
+## Related Issues
+
+EmulatorJS/EmulatorJS#1263
+
+## Related Pull Requests
+
+A `cores.json` entry in EmulatorJS/build, to follow once the core repository
+is forked.
+```
+
 ---
 
 # Internal — not for the PRs
