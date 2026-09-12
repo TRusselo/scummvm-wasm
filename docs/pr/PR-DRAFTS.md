@@ -4,17 +4,25 @@ Submitted 2026-09-12. Six are open; PR 2 was withdrawn. Bodies below are the
 PR text itself — nothing else. Trailers are stripped from every submitted
 commit.
 
-| PR | where | status |
-|---|---|---|
-| 1 | scummvm/scummvm#7925 | open |
-| 2 | scummvm/scummvm#7926 | **withdrawn** |
-| 3 | scummvm/scummvm#7928 | open |
-| 5 | scummvm/scummvm#7927 | open |
-| 6 | — | held until 9 is up |
-| 7 | libretro/scummvm#110 | open |
-| 8 | libretro/scummvm#111 | open |
-| 9 | — | needs 5 and 6 merged first |
-| 11 | libretro/scummvm#112 | open |
+| PR | where | files touched | reach | status |
+|---|---|---|---|---|
+| 1 | scummvm/scummvm#7925 | `video/avi_decoder.cpp` | all platforms, any AVI | open |
+| 2 | scummvm/scummvm#7926 | `engines/tinsel/detection_tables.h` | detection only | **withdrawn** |
+| 3 | scummvm/scummvm#7928 | `engines/chamber/cga.cpp` | all platforms, chamber only | open |
+| 5 | scummvm/scummvm#7927 | `engines/scumm/scumm.h` | all platforms, SCUMM only | open |
+| 6 | — | `engines/engine.h`, `engines/scumm/scumm.h` | new base-class virtual | held until 9 is up |
+| 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | open |
+| 8 | libretro/scummvm#111 | `backends/module.mk`, `base/plugins.cpp` | EMSCRIPTEN builds only | open |
+| 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | needs 5 and 6 merged first |
+| 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | open |
+
+**Read the "files touched" column before submitting anything.** A line count
+says nothing about blast radius; the path does. `engines/<name>/` is engine code
+on every platform, `backends/platform/libretro/` is this core only, and an
+`EMSCRIPTEN` guard narrows it further. Every correction made to this batch after
+submission -- PR 8's unstated scope, PR 2's overclaim, PR 3's missing
+before/after table -- was a reviewer's first question about reach, answerable
+from this column.
 
 Branches: engine fixes are cut from `scummvm/scummvm` master and pushed to
 `TRusselo/scummvm-scummvm`; libretro fixes are cut from `libretro/scummvm`
