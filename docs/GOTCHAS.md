@@ -2183,6 +2183,72 @@ so the cost is negligible next to diagnosing an engine that silently refuses to
 detect.
 
 
+## Before merging an upstream, grep the incoming range for breaking changes (2026-09-11)
+
+Merging 550 commits of `rommapp/romm` took the container down. It refused to
+start:
+
+```
+CRITICAL: Invalid config.yml: filesystem.roms_folder is no longer supported.
+```
+
+The cause was one commit in the incoming range, and it announced itself:
+
+```
+a7ecfd96a  2026-09-08  feat!: make filesystem.structure the single library layout
+```
+
+The `!` is Conventional Commits for a breaking change. ROMM uses that
+convention, so the commit was findable before the merge, not only after the
+outage.
+
+**Run this before any upstream merge, and read what it returns:**
+
+```bash
+git log --oneline HEAD..upstream/master --grep='!:' --grep='BREAKING' -E -i
+```
+
+Then, for each hit, decide whether it touches configuration or data this
+deployment already has on disk. Code conflicts announce themselves at merge
+time; a config schema change does not -- it merges perfectly cleanly and fails
+at runtime, because the file it invalidates lives outside the repo.
+
+`config.yml` is bind-mounted from `/mnt/user/appdata/romm/config/` on the
+Unraid host, so it survives image rebuilds and container recreation. That is
+also why rolling the image back fixes this class of break instantly, and why
+the fix has to be applied to the host file rather than to anything in the
+image.
+
+**Do not blindly apply the migration the error message suggests.** It prints a
+mechanical translation of the old value:
+
+    roms_folder: roms   ->   default: "roms/{platform}/{game}"
+
+Our library has no `roms/` directory -- platform folders sit at the library
+root, and firmware lives per-platform in `{platform}/bios`. The old
+`roms_folder: roms` never matched the disk; old ROMM auto-detected the layout
+("Structure B") and ignored the value. Applying the suggested template would
+have pointed ROMM at paths that do not exist. The templates that match are:
+
+```yaml
+filesystem:
+  structure:
+    default: "{platform}/{game}"
+    firmware: "{platform}/bios"
+```
+
+**The new config is backward compatible**, checked in the pre-merge source
+rather than assumed: old ROMM reads the retired keys with
+`pydash.get(..., "filesystem.roms_folder", "roms")`, so removing them yields
+the same defaults it had, and `structure` is simply an unknown key. Verified
+live -- `romm-scummvm:local`, the pre-merge image, starts cleanly against the
+new file. Image and config can therefore move independently.
+
+Note also that the scummvm-core rebase and the ROMM merge are different trees
+on different schedules. A recent rebase of one says nothing about the other:
+scummvm-core was rebased 2026-09-06, ROMM had not been merged since
+2026-08-30, and this change landed 2026-09-08 in between.
+
 ## Core-option labels are lost in RetroArch's legacy export, not by EmulatorJS (2026-09-11)
 
 In EJS's Settings > Backend Core Options, `scummvm_gui_aspect_ratio` renders as
