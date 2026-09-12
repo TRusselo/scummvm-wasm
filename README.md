@@ -1,8 +1,8 @@
 # scummvm-wasm
 
-TEST STATUS : 89 of 105 engines confirmed to load into a game.
+TEST STATUS : 89 of 107 engines confirmed to load into a game.
 
-A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 105
+A WebAssembly build of [ScummVM](https://www.scummvm.org/) — all 107
 non-OpenGL engines it supports, not just SCUMM — packaged as an
 [EmulatorJS](https://emulatorjs.org/) libretro core, so ScummVM-supported
 adventure games can be played directly in a browser.
@@ -21,11 +21,11 @@ gamepad input all confirmed working):
 - Day of the Tentacle (including the CD/talkie version)
 
 Since then the build itself was widened to include every other ScummVM
-engine that doesn't require OpenGL (128 list entries — 105 top-level
+engine that doesn't require OpenGL (130 list entries — 107 top-level
 engines plus 23 subengines that must be named explicitly; see
 `build/engine-lists/all-engines.list`), and a systematic sweep is underway
 to source a real game and confirm each one actually boots and plays, not
-just compiles. **89 of the 105 top-level engines confirmed working as of
+just compiles. **89 of the 107 top-level engines confirmed working as of
 this writing** — see
 the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
@@ -446,7 +446,7 @@ project. Building and running the core needs nothing beyond what
 testing, which does not overrule ScummVM's: a ✅ means a real game booted and
 played, not that it is completable.
 
-**89 of the 105 top-level engines confirmed** (the list also carries 23
+**89 of the 107 top-level engines confirmed** (the list also carries 23
 subengines, tracked with their parents). A further 6 booted here but are
 **not in `build/engine-lists/all-engines.list`**, so they are not in the core
 (⚠️ below). List membership is the only thing that decides what gets built:
@@ -474,10 +474,9 @@ either way; the specific file a row describes may not. Full pairing in
 That rebase also brought 10 engines that did not exist when this project
 started: `bolt`, `eem`, `fool`, `gamos`, `harvester`, `macs2`, `pelrock`,
 `phoenixvr`, `waynesworld`, plus `colony` (deferred to the GL core — it declares
-a `3d` dependency). Five of the nine 2D ones (`bolt`, `eem`, `gamos`,
-`pelrock`, `phoenixvr`) are now in `all-engines.list` but **are not in the
-currently deployed core**, which was built before they were added: they need a
-rebuild and none has been tested. The other four (`fool`, `harvester`, `macs2`,
+a `3d` dependency). Six of the nine 2D ones (`bolt`, `eem`, `gamos`,
+`macs2`, `pelrock`, `phoenixvr`) are in `all-engines.list`; none has been
+tested yet. The other three (`fool`, `harvester`,
 `waynesworld`) were left out of the list for the same reason as the ⚠️ engines
 above. Full
 narrative detail (what game, what source, what broke, how it was fixed)
@@ -622,9 +621,9 @@ table is the at-a-glance summary, kept in sync with it.
 <details>
 <summary><strong>New — added by the 2026-09-06 upstream rebase</strong> (9 engines)</summary>
 
-None of these are in the **currently deployed core**, which was built before
-they existed. Five were added to `all-engines.list` and need only a rebuild;
-the other four were not added, so a rebuild alone will not include them.
+Six are in `all-engines.list`. `macs2` joined it on 2026-09-12 and is not in
+the staged core until the next rebuild; the other five are built. `fool`,
+`harvester` and `waynesworld` are not in the list.
 
 | Engine | Upstream description | In engine list | Status |
 |---|---|---|---|
@@ -635,7 +634,7 @@ the other four were not added, so a rebuild alone will not include them.
 | phoenixvr | Phoenix VR | yes | ⬜ needs rebuild, then testing |
 | fool | The Fool's Errand | no | ⬜ not in the core; add the line to test it |
 | harvester | Harvester | no | ⬜ not in the core; add the line to test it |
-| macs2 | Macs2 | no | ⬜ not in the core; add the line to test it |
+| macs2 | Macs2 | yes | ⬜ untested |
 | waynesworld | Wayne's World | no | ⬜ not in the core; add the line to test it |
 
 `tinsel` and `freescape` also came out of this rebase window, but they are
