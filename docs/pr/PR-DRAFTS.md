@@ -100,7 +100,7 @@ of the object list. Other music drivers are unaffected.
 ```
 
 ## PR 9 — `LIBRETRO: implement save-state support`
-split from `955aef0429e` · ~+214
+`955aef0429e` + `afdcbd2fffe` · ~+240
 
 ```
 ScummVM has no API to serialize a running engine into a memory buffer;
@@ -112,6 +112,14 @@ that slot's bytes to and from the frontend's buffer.
 The work runs on the emu thread: retro_serialize() sets a pending flag and
 drives the thread forward, and pollEvent() performs it, since g_engine belongs
 to that thread.
+
+Both canSaveGameStateCurrently() and canLoadGameStateCurrently() are honoured
+before either branch does any work, so a refused load leaves no half-written
+slot file. Engines refuse outside the states where saving is meaningful, and
+the frontend offers its save-state buttons whenever a core is running: asked to
+save before it has loaded anything, an engine walks into its own uninitialised
+state. A refusal is reported through retro_osd_notification() and returns false
+from the serialize rather than failing silently.
 
 Requires <PR 5> and <PR 6>.
 ```
@@ -146,9 +154,22 @@ creates `/data` and mounts IDBFS on `/data/saves`; emscripten and RetroArch add
 `/home`, `/tmp`, `/dev`, `/proc`, `/shader`; we embed `/engine-data`. The
 rewrite above argues "the root contains the whole tree", which is true.
 
-**PR 6 is the weakest.** A new public API wants a visible consumer, and ours is
-in another repo. Consider holding it until PR 9 is up so they can reference
-each other.
+**PR 6 is the weakest,** though less so than it was. A new public API wants a
+visible consumer, and ours is in another repo. It now at least sits beside two
+guards a caller must already consult -- canSaveGameStateCurrently() and
+canLoadGameStateCurrently() -- which makes "there is no way to ask whether the
+request actually finished" a more natural gap to point at. Still hold it until
+PR 9 is up so the two can reference each other.
+
+**PR 9 was blocked and is not any more.** As first drafted it drove
+saveGameState() without consulting the engine's own guards, which is the crash
+in issue #1: griffon's canSaveGameStateCurrently() is false outside
+kGameModePlay, and saving anyway at its title screen reaches drawView() with no
+map loaded. `afdcbd2fffe` adds the guards, so the PR is now two commits. Built
+and deployed; Day of the Tentacle still saves normally, confirming the guard
+does not refuse legitimate saves. The refusal path itself has not been observed
+yet -- the griffon retest went through ScummVM's own in-game Save menu, which
+never reaches retro_serialize().
 
 **Hold** `f09251ff1d1` (assumes the engine-data embed, still an open question
 with EmulatorJS). **Never submit** `84f2bd11f5a` (fork-only CI change).
