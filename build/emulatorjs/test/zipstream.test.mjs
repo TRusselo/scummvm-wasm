@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readCentralDirectory } from "../src/zipstream.js";
+import { readCentralDirectory, readZipEntries } from "../src/zipstream.js";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const blobOf = (name) => new Blob([readFileSync(join(DIR, name))]);
@@ -101,6 +101,48 @@ await check("rejects a corrupt entry count by name", async () => {
     await readCentralDirectory(blob);
   } catch (err) {
     if (!/zip:/.test(err.message)) throw new Error(`wrong message: ${err.message}`);
+    return;
+  }
+  throw new Error("expected a throw");
+});
+
+const collect = async (name) => {
+  const out = [];
+  const n = await readZipEntries(blobOf(name), (f, b) => out.push([f, Buffer.from(b).toString("utf8")]));
+  return { out, n };
+};
+
+await check("extracts deflated content", async () => {
+  const { out, n } = await collect("deflate.zip");
+  eq(n, 2, "count");
+  eq(out[0], ["hello.txt", "hello world\n"], "first entry");
+  eq(out[1][1].length, 200000, "second entry length");
+});
+
+await check("extracts stored content", async () => {
+  const { out } = await collect("stored.zip");
+  eq(out[0], ["hello.txt", "hello world\n"], "entry");
+});
+
+await check("emits directory entries with empty bytes", async () => {
+  const { out } = await collect("dirs.zip");
+  eq(out.map(x => x[0]), ["sub/", "sub/nested/", "sub/nested/hello.txt"], "names");
+  eq(out[0][1], "", "directory payload is empty");
+  eq(out[2][1], "hello world\n", "file payload");
+});
+
+await check("extracts a zip64 entry", async () => {
+  const { out } = await collect("zip64.zip");
+  eq(out[0], ["hello.txt", "hello world\n"], "entry");
+});
+
+await check("rejects a CRC mismatch by entry name", async () => {
+  try {
+    await collect("badcrc.zip");
+  } catch (err) {
+    if (!/hello\.txt/.test(err.message) || !/crc/i.test(err.message)) {
+      throw new Error(`wrong message: ${err.message}`);
+    }
     return;
   }
   throw new Error("expected a throw");

@@ -120,3 +120,81 @@ export async function readCentralDirectory(blob) {
 
   return entries;
 }
+
+const SIG_LOCAL = 0x04034b50;
+const METHOD_STORE = 0;
+const METHOD_DEFLATE = 8;
+const FLAG_ENCRYPTED = 0x0001;
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+async function inflateRaw(blob, name) {
+  try {
+    const stream = blob.stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch (e) {
+    throw new Error(`zip: failed to decompress "${name}": ${e.message}`);
+  }
+}
+
+export function streamingSupported() {
+  return typeof DecompressionStream === "function" && typeof Blob !== "undefined";
+}
+
+export async function readZipEntries(blob, onEntry) {
+  const entries = await readCentralDirectory(blob);
+
+  for (const e of entries) {
+    if (e.flags & FLAG_ENCRYPTED) {
+      throw new Error(`zip: "${e.name}" is encrypted, which is not supported`);
+    }
+
+    if (e.name.endsWith("/")) {
+      onEntry(e.name, new Uint8Array(0));
+      continue;
+    }
+
+    if (e.method !== METHOD_STORE && e.method !== METHOD_DEFLATE) {
+      throw new Error(`zip: "${e.name}" uses compression method ${e.method}; only stored and deflate are supported`);
+    }
+
+    // The central directory's name and extra lengths need not match the local
+    // header's, so the data offset must come from the local header itself.
+    const head = new Uint8Array(await blob.slice(e.localOffset, e.localOffset + 30).arrayBuffer());
+    const hdv = new DataView(head.buffer);
+    if (hdv.getUint32(0, true) !== SIG_LOCAL) {
+      throw new Error(`zip: "${e.name}" has a bad local header signature`);
+    }
+    const dataStart = e.localOffset + 30 + hdv.getUint16(26, true) + hdv.getUint16(28, true);
+    const slice = blob.slice(dataStart, dataStart + e.compressedSize);
+
+    const bytes = e.method === METHOD_STORE
+      ? new Uint8Array(await slice.arrayBuffer())
+      : await inflateRaw(slice, e.name);
+
+    if (bytes.length !== e.uncompressedSize) {
+      throw new Error(`zip: "${e.name}" unpacked to ${bytes.length} bytes, expected ${e.uncompressedSize}`);
+    }
+    if (crc32(bytes) !== e.crc) {
+      throw new Error(`zip: "${e.name}" failed its CRC check (archive is corrupt)`);
+    }
+
+    onEntry(e.name, bytes);
+  }
+
+  return entries.length;
+}
