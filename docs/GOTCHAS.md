@@ -1821,9 +1821,28 @@ registers a real `retro_keyboard_callback`
 events straight to it -- but only when gated on, via
 `ejs_set_keyboard_enabled()`. EmulatorJS exposes this as a real,
 already-built settings menu item: **Settings (gear icon) → Input Options
-→ "Direct Keyboard Input" → Enabled**. No rebuild, no redeploy -- it's a
-per-session player-facing toggle, off by default, that a player can flip
-on before a parser-driven game and off again afterward.
+→ "Direct Keyboard Input" → Enabled**. It is a per-session player-facing
+toggle that can be flipped before a parser-driven game and off again after.
+
+**Defaulted ON for this core since 2026-09-12**, via `options.useKeyboard` in
+the `core.json` we now ship inside the `.data` (see the section above). Nothing
+else can set it: it is an EmulatorJS menu setting, not a libretro variable, so
+no core option and no mapper entry reaches it.
+
+**Why defaulting it on is safe, despite appearances.** When the toggle is on,
+EmulatorJS's own `keyChange()` returns early and never calls
+`e.preventDefault()`, which looks like it would let browser defaults through --
+F5 reloading the page being the alarming one, since F5 is also ScummVM's menu
+key. It does not, because responsibility moves rather than disappearing:
+`retroarch/input/drivers/emulatorjs_input.c`'s `rwebinput_keyboard_cb()` bails
+out with `EM_FALSE` while `keyboard_enabled` is false, and once enabled returns
+`EM_TRUE` on every path -- and an Emscripten key callback returning `EM_TRUE`
+consumes the event, which is `preventDefault()`. So with the toggle on the core
+swallows the key; with it off EmulatorJS handles it. Either way the browser
+does not act on it.
+
+The trade is that EmulatorJS's keyboard-to-virtual-gamepad bindings stop
+working while it is on, which is the intent: raw keys go to ScummVM instead.
 
 **Why this isn't set as a default for the whole core:** the setting is
 inherently per-*core*, not per-game -- ScummVM is one shared EJS core
