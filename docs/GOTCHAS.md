@@ -2493,6 +2493,75 @@ caller labels it). `assemble.sh` now greps `Decompress Game Data` in both the
 source and the minified bundle -- absent from both unpatched, and a string
 literal, so terser preserves it.
 
+## Nothing checks whether a game will fit in memory, and the browser will not tell you (2026-09-13)
+
+**Correcting an earlier claim in this file and in conversation:** the unpacked
+game does *not* live in the core's wasm heap. Emscripten's MEMFS stores file
+contents as plain JS typed arrays --
+
+```js
+node.contents = new Uint8Array(newCapacity);   // MEMFS.expandFileStorage
+```
+
+-- so the game sits in the **JavaScript heap**, and the core's 4 GiB wasm
+ceiling (`INITIAL_MEMORY=268435456`, `ALLOW_MEMORY_GROWTH=1`, `maximum: 65536`
+pages, `shared: true`) does not bound it. They are two separate pools that both
+come out of the same system RAM. The old "zip + unpacked under 4 GiB" limit in
+this file was the *extractor worker's* wasm heap, which streaming bypasses.
+
+**No layer checks capacity.** EmulatorJS has no `navigator.storage.estimate()`,
+no `deviceMemory`, no heap inspection anywhere in `data/src`. Growth failure is
+swallowed outright:
+
+```js
+growMemory = size => { ... try { wasmMemory.grow(pages); ...; return 1 } catch(e) {} };
+```
+
+So the three possible outcomes on a machine that cannot fit the game are: a
+catchable `RangeError: Array buffer allocation failed` from `new Uint8Array`;
+the OOM killer taking the browser with nothing logged (Linux overcommit); or
+minutes of swapping. Which one you get is the OS's decision.
+
+**What the preflight does.** A zip's central directory states the exact
+unpacked total before a byte is written -- the same figure that feeds the
+decompression percentage -- so the check is free. It compares that against
+`navigator.deviceMemory` minus a 1 GiB reserve and refuses up front.
+
+The reserve exists because the game is never the only resident: the core's
+`.data` is ~94 MB on top of a 256 MB initial wasm heap, the compressed Blob
+stays referenced for the length of the unpack, and the browser and OS need
+their own room. Comparing against all of RAM would pass games that cannot
+possibly run.
+
+| game | unpacked | 2 GB device | 4 GB | 8 GB+ |
+|---|---|---|---|---|
+| Feeble Files (2CD) | 1.083G | refuse | allow | allow |
+| Phantasmagoria | 2.144G | refuse | allow | allow |
+| Zork: Grand Inquisitor | 2.359G | refuse | allow | allow |
+| Riven (CD) | 2.674G | refuse | allow | allow |
+| Gabriel Knight 2 | 3.343G | refuse | refuse | allow |
+
+**What it deliberately does not do.** `navigator.deviceMemory` reports *total*
+device RAM, rounded, capped at 8 -- so a 16 or 32 GB desktop also reports 8 and
+gets a 7 GiB budget -- and it is absent on Firefox and Safari. There is no API
+for *free* memory: `performance.memory` is Chrome-only and JS-heap-only,
+`storage.estimate()` is disk quota. With no figure to compare against the check
+does nothing at all, because a false refusal blocks a game that works, which is
+worse than the late failure it replaces. This guards the certain failures, not
+the marginal ones. Tune with `EJS_maxUnpackedBytes` (absolute) or
+`EJS_memoryOverheadBytes` (the reserve).
+
+**The refusal had to be made visible separately.** Every download failure in
+`emulator.js` collapsed to `-1` and was reported as "Network Error", so the
+refusal would have blamed the network. Errors carrying `ejsUserMessage` now
+pass their reason through and it is cleared once shown -- otherwise one refused
+game would make every later failure claim the same cause. Ordinary failures
+still say "Network Error" rather than leaking raw exception text.
+
+Regression tests: `test/cache-streaming.test.mjs` (budget, reserve, and the
+no-figure case) and `test/download-errors.test.mjs` (the reason reaching the
+screen, and not outliving its download).
+
 ## A streamed zip's `files` array serves two consumers, and only one is obvious (2026-09-13)
 
 The streaming-zip path (`build/emulatorjs/patches/`) writes each entry to the

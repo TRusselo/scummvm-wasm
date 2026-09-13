@@ -1,5 +1,5 @@
---- emulator.js.orig	2026-09-13 01:36:55.266954665 -0600
-+++ emulator.js	2026-09-13 01:36:55.288044369 -0600
+--- emulator.js.orig	2026-09-13 02:33:08.303769417 -0600
++++ emulator.js	2026-09-13 02:33:08.327398172 -0600
 @@ -78,7 +78,7 @@
       * @param {boolean} dontExtract If true, the downloaded file will not be extracted, but will still be cached (default is false, overridden by forceExtract).
       * @returns A promise that resolves with the downloaded file data.
@@ -46,7 +46,21 @@
                      if (cacheItem.files && cacheItem.files.length > 0) {
                          return {
                              data: cacheItem,
-@@ -728,8 +738,10 @@
+@@ -153,6 +163,13 @@
+                     return -1;
+                 } catch(error) {
+                     console.error("Download error:", error);
++                    // Every failure here collapses to -1, so the caller can
++                    // only ever say "Network Error". A refusal that already
++                    // knows why -- the memory preflight in cache.js -- marks
++                    // itself with ejsUserMessage so its reason survives.
++                    if (error && error.ejsUserMessage) {
++                        this.downloadUserMessage = error.ejsUserMessage;
++                    }
+                     return -1;
+                 }
+             };
+@@ -728,8 +745,10 @@
              // Download the core
              console.log("[EJS Core] Downloading core:", filename);
              const corePath = "cores/" + filename;
@@ -59,7 +73,7 @@
              }, false, { responseType: "arraybuffer", method: "GET" }, true, this.downloadType.core.dontCache);
              if (res === -1) {
                  if (!this.supportsWebgl2) {
-@@ -841,6 +853,28 @@
+@@ -841,6 +860,28 @@
          return new Promise(async (resolve, reject) => {
              let returnData;
  
@@ -88,7 +102,7 @@
              // check if url is a file object, and if so convert it to an EJS_CacheItem
              if (typeof url === "object" && url instanceof File) {
                  if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Requested download for File object " + url.name);
-@@ -910,14 +944,17 @@
+@@ -910,18 +951,25 @@
                  const data = await this.downloadFile(
                      url,
                      type.name,
@@ -109,7 +123,16 @@
                  );
                  // check for error
                  if (data === -1) {
-@@ -936,28 +973,6 @@
+-                    this.startGameError(this.localization("Network Error"));
++                    // Cleared after use: otherwise one refused game would make
++                    // every later failure claim the same reason.
++                    const reason = this.downloadUserMessage;
++                    this.downloadUserMessage = null;
++                    this.startGameError(reason || this.localization("Network Error"));
+                     return;
+                 }
+                 // check for content type
+@@ -936,28 +984,6 @@
  
              if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Downloaded content:", returnData);
  
@@ -138,7 +161,7 @@
              // extract to the file system
              if (returnData && returnData.files) {
                  for (let i = 0; i < returnData.files.length; i++) {
-@@ -1080,13 +1095,15 @@
+@@ -1080,13 +1106,15 @@
       * Extract file names from downloaded ROM data and start game
       */
      startGameFromDownload(romData) {
