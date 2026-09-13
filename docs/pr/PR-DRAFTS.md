@@ -33,7 +33,7 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 | 5 | scummvm/scummvm#7927 → #7945 | `engines/scumm/scumm.h` | all platforms, SCUMM only | #7927 closed — no AI disclosure, and comment far too long; **#7945 open**, no comment yet |
 | 6 | — | `engines/engine.h`, `engines/scumm/scumm.h` | new base-class virtual | held until 9 is up |
 | 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | **merged** 2026-09-12 into `staging_master` (not `master` yet); `spleen1981` asked for the code comment to go, and it did |
-| 8 | libretro/scummvm#111 → scummvm/scummvm#7947 | `base/plugins.cpp` | EMSCRIPTEN builds only | #111 closed — `spleen1981`: belongs upstream. Rewritten as a one-line `__LIBRETRO__` guard, **#7947 open**; fork carries it as `f3c5255` |
+| 8 | libretro/scummvm#111 → scummvm/scummvm#7947 | `base/plugins.cpp` | EMSCRIPTEN builds only | **FIXED UPSTREAM, both closed.** #111: `spleen1981`, belongs upstream. #7947 approved by `chkuendig` 08:37:18Z, then `lephilousophe` committed the same fix to master as `de8c01b` 32 s later; closed as superseded 2026-09-13. **Fork's `f3c5255` must be dropped on the next sync — see PR 8 below** |
 | 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | blocked until 5 and 6 land |
 | 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | open; `spleen1981` questioned the premise (zips unsupported); reply posted explaining the EmulatorJS case, no answer yet |
 | 13 | libretro/scummvm#113 | `libretro-os-utils.cpp` | libretro core, all targets | **open** 2026-09-12, base `staging_master` |
@@ -166,8 +166,25 @@ warning() call out of the binary, so release builds gave no diagnostics for
 failures that only warn. RELEASE_BUILD stays.
 ```
 
-## PR 8 — `LIBRETRO: exclude WebMIDI plugin` — REDIRECTED
+## PR 8 — `LIBRETRO: exclude WebMIDI plugin` — FIXED UPSTREAM, CLOSED
 `48dea85dc88` · +7/−4 · #111 closed: not a libretro change
+
+> **Do not resolve this conflict by keeping our version.** Upstream fixed
+> the same bug independently in `de8c01b` ("EMSCRIPTEN: Don't build WebMIDI
+> with libretro"), authored 2026-09-13T08:35:22Z -- 32 seconds after
+> `chkuendig` approved #7947. #7947 was closed as superseded the same day.
+>
+> The two fixes edit the same region different ways and **will conflict on
+> every merge from upstream**:
+>
+> - ours (`f3c5255`): adds a condition, `#if defined(EMSCRIPTEN) && !defined(__LIBRETRO__)`
+> - theirs (`de8c01b`): moves `LINK_PLUGIN(WEBMIDI)` inside the existing
+>   `#if defined(__LIBRETRO__) ... #else ... #endif` block, where it is
+>   excluded by construction and needs no extra condition
+>
+> **Take theirs, drop ours.** Behaviour is identical -- both exclude WebMIDI
+> from libretro builds -- so the deployed core does not change. Theirs is
+> cleaner and is what master will keep carrying.
 
 Now scummvm/scummvm#7947, `BACKENDS: Do not link WebMIDI in libretro
 Emscripten builds`: one line in `base/plugins.cpp`,

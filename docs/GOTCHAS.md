@@ -2400,6 +2400,14 @@ outage.
 git log --oneline HEAD..upstream/master --grep='!:' --grep='BREAKING' -E -i
 ```
 
+**And when the upstream is ScummVM, check `docs/pr/PR-DRAFTS.md` first.** A
+conflict in a file we patched is not automatically ours to win: upstream may
+have fixed the same bug their own way, which is what happened to the WebMIDI
+guard (our `f3c5255` vs their `de8c01b`, 2026-09-13 -- take theirs). PR-DRAFTS
+records, per patch, whether our version is still the one to keep. Resolving
+those conflicts by reflex in favour of the fork is how a fix we no longer need
+gets carried forever.
+
 Then, for each hit, decide whether it touches configuration or data this
 deployment already has on disk. Code conflicts announce themselves at merge
 time; a config schema change does not -- it merges perfectly cleanly and fails
