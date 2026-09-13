@@ -202,12 +202,13 @@ Each needs a decision; not all need a fix before RC.
 | **#1** `[broken game]` Griffon: unacknowledged quit | Save half **fixed** (`afdcbd2`, verified). Quit half open, unconfirmed, griffon-only; `b591d4d34fc` bounds the hang but does not fix it. Not a blocker. |
 | **#2** Options dialog "null function" over an unclosed dialog | **Closed 2026-09-12**, documented limitation: needs a specific user action. |
 | **#3** Chamber hangs in every render mode | **Closed 2026-09-12**, out of scope: every entry is `ADGF_TESTING`. Assertion fix is scummvm#7946; the hang is upstream's. |
-| **#6** Silent unknown-variant failures + `kFeatureOpenUrl` | **Next.** Quality-of-life, upstreamable. Not an RC blocker but high value: silent failure was the single biggest time sink in testing. |
+| **#6** Silent unknown-variant failures + `kFeatureOpenUrl` | **Closed 2026-09-12**, both verified live; submitted as libretro/scummvm#113 and #114. |
+| **#8** `tentacle-1` save invisibility | Filed 2026-09-12. Documented limitation; needs a specific user action. |
+| **#9** Default engine set / drop MIDI stub | **Closed 2026-09-12**: default set equals our list, stub removed. |
 | **#5** Size ceilings | See item 5. |
 | **#7** RetroArch rebase | **Closed 2026-09-12**: merged to `v1.22.2` clean, canvas-size fix on top. |
 
-**Newly found, not yet filed** — one from 2026-09-08 worth an issue before it
-is forgotten:
+**Formerly unfiled**, now issue #8:
 
 - **Save invisibility across a re-add.** Launching via the `.scummvm` hook
   registers target `tentacle`; adding the same game again in the launcher
@@ -281,8 +282,8 @@ README against `upstream/master` after every build. Keep it that way.
 
 1. **Ask EmulatorJS about size** (item 1) — cheap, unblocks the rest, may
    reshape item 3. Still unasked.
-2. **Issue #6** (unknown-variant reporting, `kFeatureOpenUrl`) — next code work
-3. **File the `tentacle-1` finding** (item 4) while fresh
+2. ~~Issue #6~~ done, #113 and #114 open upstream
+3. ~~File the `tentacle-1` finding~~ #8
 4. ~~README truthfulness pass (6.6)~~ done
 5. ~~Engine-fix PRs (2.2)~~ submitted, three open
 6. ~~Test 3.4 and 3.3~~ done, both simplify the EmulatorJS ask

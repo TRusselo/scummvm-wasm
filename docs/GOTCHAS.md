@@ -1144,17 +1144,69 @@ registers correctly, cursor tracking included. Worth doing this as a
 matter of course before the *first* interaction on any freshly-loaded
 ROM, not just when a click visibly fails to do anything.
 
-### "Could not fetch core report JSON! Core caching will be disabled!" is expected, not a bug
+### "Could not fetch core report JSON! Core caching will be disabled!" is expected, and the reason changed (corrected 2026-09-12)
 
-This warning (`emulator.min.js`, from a 404 on
-`ejs/data/cores/reports/scummvm.json`) appears on every load and is
-harmless -- there's no real report JSON shipped for this core (see the
-`-legacy` section above), so EmulatorJS falls back to not caching core
-metadata client-side the way it would for an official, catalog-listed
-core. It does not affect whether the actual `.data` file download is
-cached (that's the separate `EmulatorJS-core` IndexedDB database,
-unaffected by this warning) -- only some secondary metadata convenience.
-Safe to ignore.
+The old explanation here, "no report JSON is shipped", has been wrong since
+2026-09-04: `build/package-core.sh` writes `reports/scummvm.json`, the ROMM
+image copies it, and the public URL returns it with HTTP 200 and
+`application/json` (checked with curl). The warning still prints because the
+EmulatorJS commit ROMM pins (`0b1c5e9`) has a mismatch between its own files:
+`emulator.js` expects the report download to resolve to `{data: ...}`, but the
+newer `cache.js` resolves to a cache-item object, so `rep.buildStart` is never
+found. It fails this way for every core, not just ours.
+
+Two consequences, neither harmful:
+
+- `options.defaultWebGL2` is never read, so EmulatorJS always requests the
+  `-legacy` filename. Our packaging ships identical bytes under both names
+  (`build/deploy-to-romm.sh` stages both for exactly this reason), so nothing
+  is lost. Every log shows `Downloading core: scummvm-thread-legacy-wasm.data`.
+- "Core caching will be disabled" refers only to the buildStart-keyed metadata.
+  The `.data` itself is still cached by URL, see the next section.
+
+### The first launch after every deploy is slow; the second is fast (2026-09-12)
+
+EmulatorJS caches the downloaded core in IndexedDB keyed by URL. On launch it
+sends a HEAD request and, if the file's `Last-Modified` is not newer than the
+cached copy, uses the cache: no download, no extraction, the game is up in a
+second or two. After a deploy the `Last-Modified` is newer, so the next launch
+downloads the 94 MB `.data` and runs EmulatorJS's 7z extractor in a worker,
+single-threaded LZMA inflating it to ~207 MB. That is the pause after the
+progress bar reaches 100%. The `Warning: Enlarging memory arrays, this is not
+fast!` lines and their stack traces are that worker growing its heap; one to
+three per launch is normal. Deploying three cores in one day, or clearing the
+EmulatorJS cache, makes every first launch pay this once.
+
+Misleading line: `[EJS Core] Data is already decompressed cache item` prints on
+every path, including right after a fresh extraction, because their downloader
+always returns a cache-item object. It does not mean a cache hit; only the
+absence of an `Extracting ...` line does.
+
+Our only lever is the archive: `package-core.sh` uses 7z defaults, the same as
+EmulatorJS's own build script. A lower-ratio method would extract faster at
+the cost of a bigger download.
+
+### An unknown-variant test fixture must not be a SCUMM game (2026-09-12)
+
+To test the unknown-game report and the launcher's Report button, a dump was
+needed that detection recognises by filename but not by hash. Flipping a byte
+in Maniac Mansion's `00.LFL` did not produce one: the SCUMM detector has a
+fuzzy-match path for unknown MD5s (`engines/scumm/detection_internal.h`,
+"PART 2: Fuzzy matching for files with unknown MD5"), so the game still
+detected as the known variant, printed its own "Your game version appears to
+be unknown" warning, launched anyway, and crashed on the corrupt index. SCUMM
+never sets `hasUnknownFiles`, so nothing that keys on it fires.
+
+Use an AdvancedDetector engine with no `fallbackDetect()` and no
+`kADFlagCanPlayUnknownVariants`; an unknown hash there is refused, which is the
+empty-launcher path. Engines with fallback detection, all unsuitable: agi agos
+ags asylum cge cge2 cryomni3d director gob made mohawk mtropolis queen sci
+sludge tinsel toon touche tucker wage wintermute. Dreamweb worked. Flip a byte
+inside the first 5000 bytes of a file the matching table entry actually lists,
+and check first: the floppy Dreamweb entry hashes `r00`, `r02` and `exe`, not
+`r22`, and a flip in a file outside the entry changes nothing. Repack with
+`zip -rXD` and name the file `[test url] <name>.zip` so it is obvious in the
+library.
 
 ### Content loads via `argv`, not a direct `retro_load_game()` call from JS
 
