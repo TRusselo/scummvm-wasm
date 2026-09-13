@@ -86,11 +86,15 @@
              }, false, { responseType: "arraybuffer", method: "GET" }, true, this.downloadType.core.dontCache);
              if (res === -1) {
                  if (!this.supportsWebgl2) {
-@@ -841,6 +872,28 @@
+@@ -841,6 +872,32 @@
          return new Promise(async (resolve, reject) => {
              let returnData;
  
-+            const writeFilesToFS = (fileName, fileData) => {
++            // canOwn lets MEMFS adopt the buffer instead of copying it:
++            // its write() does node.contents = buffer.subarray(...) rather
++            // than buffer.slice(...), halving the peak for the entry. Only
++            // the streaming path asks for it -- see the call site.
++            const writeFilesToFS = (fileName, fileData, canOwn = false) => {
 +                if (fileName.includes("/")) {
 +                    const paths = fileName.split("/");
 +                    let cp = "";
@@ -108,7 +112,7 @@
 +                    }
 +                    return null;
 +                }
-+                this.gameManager.FS.writeFile(`/${fileName}`, fileData);
++                this.gameManager.FS.writeFile(`/${fileName}`, fileData, { canOwn });
 +                return fileName;
 +            };
 +

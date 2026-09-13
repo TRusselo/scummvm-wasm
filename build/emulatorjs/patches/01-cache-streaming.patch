@@ -17,7 +17,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,116 @@
+@@ -217,6 +218,120 @@
                          }
                          
                          const blob = new Blob(chunks);
@@ -92,7 +92,11 @@
 +                            const entryNames = [];
 +                            try {
 +                                await readZipEntries(blob, (entryName, entryBytes) => {
-+                                    onFile(entryName, entryBytes);
++                                    // readZipEntries allocates a fresh array per
++                                    // entry and never reuses it, and a streamed
++                                    // item keeps files empty, so nothing else
++                                    // aliases these bytes: MEMFS can take them.
++                                    onFile(entryName, entryBytes, true);
 +                                    entryNames.push(entryName);
 +                                }, (written, total) => {
 +                                    // The zip's central directory gives a real

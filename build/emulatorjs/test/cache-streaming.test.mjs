@@ -45,7 +45,7 @@ async function download(fixture, threshold, { dontExtract = false, forceExtract 
   const item = await new EJS_Download(null, null).downloadFile(
     `http://localhost/${fixture}`, "rom", "GET", {}, null, null, null, 30000,
     "arraybuffer", forceExtract, true, dontExtract,
-    onFileImpl || ((name, data) => { written.push([name, data.length]); })
+    onFileImpl || ((name, data, canOwn) => { written.push([name, data.length, canOwn]); })
   );
   return { item, written };
 }
@@ -188,6 +188,21 @@ await check("a corrupt archive is reported as an unpack failure, not a network o
   if (typeof err.ejsUserMessage !== "string") throw new Error(`no ejsUserMessage: ${err}`);
   if (!/unpack/i.test(err.ejsUserMessage)) throw new Error(`should name unpacking: ${err.ejsUserMessage}`);
   if (/network/i.test(err.ejsUserMessage)) throw new Error(`must not blame the network: ${err.ejsUserMessage}`);
+});
+
+// MEMFS copies the buffer unless the caller says it may keep it:
+// write() does node.contents = buffer.slice(...) without canOwn, and
+// buffer.subarray(...) with it. Every streamed entry is therefore held twice
+// at peak unless the streaming path asks for adoption -- which it safely can,
+// since readZipEntries allocates a fresh array per entry and a streamed item
+// keeps files empty, so nothing else aliases the bytes.
+await check("streamed entries are handed to the filesystem without a copy", async () => {
+  const { written } = await download("dirs.zip", 1);
+  const files = written.filter((w) => !w[0].endsWith("/"));
+  if (!files.length) throw new Error("expected at least one file entry");
+  for (const [name, , canOwn] of files) {
+    if (canOwn !== true) throw new Error(`${name} was written without canOwn`);
+  }
 });
 
 report();
