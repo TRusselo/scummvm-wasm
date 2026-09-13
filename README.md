@@ -31,6 +31,47 @@ the status table near the end of this file, or
 [docs/ENGINE-TEST-PLAN.md](docs/ENGINE-TEST-PLAN.md) for the complete
 per-engine sourcing notes and packaging quirks behind each result.
 
+## Save states work here, and carry your in-game saves with them
+
+Save states do **not** work on the official ScummVM libretro core. All three
+entry points are permanent stubs on `libretro/scummvm` master:
+
+```cpp
+size_t retro_serialize_size(void) { return 0; }
+bool retro_serialize(void *data, size_t size)      { return false; }
+bool retro_unserialize(const void *data, size_t size) { return false; }
+```
+
+ScummVM has no serialisable machine state -- there is no emulated CPU whose
+RAM can be dumped -- so the usual libretro approach does not apply, and the
+core has simply never offered the feature.
+
+This build implements it a different way: the state is produced by driving a
+**real engine save** into a reserved slot and packaging the result, so it
+reuses the same mechanism as ScummVM's own Save menu. On restore the files
+are written back and the engine loads them.
+
+**A state carries the target's other save files too**, not just the reserved
+slot. That is the part that matters in a browser: your in-game saves live in
+the browser's IndexedDB, which is per-origin, per-profile, per-device, and
+evictable -- so they do not follow you anywhere. A save state does, because
+EmulatorJS uploads it. Save inside the game on one machine, take a save
+state, open that state on a laptop or phone, and your saves are in the list.
+
+The state is also sized to what it holds rather than a fixed maximum, so a
+typical one is around 1 MB instead of 8 MB, and a game with unusually large
+saves gets the room it needs instead of a write failure.
+
+Caveats worth knowing:
+
+- **SCI games (Gabriel Knight 2, and every other SCI title) cannot make save
+  states**, because ScummVM defaults `gmm_save_enabled` off for that engine.
+  It is a per-game checkbox in ScummVM's own Game Options > Engine tab.
+- Engines refuse to save at moments they consider unsafe, and that refusal is
+  honoured rather than overridden -- Riven, for instance, will not save while
+  a script is running, so an animation has to finish first.
+- A state written by this core will not load on an older build of it.
+
 <img width="1890" height="1180" alt="image" src="https://github.com/user-attachments/assets/860f20a3-a6f2-4d12-8f6b-e7d2b9f532ce" />
 
 This is not an official ScummVM or EmulatorJS project. It's a from-scratch
@@ -408,12 +449,14 @@ found," even with a correctly-placed hook file.
   incomplete dump can sit in a collection folder marked "Working" and still fail
   here. Tracked in
   [issue #4](https://github.com/TRusselo/scummvm-wasm/issues/4).
-- EmulatorJS's own "Save State"/"Load State" buttons work (bridged to
-  ScummVM's save/load system -- see docs/GOTCHAS.md for the three
-  separate bugs, two in ScummVM and one in RetroArch/EmulatorJS, that
-  had to be fixed to make this work), and so does ScummVM's own in-game
-  save-anywhere/load-anywhere menu. Both write to the same underlying
-  save slot mechanism. **Confirmed working end-to-end through a real
+- EmulatorJS's own "Save State"/"Load State" buttons work -- bridged to
+  ScummVM's save/load system, and carrying the game's other save files with
+  them, which is what makes saves portable between devices. See
+  ["Save states work here"](#save-states-work-here-and-carry-your-in-game-saves-with-them)
+  above for what that buys, and docs/GOTCHAS.md for the several separate
+  bugs, in both ScummVM and RetroArch/EmulatorJS, that had to be fixed
+  first. ScummVM's own in-game save-anywhere/load-anywhere menu works too;
+  both write through the same underlying slot mechanism. **Confirmed working end-to-end through a real
   hosted ROMM instance** (`build/deploy-to-romm.sh`), not just the local
   test-page -- ROMM's own EmulatorJS integration already implements
   server-backed save/state persistence for any core, so once this
