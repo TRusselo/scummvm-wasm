@@ -53,7 +53,7 @@ globalThis.window = {};
 
 const DIRS_ZIP_ENTRIES = ["sub/", "sub/nested/", "sub/nested/hello.txt"];
 
-async function download(fixture, threshold, dontExtract = false) {
+async function download(fixture, threshold, { dontExtract = false, forceExtract = false } = {}) {
   const bytes = readFileSync(join(FIXTURES, fixture));
   globalThis.fetch = async () => new Response(bytes, {
     status: 200,
@@ -63,7 +63,7 @@ async function download(fixture, threshold, dontExtract = false) {
   const written = [];
   const item = await new EJS_Download(null, null).downloadFile(
     `http://localhost/${fixture}`, "rom", "GET", {}, null, null, null, 30000,
-    "arraybuffer", false, true, dontExtract,
+    "arraybuffer", forceExtract, true, dontExtract,
     (name, data) => { written.push([name, data.length]); }
   );
   return { item, written };
@@ -93,10 +93,29 @@ await check("streamed item keeps files empty so the extraction loop cannot rewri
 // rather than handing off to EJS_COMPRESSION, which needs a browser runtime
 // this test has no way to provide.
 await check("an archive below the threshold does not take the streaming path", async () => {
-  const { item, written } = await download("dirs.zip", 1 << 30, true);
+  const { item, written } = await download("dirs.zip", 1 << 30, { dontExtract: true });
   eq(item.streamed, undefined, "streamed flag");
   eq(written.length, 0, "onFile calls");
   eq(item.files.map((f) => f.filename), ["dirs.zip"], "stored whole");
+});
+
+// dontExtract is how a core says it wants the archive itself, not its
+// contents: the arcade/MAME family reads a romset zip directly. Streaming
+// unpacks it to loose files, which is exactly what that core did not ask
+// for, so the size gate must not override it. ScummVM never sets this, but
+// one EmulatorJS build serves every core in a ROMM deployment.
+await check("an oversized archive is not streamed when the core wants it unextracted", async () => {
+  const { item, written } = await download("dirs.zip", 1, { dontExtract: true });
+  eq(item.streamed, undefined, "streamed flag");
+  eq(written.length, 0, "onFile calls");
+  eq(item.files.map((f) => f.filename), ["dirs.zip"], "stored whole");
+});
+
+// forceExtract outranks dontExtract on the ordinary path, so it must here too.
+await check("forceExtract still streams an oversized archive", async () => {
+  const { item } = await download("dirs.zip", 1, { dontExtract: true, forceExtract: true });
+  eq(item.streamed, true, "streamed flag");
+  eq(item.fileNames, DIRS_ZIP_ENTRIES, "manifest");
 });
 
 console.log(failures ? `\n${failures} failure(s)` : "\nall passed");

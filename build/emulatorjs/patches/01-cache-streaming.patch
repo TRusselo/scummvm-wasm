@@ -1,5 +1,5 @@
---- cache.js.orig	2026-09-13 01:21:40.262897308 -0600
-+++ cache.js	2026-09-13 01:21:44.669813741 -0600
+--- cache.js.orig	2026-09-13 01:31:51.696421258 -0600
++++ cache.js	2026-09-13 01:31:51.713368943 -0600
 @@ -1,6 +1,7 @@
  import { simpleHash } from "./utils.js";
  import { EJS_STORAGE } from "./storage.js";
@@ -17,7 +17,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,47 @@
+@@ -217,6 +218,53 @@
                          }
                          
                          const blob = new Blob(chunks);
@@ -31,7 +31,13 @@
 +                            ? window.EJS_streamZipThreshold
 +                            : 1610612736;
 +                        const isZip = (filename.toLowerCase().split(".").pop() === "zip");
-+                        if (blob.size > streamThreshold && isZip && typeof onFile === "function" && streamingSupported()) {
++                        // dontExtract is how a core asks for the archive itself
++                        // rather than its contents -- the arcade/MAME family
++                        // reads a romset zip directly -- and forceExtract
++                        // overrides that. Mirror the ordinary path's rule below
++                        // instead of letting the size gate outrank it.
++                        const extractionWanted = (forceExtract === true || dontExtract === false);
++                        if (blob.size > streamThreshold && isZip && extractionWanted && typeof onFile === "function" && streamingSupported()) {
 +                            console.log(`[EJS Download] Streaming ${filename} (${(blob.size / 1048576).toFixed(0)} MB) directly to the filesystem`);
 +                            // Report bytes written, not entry count: the caller
 +                            // renders `loaded / 1048576` MB whenever total is 0.

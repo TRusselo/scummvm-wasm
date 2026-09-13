@@ -2506,6 +2506,32 @@ Regression tests: `build/emulatorjs/test/cache-streaming.test.mjs` and
 vendored file and import it in Node, so they exercise the actual patch rather
 than a transcription; both were confirmed to fail against the pre-fix patches.
 
+### The size gate must not outrank the caller's extraction intent
+
+Found while fixing the above. The streaming condition originally read:
+
+```js
+if (blob.size > streamThreshold && isZip && typeof onFile === "function" && ...)
+```
+
+which ignores both `forceExtract` and `dontExtract`. `dontExtract` is how a
+core says it wants the **archive itself**, not its contents -- set by
+`downloadType.dontExtractIfCore` for the arcade/MAME family, which reads a
+romset zip directly. Streaming unpacks it to loose files, which is precisely
+what that core did not ask for.
+
+ScummVM never sets it (`Core scummvm does not require special handling` in
+every log), so this was unreachable for our core. It was **not** unreachable
+for the deployment: ROMM serves one EmulatorJS build to every platform, so a
+>1.5 GiB arcade zip would have hit it. The condition now mirrors the ordinary
+path's rule, `forceExtract === true || dontExtract === false`.
+
+Consequence worth knowing: a >2 GiB zip for a core that sets `dontExtract`
+now falls to the ordinary path and fails at `blob.arrayBuffer()` on V8's
+~2 GiB cap. That is upstream EmulatorJS's own failure mode for that case, and
+is the right outcome -- this patch should not silently change behaviour for
+archives it was never designed to handle.
+
 ## Core-option labels are lost in RetroArch's legacy export, not by EmulatorJS (2026-09-11)
 
 In EJS's Settings > Backend Core Options, `scummvm_gui_aspect_ratio` renders as
