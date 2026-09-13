@@ -111,7 +111,7 @@ await check("refuses a game whose unpacked size exceeds the memory budget", asyn
     message = String(e && e.message ? e.message : e);
   }
   if (message === null) throw new Error("expected the download to be refused");
-  if (!/GB to unpack/.test(message) || !/can spare/.test(message)) {
+  if (!/GB once unpacked/.test(message) || !/can spare/.test(message)) {
     throw new Error(`message should state what it needs and what is available: ${message}`);
   }
 });
