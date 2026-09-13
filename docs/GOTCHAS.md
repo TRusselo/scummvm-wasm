@@ -212,6 +212,107 @@ Real MIDI hardware output was never a goal for this project (these are
 SCUMM adventure games using their own AdLib/MT-32/etc. music emulation);
 excluding the plugin loses nothing.
 
+## SCI games cannot save-state at all, and ScummVM's own saves never reach the server (2026-09-13)
+
+Three separate problems, found while testing Gabriel Knight 2 and Riven. Only
+the first is SCI-specific; the third affects every engine we ship.
+
+### 1. Every SCI game refuses save states, by upstream default
+
+Riven refuses only during motion -- `MohawkEngine_Riven::canSaveGameStateCurrently()`
+checks `_scriptMan->hasQueuedScripts()`, so an animation blocks it and a static
+screen does not. That is the engine's own rule and is working correctly.
+
+GK2 refuses *always*, and the reason is a config default, not the game.
+`SciEngine::canSaveGameStateCurrently()` (`engines/sci/metaengine.cpp:387`):
+
+```cpp
+return _features->canSaveFromGMM() &&
+       !_gamestate->executionStackBase &&
+       _guestAdditions->userHasControl();
+```
+
+and `GameFeatures::canSaveFromGMM()` (`engines/sci/engine/features.cpp:867`)
+opens with:
+
+```cpp
+if (!ConfMan.getBool("gmm_save_enabled"))
+    return false;
+```
+
+`gmm_save_enabled` defaults to **false** (`engines/sci/detection_options.h:236`),
+carrying upstream's warning that GMM saves "may be corrupted and unusable". So
+**no SCI game can save-state in any build that does not set it**, and our
+save-state bridge is refused for the same reason ScummVM's own GMM Save is
+greyed out. GK2 is *not* on the incompatible-save-scheme blocklist (Hoyle,
+Jones, Mothergoose, Phantasmagoria, RAMA, Slater) -- it is caught by the global
+default.
+
+**Do not read this as "SCI saving is broken".** `kSaveGame`
+(`engines/sci/engine/kfile.cpp`) and the GMM path both call the same
+`gamestate_save()`. Identical serializer, identical format. The only difference
+is *when*: the game's own menu picks a safe moment, the GMM does not. The
+residual risk is named in `engines/sci/sci.h` -- internal script loops such as
+an open inventory, where the user has control but the loop state is not in the
+save. That is also why SCI disables autosave (`getAutosaveSlot()` returns -1).
+
+History, so nobody re-derives it: Filippos Karapetis *enabled* GMM saving in
+2022 (`d8336a31ffb`) listing ~37 games he had verified -- GK2 is not among them
+-- then disabled it by default 2024-11-04 (`609e8b54e01`) "This addresses bug
+15358". **Bug 15358 was never read**: bugs.scummvm.org sits behind Anubis bot
+protection and returns an access-denied page to any fetch. Read it before
+deciding anything about flipping this flag; it is the only evidence of what
+actually broke.
+
+### 2. The toggle exists, is reachable, and cannot persist
+
+`GAMEOPTION_ENABLE_GMM_SAVE` is part of `GUIO_GK2`
+(`engines/sci/detection_tables.h:1065`), so it appears in ScummVM's own Game
+Options > Engine tab. Turning it on there does nothing across a reload, because
+`OSystem_libretro::getDefaultConfigFileName()`
+(`backends/platform/libretro/src/libretro-os-utils.cpp:68`) puts `scummvm.ini`
+in the system directory -- which under EmulatorJS is `/`:
+
+```
+[WARN] [Environ] SYSTEM DIR is empty, assume CONTENT DIR "/b2_data.MHK".
+[INFO] [Environ] GET_SYSTEM_DIRECTORY: "/"
+[libretro WARN] WARNING: FSNode::createReadStream: 'scummvm.ini' does not exist!
+```
+
+`/` is MEMFS, rebuilt from nothing on every load. **No setting ever made in the
+ScummVM GUI has survived a reload in this deployment** -- not this option, not
+audio, not subtitles. Only `/data/saves` is IDBFS-backed and persistent.
+
+### 3. ScummVM's own saves never reach the server, for any engine
+
+EmulatorJS models a save as exactly **one** file. `GameManager.js:454`:
+
+```js
+getSaveFile(save) {
+    const exists = this.FS.analyzePath(this.getSaveFilePath()).exists;
+    return (exists ? this.FS.readFile(this.getSaveFilePath()) : null);
+}
+```
+
+`getSaveFilePath()` is RetroArch's `save_file_path`, a single `.srm`. ScummVM
+writes many files (`gk2.000`, `comi.s00`, `tentacle.s200`) into a directory and
+never creates a `.srm`, so `exists` is false, `getSaveFile()` returns `null`,
+and `saveSaveFiles()` fires `callEvent("saveSaveFiles", null)`. ROMM's listener
+(`frontend/src/views/Player/EmulatorJS/Player.vue:296`) bails on
+`!saveFile?.byteLength`.
+
+So in-game saves live in IndexedDB only -- per-origin, evictable, invisible to
+ROMM -- while save states go to the server. That asymmetry, not the SCI flag, is
+why "my saves vanished" is possible at all. This is a frontend that assumes SRAM
+meeting an engine with multi-file saves, and it is pure browser-environment
+divergence rather than anything upstream ScummVM got wrong.
+
+**Order this implies:** fix 3 and 2 before touching 1. If ScummVM's native saves
+reach the server, GK2 has a working server-backed save path through its own
+in-game menu -- the path upstream considers safe -- and `gmm_save_enabled`
+stops mattering. Flipping a flag upstream defaults off, against a bug report we
+have not read, to work around a sync gap we own, would be the wrong order.
+
 ## Save states: implementing retro_serialize()/retro_unserialize()
 
 `scummvm-core/backends/platform/libretro/src/libretro-core.cpp`'s
