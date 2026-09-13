@@ -79,6 +79,9 @@ async function adapterTicks() {
       downloadFile: async (url, type, method, headers, body, onProgress) => {
         onProgress("downloading", 100, 1048576, 1048576);
         onProgress("decompressing", 42, 42000, 100000);
+        // How upstream's own extractor reports: the value is in percentage,
+        // with loaded and total both zero (cache.js:242).
+        onProgress("decompressing", 37, 0, 0);
         return { files: [{ filename: "a", bytes: new Uint8Array(1) }] };
       },
     },
@@ -92,7 +95,7 @@ async function adapterTicks() {
 
 await check("the adapter forwards decompressing ticks, not only downloading", async () => {
   const seen = await adapterTicks();
-  eq(seen.map((s) => s.status), ["downloading", "decompressing"], "statuses reaching the caller");
+  eq(seen.map((s) => s.status), ["downloading", "decompressing", "decompressing"], "statuses reaching the caller");
 });
 
 await check("a decompressing tick with a known total renders a percentage", async () => {
@@ -138,6 +141,17 @@ await check("the loading text says Download while downloading", async () => {
 await check("the loading text switches to Decompress while unpacking", async () => {
   const written = await labelsFor(["downloading", "decompressing"]);
   eq(written, ["Download Game Data 100%", "Decompress Game Data 42%"], "loading text");
+});
+
+// The wasm extractor reports progress in `percentage` with loaded and total
+// both zero. Rendering "loaded / 1048576 MB" for those gives a readout stuck
+// at "0.00MB" -- which is what shipped, for both the core and any game small
+// enough to skip the streaming path.
+await check("a decompressing tick with no total still renders its percentage", async () => {
+  const seen = await adapterTicks();
+  const noTotal = seen.filter((s) => s.status === "decompressing").pop();
+  if (!noTotal) throw new Error("no decompressing tick reached the caller");
+  eq(noTotal.text, " 37%", "rendered text");
 });
 
 report();

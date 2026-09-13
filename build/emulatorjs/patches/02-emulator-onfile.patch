@@ -1,5 +1,5 @@
---- emulator.js.orig	2026-09-13 02:33:08.303769417 -0600
-+++ emulator.js	2026-09-13 02:33:08.327398172 -0600
+--- emulator.js.orig	2026-09-13 11:07:10.260138112 -0600
++++ emulator.js	2026-09-13 11:07:16.994297049 -0600
 @@ -78,7 +78,7 @@
       * @param {boolean} dontExtract If true, the downloaded file will not be extracted, but will still be cached (default is false, overridden by forceExtract).
       * @returns A promise that resolves with the downloaded file data.
@@ -9,24 +9,37 @@
          if (this.debug) console.log("[EJS " + type + "] Downloading " + path);
          return new Promise(async (resolve) => {
              // Handle direct data objects (ArrayBuffer, Uint8Array, Blob)
-@@ -104,9 +104,14 @@
+@@ -104,9 +104,26 @@
              const attempt = async (targetUrl) => {
                  try {
                      const onProgress = progress instanceof Function ? (status, percentage, loaded, total) => {
 -                        if (status === "downloading") {
+-                            const progressText = total ? " " + Math.floor(percentage).toString() + "%" : " " + (loaded / 1048576).toFixed(2) + "MB";
+-                            progress(progressText);
 +                        // Decompression used to be dropped here, so the loading
 +                        // text kept whatever the last download tick wrote --
 +                        // "100%" for the whole unpack. The phase is passed on so
 +                        // the caller can label it; the "Decompress Game ..."
 +                        // strings are already translated in localization/*.json.
 +                        if (status === "downloading" || status === "decompressing") {
-                             const progressText = total ? " " + Math.floor(percentage).toString() + "%" : " " + (loaded / 1048576).toFixed(2) + "MB";
--                            progress(progressText);
++                            // Three shapes reach here. A download with a
++                            // content-length has total set; one without has
++                            // only loaded, and is shown in MB. The wasm
++                            // extractor reports neither -- it puts its value
++                            // in percentage alone -- so percentage has to be
++                            // honoured on its own, or that readout sticks at
++                            // "0.00MB" for the whole decompression.
++                            let progressText = "";
++                            if (total || percentage) {
++                                progressText = " " + Math.floor(percentage).toString() + "%";
++                            } else if (loaded) {
++                                progressText = " " + (loaded / 1048576).toFixed(2) + "MB";
++                            }
 +                            progress(progressText, status);
                          }
                      } : null;
  
-@@ -133,13 +138,18 @@
+@@ -133,13 +150,18 @@
                          responseType,
                          forceExtract,
                          dontCache,
@@ -46,7 +59,7 @@
                      if (cacheItem.files && cacheItem.files.length > 0) {
                          return {
                              data: cacheItem,
-@@ -153,6 +163,13 @@
+@@ -153,6 +175,13 @@
                      return -1;
                  } catch(error) {
                      console.error("Download error:", error);
@@ -60,7 +73,7 @@
                      return -1;
                  }
              };
-@@ -728,8 +745,10 @@
+@@ -728,8 +757,10 @@
              // Download the core
              console.log("[EJS Core] Downloading core:", filename);
              const corePath = "cores/" + filename;
@@ -73,7 +86,7 @@
              }, false, { responseType: "arraybuffer", method: "GET" }, true, this.downloadType.core.dontCache);
              if (res === -1) {
                  if (!this.supportsWebgl2) {
-@@ -841,6 +860,28 @@
+@@ -841,6 +872,28 @@
          return new Promise(async (resolve, reject) => {
              let returnData;
  
@@ -102,7 +115,7 @@
              // check if url is a file object, and if so convert it to an EJS_CacheItem
              if (typeof url === "object" && url instanceof File) {
                  if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Requested download for File object " + url.name);
-@@ -910,18 +951,25 @@
+@@ -910,18 +963,25 @@
                  const data = await this.downloadFile(
                      url,
                      type.name,
@@ -132,7 +145,7 @@
                      return;
                  }
                  // check for content type
-@@ -936,28 +984,6 @@
+@@ -936,28 +996,6 @@
  
              if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Downloaded content:", returnData);
  
@@ -161,7 +174,7 @@
              // extract to the file system
              if (returnData && returnData.files) {
                  for (let i = 0; i < returnData.files.length; i++) {
-@@ -1080,13 +1106,15 @@
+@@ -1080,13 +1118,15 @@
       * Extract file names from downloaded ROM data and start game
       */
      startGameFromDownload(romData) {
