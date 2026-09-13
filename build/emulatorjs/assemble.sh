@@ -47,11 +47,16 @@ if [ -z "$OUTPUT" ]; then
   exit 2
 fi
 
-# Require an absolute path. Note: `cd` above already moved us to the repo
-# root, so a relative OUTPUT would resolve against the repo, not the
-# caller's original working directory -- surprising, and dangerous once
-# this value flows into `rm -rf`.
-case "$OUTPUT" in
+# Note: `cd` above already moved us to the repo root, so a relative OUTPUT
+# would resolve against the repo, not the caller's original working
+# directory -- surprising, and dangerous once this value flows into
+# `rm -rf`. Normalise both paths (without requiring OUTPUT to exist) before
+# comparing them, so a trailing slash, a "..", or a symlinked parent cannot
+# defeat the checks below.
+OUTPUT_ABS="$(realpath -m -- "$OUTPUT")"
+REPO_ABS="$(realpath -m -- "$PWD")"
+
+case "$OUTPUT_ABS" in
   /*) ;;
   *)
     echo "error: output directory must be an absolute path (got '$OUTPUT')" >&2
@@ -59,19 +64,18 @@ case "$OUTPUT" in
     ;;
 esac
 
-# Second line of defence: refuse a target that IS the repo root, or that
-# contains it (an ancestor directory) -- rm -rf on either would delete this
-# checkout.
-REPO_ROOT="$PWD"
-case "$REPO_ROOT/" in
-  "$OUTPUT"/*)
-    echo "error: refusing to write to '$OUTPUT' -- it contains this repository" >&2
-    exit 2
-    ;;
-esac
+# Refuse a target that IS the repo root (in any spelling), that contains it
+# (an ancestor directory), or that lives inside it -- rm -rf on any of these
+# would destroy or corrupt this checkout.
+if [ "$OUTPUT_ABS" = "$REPO_ABS" ] \
+   || case "$REPO_ABS/" in "$OUTPUT_ABS"/*) true ;; *) false ;; esac \
+   || case "$OUTPUT_ABS/" in "$REPO_ABS"/*) true ;; *) false ;; esac; then
+  echo "error: refusing to write to '$OUTPUT' -- it is, contains, or lives inside this repository" >&2
+  exit 2
+fi
 
-if [ -e "$OUTPUT" ] && [ -n "$(ls -A "$OUTPUT" 2>/dev/null)" ] && [ "$FORCE" != "--force" ]; then
-  echo "ERROR: ${OUTPUT} already exists and is not empty. Pass --force to overwrite it." >&2
+if [ -e "$OUTPUT_ABS" ] && [ -n "$(ls -A "$OUTPUT_ABS" 2>/dev/null)" ] && [ "$FORCE" != "--force" ]; then
+  echo "ERROR: ${OUTPUT_ABS} already exists and is not empty. Pass --force to overwrite it." >&2
   exit 1
 fi
 
@@ -105,10 +109,10 @@ for f in "$WORK/ejs/data/src/cache.js" "$WORK/ejs/data/emulator.min.js"; do
 done
 echo "==> verified: both the source and the minified bundle carry the patch"
 
-echo "==> writing tree to ${OUTPUT}/data"
-rm -rf "${OUTPUT}"
-mkdir -p "${OUTPUT}"
-cp -r "$WORK/ejs/data" "${OUTPUT}/data"
+echo "==> writing tree to ${OUTPUT_ABS}/data"
+rm -rf "${OUTPUT_ABS}"
+mkdir -p "${OUTPUT_ABS}"
+cp -r "$WORK/ejs/data" "${OUTPUT_ABS}/data"
 
-echo "==> done. Patched tree is at ${OUTPUT}/data."
+echo "==> done. Patched tree is at ${OUTPUT_ABS}/data."
 echo "    Staging it into a deployment (e.g. a ROMM checkout's docker/emulatorjs/) is a separate, deliberate step -- not performed by this script."
