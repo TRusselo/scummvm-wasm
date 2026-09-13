@@ -45,8 +45,10 @@ fi
 # stale, a new virtual override is never called and the linker drops it. See
 # docs/GOTCHAS.md "Header edits under backends/platform/libretro/".
 BACKEND_SRC="${LIBRETRO_DIR}/src"
-newest_header="$(ls -t "${LIBRETRO_DIR}"/include/*.h 2>/dev/null | head -1)"
-oldest_obj="$(ls -tr "${BACKEND_SRC}"/*.o 2>/dev/null | head -1)"
+# `|| true` inside the substitutions: with pipefail, a missing glob (a clean
+# tree has no objects yet) would otherwise abort the script under set -e.
+newest_header="$(ls -t "${LIBRETRO_DIR}"/include/*.h 2>/dev/null | head -1 || true)"
+oldest_obj="$(ls -tr "${BACKEND_SRC}"/*.o 2>/dev/null | head -1 || true)"
 if [ -n "$newest_header" ] && [ -n "$oldest_obj" ] && [ "$newest_header" -nt "$oldest_obj" ]; then
   echo "Backend header newer than $(basename "$oldest_obj") -- rebuilding all backend objects."
   rm -f "${BACKEND_SRC}"/*.o
