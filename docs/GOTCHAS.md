@@ -1720,6 +1720,51 @@ actual game's real dimensions once it loads, regardless of
 `USE_HIGHRES`, so this section's dynamic-ratio wrapper continues to size
 correctly either way.
 
+## Gamepad layout is a core option, changeable per build, per site, or per player (2026-09-12)
+
+The layout is the core's own, not EmulatorJS's. The libretro backend declares
+one core option per RetroPad input -- `scummvm_mapper_<button>` in
+`backends/platform/libretro/include/libretro-core-options.h` -- and each takes
+either a keyboard key (`RETROK_*`) or one of the core's own actions
+(`RETROKE_*`: `LEFT_BUTTON`, `RIGHT_BUTTON`, `VKBD`, `SCUMMVM_GUI`, the four
+cursor directions). The full vocabulary is the `retro_keys[]` table in
+`include/libretro-mapper.h`.
+
+Three places to change it, and they stack:
+
+1. **Build default** -- the last field of each `scummvm_mapper_*` entry in that
+   header. Ships to everyone, still overridable. This is a header under
+   `backends/platform/libretro/include/`, so it trips the stale-vtable trap
+   above: the build script now deletes the backend objects for you.
+2. **Per deployment** -- ROMM's `emulatorjs.settings.scummvm` block, the same
+   mechanism that sets `lockMouse`. No rebuild.
+3. **Per player** -- EmulatorJS's settings menu lists every core option.
+
+The layer that is *not* ours is physical controller to RetroPad, which is
+EmulatorJS's own Control Settings. Button meaning belongs in the core's mapper,
+not there.
+
+**Defaults as of 2026-09-12** (changed from upstream's; Xbox names on the left):
+
+| Xbox | RetroPad | action | note |
+|---|---|---|---|
+| D-pad, left stick | Up/Down/Left/Right, L-analog | move mouse cursor | unchanged |
+| right stick | R-analog | arrow keys | unchanged |
+| A | A | **left click** | was Space |
+| B | B | **right click** | was Enter |
+| X | X | **Enter** | was F5 |
+| Y | Y | Escape | unchanged |
+| LB / RB | L / R | left / right click | unchanged, now duplicating A/B |
+| View | Select | **F5 (in-game menu)** | was virtual keyboard |
+| Menu | Start | **Space (pause)** | was ScummVM GUI |
+
+Rationale: these are point-and-click games, so the two face buttons nearest the
+thumb should be the two mouse buttons. Two consequences worth knowing before
+changing them again: **the virtual keyboard no longer has a button** (it was on
+Select), which matters for parser games unless Direct Keyboard Input is used
+instead (next section), and **the ScummVM launcher GUI no longer has one** (it
+was on Start), reachable now only through F5's in-game menu.
+
 ## Full keyboard input (typing, arrow-key movement) for parser-driven games
 
 Text-parser games (`agi`, `sci`, `hugo`, and any other engine where the
