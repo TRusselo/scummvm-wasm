@@ -39,6 +39,19 @@ else
          "${LIBRETRO_DIR}/base/plugins.o"
 fi
 
+# The libretro backend module has no dependency files, so a header edit under
+# backends/platform/libretro/include/ recompiles only the .cpp files also
+# touched. The OSystem_libretro vtable lives in libretro-os-base.o; if that is
+# stale, a new virtual override is never called and the linker drops it. See
+# docs/GOTCHAS.md "Header edits under backends/platform/libretro/".
+BACKEND_SRC="${LIBRETRO_DIR}/src"
+newest_header="$(ls -t "${LIBRETRO_DIR}"/include/*.h 2>/dev/null | head -1)"
+oldest_obj="$(ls -tr "${BACKEND_SRC}"/*.o 2>/dev/null | head -1)"
+if [ -n "$newest_header" ] && [ -n "$oldest_obj" ] && [ "$newest_header" -nt "$oldest_obj" ]; then
+  echo "Backend header newer than $(basename "$oldest_obj") -- rebuilding all backend objects."
+  rm -f "${BACKEND_SRC}"/*.o
+fi
+
 source toolchain/emsdk/emsdk_env.sh
 
 cd scummvm-core/backends/platform/libretro

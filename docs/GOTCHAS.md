@@ -451,6 +451,33 @@ rebuilt, so that archive needs no separate handling.
 current and (for `libdetect.a` specifically) the size actually changed --
 identical size after adding engines is a sign it wasn't really rebuilt.
 
+### Header edits under `backends/platform/libretro/` rebuild nothing but the `.cpp` you touched (found 2026-09-12)
+
+The libretro makefile declares `DEPDIR = .deps` and `-include`s `*.d` files,
+but no `.deps` directory ever exists for the backend module itself, so a change
+to `include/libretro-os.h` recompiles only the source files you also edited.
+Every other translation unit keeps its old view of the class.
+
+That matters more than a stale object usually does, because of where C++ puts
+vtables: the vtable for `OSystem_libretro` is emitted in the unit holding its
+first non-inline virtual function, `libretro-os-base.cpp`. Add or override a
+virtual in the header, rebuild, and that file is not recompiled: the linked
+vtable still points the slot at the base class, your new override is never
+called, and because nothing references it the linker drops it -- along with any
+`EM_ASM` glue inside it, so it does not even appear in the output JS. The build
+succeeds, the engine set verifies, and the feature is simply absent.
+
+Seen with `kFeatureOpenUrl` (`cdeaa23`): `hasFeature()` and `openUrl()` were in
+the fresh `libretro-os-utils.o`, the object was in the archive, and the running
+core's Unknown Game dialog still had no Report button because `libretro-os-base.o`
+was a day old.
+
+Rule: after touching anything in `backends/platform/libretro/include/`, delete
+`backends/platform/libretro/src/*.o` before building. `build/build-core.sh` now
+does this whenever a header there is newer than the oldest backend object. Same
+family as the `plugins.o` and `libdetect.a` traps above: make cannot see the
+dependency, so the invalidation has to be explicit.
+
 ### `bash script.sh | tail -N` silently swallows the script's real exit code
 
 Even with `set -euo pipefail` *inside* `script.sh`, piping its output
