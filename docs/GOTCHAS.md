@@ -264,7 +264,7 @@ protection and returns an access-denied page to any fetch. Read it before
 deciding anything about flipping this flag; it is the only evidence of what
 actually broke.
 
-### 2. The toggle exists, is reachable, and cannot persist
+### 2. The ScummVM GUI toggle is reachable and cannot persist
 
 `GAMEOPTION_ENABLE_GMM_SAVE` is part of `GUIO_GK2`
 (`engines/sci/detection_tables.h:1065`), so it appears in ScummVM's own Game
@@ -282,6 +282,64 @@ in the system directory -- which under EmulatorJS is `/`:
 `/` is MEMFS, rebuilt from nothing on every load. **No setting ever made in the
 ScummVM GUI has survived a reload in this deployment** -- not this option, not
 audio, not subtitles. Only `/data/saves` is IDBFS-backed and persistent.
+
+`410b28d` moved `scummvm.ini` into `/data/saves/ScummVM/`, which *is* IDBFS and
+does survive a reload -- the file is written and read back. It still does not
+carry settings: changing music volume and clicking OK leaves the file at
+
+```
+[scummvm]
+lastselectedgame=maniac
+versioninfo=2026.3.1git
+```
+
+so the write path works and the value never reaches a flushed domain. The
+likely reason is that `--auto-detect` (`commandLine.cpp:2174`) calls
+`detectGames()`, which adds **no config domain**, unlike `--add` ->
+`addGames()`. A per-game setting has nowhere to be written. Unconfirmed; the
+diagnostic is the file's mtime across an OK click.
+
+**This is no longer on the critical path.** The only setting behind it that
+mattered was `gmm_save_enabled`, and that now has its own route -- see below.
+
+### 2b. The route that actually works: a core option
+
+`scummvm_gmm_save` (`libretro-core-options.h`, category `system`) is read in
+`update_variables()` and applied in `OSystem_libretro::refreshRetroSettings()`
+(`libretro-os-base.cpp`):
+
+```cpp
+if (retro_setting_get_gmm_save_enabled())
+    ConfMan.setBool("gmm_save_enabled", true, Common::ConfigManager::kTransientDomain);
+else
+    ConfMan.removeKey("gmm_save_enabled", Common::ConfigManager::kTransientDomain);
+```
+
+Three things make this the right shape, and each is load-bearing:
+
+- **`refreshRetroSettings()` is the one call site that covers both moments.**
+  `initBackend()` ends by calling it -- and ConfMan is already up there, since
+  `initBackend()` itself opens with `ConfMan.hasKey("libretro_playlist_version")`
+  -- while `retro_update_options_display()` calls it again from `retro_run()`
+  whenever an option changes. So the setting applies at launch *and* when
+  toggled mid-game, with no core reload. Putting it in `initBackend()` alone
+  would have made a mid-game toggle silently do nothing until a reload.
+- **The transient domain is exactly where command-line settings land**
+  (`commandLine.cpp:2356`), and `ConfigManager::get()` checks it first, ahead
+  of session, active-game, application and defaults. So this behaves like
+  passing the setting on the command line -- and is never flushed to
+  `scummvm.ini`, so it cannot go stale.
+- **Off removes the key rather than storing `false`.** Because transient
+  outranks the game domain, a stored `false` would *override* a per-game value
+  a user had set in ScummVM's own GUI. Erasing it leaves ScummVM's own default
+  and any per-game setting intact, in both directions.
+
+There is no generic `--key=value` CLI pass-through to piggyback on:
+`commandLine.cpp:1076` makes an unrecognized option a fatal usage error, and
+`gmm_save_enabled` is an engine option with no flag of its own.
+
+Default is `disabled`, matching upstream. **Do not change that default** until
+somebody reads bug 15358 -- see section 1.
 
 ### 3. ScummVM's own saves never reach the server, for any engine
 
@@ -307,11 +365,16 @@ why "my saves vanished" is possible at all. This is a frontend that assumes SRAM
 meeting an engine with multi-file saves, and it is pure browser-environment
 divergence rather than anything upstream ScummVM got wrong.
 
-**Order this implies:** fix 3 and 2 before touching 1. If ScummVM's native saves
-reach the server, GK2 has a working server-backed save path through its own
-in-game menu -- the path upstream considers safe -- and `gmm_save_enabled`
-stops mattering. Flipping a flag upstream defaults off, against a bug report we
-have not read, to work around a sync gap we own, would be the wrong order.
+**Order this implied, and how it was resolved:** fix 3 and 2 before touching 1.
+3 is done -- save states now carry a target's save files, so GK2's own in-game
+menu produces saves that reach the server, which is the path upstream considers
+safe. 2 turned out not to need fixing: section 2b routes `gmm_save_enabled`
+through a core option instead of the config file, so the ini's persistence bug
+no longer blocks anything.
+
+1 is still untouched, and should stay that way. The core option is opt-in and
+defaults to off, which is a different thing from flipping an upstream default
+against a bug report nobody has read.
 
 ## Save states: implementing retro_serialize()/retro_unserialize()
 

@@ -67,9 +67,14 @@ saves gets the room it needs instead of a write failure.
 
 Caveats worth knowing:
 
-- **SCI games (Gabriel Knight 2, and every other SCI title) cannot make save
-  states**, because ScummVM defaults `gmm_save_enabled` off for that engine.
-  It is a per-game checkbox in ScummVM's own Game Options > Engine tab.
+- **SCI games (Gabriel Knight 2, King's Quest, Space Quest, Leisure Suit Larry
+  and the rest) need one setting turned on first.** ScummVM defaults
+  `gmm_save_enabled` off for that engine, and without it the engine refuses to
+  save outside its own in-game menu, so save states fail. Turn on
+  **Enable save states in SCI games** under System in the emulator's settings.
+  It is off by default here too, because ScummVM warns that a save made at an
+  arbitrary moment may be unusable -- save from a normal gameplay screen rather
+  than with a menu or inventory open.
 - Engines refuse to save at moments they consider unsafe, and that refusal is
   honoured rather than overridden -- Riven, for instance, will not save while
   a script is running, so an animation has to finish first.
