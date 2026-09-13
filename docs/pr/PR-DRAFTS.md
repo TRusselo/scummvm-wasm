@@ -222,7 +222,7 @@ Scan from "/" instead, which always contains the full tree. Guarded to
 EMSCRIPTEN -- on a native build "/" is the real OS root.
 ```
 
-## PR 13 — `LIBRETRO: Log the unknown-game report when autodetection finds nothing` — DRAFTED, NOT OPENED
+## PR 13 — `LIBRETRO: Log the unknown-game report when autodetection finds nothing` — VERIFIED 2026-09-12, NOT OPENED
 `9ebc6940b1c` · +2 · `backends/platform/libretro/src/libretro-os-utils.cpp` · issue #6 item 1
 
 Platform-agnostic. Uses the backend's existing `logMessage()` and ScummVM's own
@@ -238,8 +238,13 @@ empty launcher and no clue which files did not match. Log the report the
 Add Game dialog would have shown.
 ```
 
-## PR 14 — `LIBRETRO: Implement kFeatureOpenUrl on Emscripten` — DRAFTED, NOT OPENED
+## PR 14 — `LIBRETRO: Implement kFeatureOpenUrl on Emscripten` — VERIFIED 2026-09-12, NOT OPENED
 `cdeaa23430d` · +26 · `libretro-os.h`, `libretro-os-utils.cpp` · issue #6 item 2 · EMSCRIPTEN-guarded
+
+Verified live: EMI's md5-check dialog ("Could not open the file voice.lab")
+shows Open URL and the click opens the wiki in a new tab; Chrome did not block
+it. Needed a rebuild of every backend object first -- see GOTCHAS, "Header
+edits under backends/platform/libretro/".
 
 Expect the same question `spleen1981` asked on #112: why an EMSCRIPTEN branch in
 the shared core. Answer is the same: native libretro has no URL API; the guard
