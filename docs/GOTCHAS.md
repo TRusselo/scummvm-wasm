@@ -1756,22 +1756,23 @@ not there.
 | Y | Y | Escape | unchanged |
 | LB / RB | L / R | left / right click | unchanged, now duplicating A/B |
 | L3 (left stick click) | L3 | **virtual keyboard** | was unmapped |
-| View | Select | **F5 (in-game menu)** | was virtual keyboard |
+| View | Select | **ScummVM menu** (`SCUMMVM_GUI`) | was virtual keyboard |
 | Menu | Start | **Space (pause)** | was ScummVM GUI |
 
 Rationale: these are point-and-click games, so the two face buttons nearest the
 thumb should be the two mouse buttons. The virtual keyboard moved from Select
 to L3 rather than being lost.
 
-`RETROKE_SCUMMVM_GUI`, the old Start binding, is now unused. It and F5 open the
-*same* thing -- ScummVM's in-game Global Main Menu: the action pushes
-`EVENT_MAINMENU` directly, while F5 is a raw key that the default keymap binds
-to the same "Game menu" action (`engines/metaengine.cpp:106`). The old layout
-simply had two buttons for one menu. The direct event is the more robust of the
-two, since roughly thirty engines reference `KEYCODE_F5` themselves and can
-consume the keypress; that was weighed and dismissed on 2026-09-12, because the
-engines in question are keyboard-driven (agi, glk, parser games) and are not
-played with a controller. R3 is left free rather than spent on a duplicate.
+`RETROKE_SCUMMVM_GUI` and F5 open the *same* thing -- ScummVM's in-game Global
+Main Menu. The action pushes `EVENT_MAINMENU` straight into the queue; F5 is a
+raw key that the default keymap binds to the same "Game menu" action
+(`engines/metaengine.cpp:106`). The old layout had two buttons for one menu
+(Start on the action, X on F5).
+
+**Select carries the action, not the key**, because roughly thirty engines
+reference `KEYCODE_F5` themselves and can consume the keypress before the
+keymapper sees it. The direct event cannot be intercepted, so the menu button
+works in every engine. R3 is left free rather than spent on a duplicate.
 
 ## `core.json` inside the `.data` is how a core sets its own EmulatorJS defaults (2026-09-12)
 
