@@ -17,7 +17,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,103 @@
+@@ -217,6 +218,116 @@
                          }
                          
                          const blob = new Blob(chunks);
@@ -101,7 +101,20 @@
 +                                    if (onProgress) onProgress("decompressing", total ? written / total * 100 : 0, written, total);
 +                                });
 +                            } catch (e) {
-+                                reject(`Decompression failed: ${e}`);
++                                // download() flattens every failure to
++                                // "Network Error". That is actively misleading
++                                // here: the download already finished, and what
++                                // failed was the unpack. Out of memory is the
++                                // likely cause on a device that got past the
++                                // preflight above only because
++                                // navigator.deviceMemory reports total RAM
++                                // rather than what is actually free.
++                                const text = String((e && e.message) || e);
++                                const err = new Error(`Decompression failed: ${text}`);
++                                err.ejsUserMessage = /allocation failed|out of memory|RangeError/i.test(text)
++                                    ? `Ran out of memory while unpacking ${filename}. Close other tabs or apps and try again.`
++                                    : `Could not unpack ${filename}: ${text}`;
++                                reject(err);
 +                                return;
 +                            }
 +                            const streamedItem = new EJS_CacheItem(

@@ -29,7 +29,7 @@ function setDeviceMemory(gb) {
 
 const DIRS_ZIP_ENTRIES = ["sub/", "sub/nested/", "sub/nested/hello.txt"];
 
-async function download(fixture, threshold, { dontExtract = false, forceExtract = false, budget, overhead, deviceMemory } = {}) {
+async function download(fixture, threshold, { dontExtract = false, forceExtract = false, budget, overhead, deviceMemory, onFileImpl } = {}) {
   if (budget === undefined) delete globalThis.window.EJS_maxUnpackedBytes;
   else globalThis.window.EJS_maxUnpackedBytes = budget;
   if (overhead === undefined) delete globalThis.window.EJS_memoryOverheadBytes;
@@ -45,7 +45,7 @@ async function download(fixture, threshold, { dontExtract = false, forceExtract 
   const item = await new EJS_Download(null, null).downloadFile(
     `http://localhost/${fixture}`, "rom", "GET", {}, null, null, null, 30000,
     "arraybuffer", forceExtract, true, dontExtract,
-    (name, data) => { written.push([name, data.length]); }
+    onFileImpl || ((name, data) => { written.push([name, data.length]); })
   );
   return { item, written };
 }
@@ -153,6 +153,41 @@ await check("a device with room to spare still runs the game", async () => {
 await check("no deviceMemory and no override means no check at all", async () => {
   const { item } = await download("dirs.zip", 1, { deviceMemory: undefined });
   eq(item.streamed, true, "streamed flag");
+});
+
+// A failure during the unpack used to reject with a bare string, which
+// download() cannot tell apart from a dropped connection -- so the user was
+// shown "Network Error" for a download that had already finished. Both
+// branches must reject with an Error carrying ejsUserMessage.
+//
+// MEMFS allocates inside onFile, so that is where a real out-of-memory
+// failure surfaces: the throw propagates out of readZipEntries into the
+// catch. Feeding the error through that path rather than asserting on the
+// regex keeps the test honest about the shape the code actually sees.
+await check("running out of memory mid-unpack says so, and does not say network", async () => {
+  let err = null;
+  try {
+    await download("dirs.zip", 1, {
+      onFileImpl: () => { throw new RangeError("Array buffer allocation failed"); },
+    });
+  } catch (e) { err = e; }
+  if (err === null) throw new Error("expected the unpack to fail");
+  if (typeof err.ejsUserMessage !== "string") throw new Error(`no ejsUserMessage: ${err}`);
+  if (!/memory/i.test(err.ejsUserMessage)) throw new Error(`should name memory: ${err.ejsUserMessage}`);
+  if (/network/i.test(err.ejsUserMessage)) throw new Error(`must not blame the network: ${err.ejsUserMessage}`);
+});
+
+// A corrupt archive is a real, non-memory unpack failure. It must still be
+// reported as an unpacking problem rather than a network one.
+await check("a corrupt archive is reported as an unpack failure, not a network one", async () => {
+  let err = null;
+  try {
+    await download("badcrc.zip", 1);
+  } catch (e) { err = e; }
+  if (err === null) throw new Error("expected the unpack to fail");
+  if (typeof err.ejsUserMessage !== "string") throw new Error(`no ejsUserMessage: ${err}`);
+  if (!/unpack/i.test(err.ejsUserMessage)) throw new Error(`should name unpacking: ${err.ejsUserMessage}`);
+  if (/network/i.test(err.ejsUserMessage)) throw new Error(`must not blame the network: ${err.ejsUserMessage}`);
 });
 
 report();
