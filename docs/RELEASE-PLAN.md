@@ -166,19 +166,18 @@ alternative is item 1's `datafiles` route: ship `scummvm.zip` as a fetched
 asset and mount it, which every other libretro frontend already does. Needs a
 design decision with them; the custom command is the fallback.
 
-**3.3 Drop `--pre-js midi-stub-pre.js`.** WebMIDI is now a one-line
-`__LIBRETRO__` guard (`f3c5255`, scummvm#7947), so nothing reads
-`midiOutputMap`. `build-retroarch-core.sh` still passes the stub. Verify by
-building without it; then it is one less non-standard input.
+**3.3 ~~Drop `--pre-js midi-stub-pre.js`~~ Done 2026-09-12.** Linked without
+it; `midiOutputMap` and `WebMIDI` appear nowhere in the output JS or wasm. The
+stub and the flag are gone. One less non-standard input.
 
-**3.4 The engine set may need no configuration.** libretro's defaults are
-`LITE=0 NO_WIP=1`, which enables ScummVM's build-by-default set and drops
-engines whose dependencies the platform lacks (real OpenGL is unavailable for
-emscripten). That is `all-engines.list`'s policy by construction; we use
-`LITE=1` plus a copied `lite_engines.list` only to pin it explicitly.
-**Untested:** build once with no `LITE` and diff `config.mk.engines` against
-the list. If identical, the `cores.json` entry needs no `arguments` and the
-fork need not carry a list.
+**3.4 The engine set needs no configuration. Confirmed 2026-09-12.** libretro's
+defaults are `LITE=0 NO_WIP=1`, which enable ScummVM's build-by-default set and
+drop engines whose dependencies the platform lacks. A dry run with no `LITE`
+produced 128 engines: our list minus `macs2` and `macventure`, which differ
+only because the pinned tree predates upstream flipping them to `yes`. The four
+GL engines drop out on their own. So the `cores.json` entry needs no
+`arguments` and the branch they build carries no list; our own build keeps
+`LITE=1` so the set stays explicit and verified. Issue #9 has the diff.
 
 **3.5 The `cores.json` entry**, for when 3.1 lands:
 
@@ -286,8 +285,7 @@ README against `upstream/master` after every build. Keep it that way.
 3. **File the `tentacle-1` finding** (item 4) while fresh
 4. ~~README truthfulness pass (6.6)~~ done
 5. ~~Engine-fix PRs (2.2)~~ submitted, three open
-6. **Test 3.4** (default engine set) and **3.3** (drop the MIDI stub) — one
-   build each, both simplify the EmulatorJS ask
+6. ~~Test 3.4 and 3.3~~ done, both simplify the EmulatorJS ask
 7. **Clean rebuild + full re-validation** (item 6) — produces the RC-B candidate
 8. **Cut RC-B**: versioned `.data` + report JSON + documented limitations
 9. Then RC-A: the three-entry PR to `EmulatorJS/RetroArch` (3.1), the

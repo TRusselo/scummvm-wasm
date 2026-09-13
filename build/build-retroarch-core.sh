@@ -36,11 +36,7 @@ cp -f scummvm-core/backends/platform/libretro/scummvm_libretro_emscripten.bc \
       retroarch/libretro_emscripten.a
 
 cd retroarch
-# --pre-js supplies a stub `midiOutputMap` global: ScummVM's WebMIDI plugin
-# is excluded from this build entirely (see scummvm-core/backends/module.mk
-# and scummvm-core/base/plugins.cpp), so nothing reads this anymore, but the
-# stub is kept as harmless defense-in-depth against any future reference to
-# the bare global. STACK_SIZE=16777216 (16MB, vs Emscripten's 4MB default)
+# STACK_SIZE=16777216 (16MB, vs Emscripten's 4MB default)
 # was a real, necessary fix for a genuine stack overflow found while
 # diagnosing this -- see docs/superpowers/notes/2026-08-29-autolaunch-diagnosis.md.
 #
@@ -51,7 +47,7 @@ cd retroarch
 # wasm-ld began rejecting the link with "initial memory too small, 186199984
 # bytes needed". ALLOW_MEMORY_GROWTH=1 is on, so this is only the startup
 # floor, not a cap; MAXIMUM_MEMORY stays at 4GB.
-EMCC_CFLAGS="--pre-js ../build/midi-stub-pre.js --embed-file ../build/embed-staging/engine-data@/engine-data" emmake make -f Makefile.emulatorjs \
+EMCC_CFLAGS="--embed-file ../build/embed-staging/engine-data@/engine-data" emmake make -f Makefile.emulatorjs \
   LD=em++ \
   HAVE_7ZIP=1 HAVE_CHD=1 \
   HAVE_THREADS=1 PTHREAD_POOL_SIZE=4 \

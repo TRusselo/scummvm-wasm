@@ -101,7 +101,7 @@ integration point.
 
 ```bash
 cd retroarch
-EMCC_CFLAGS="--pre-js ../build/midi-stub-pre.js" emmake make -f Makefile.emulatorjs \
+EMCC_CFLAGS="--embed-file ../build/embed-staging/engine-data@/engine-data" emmake make -f Makefile.emulatorjs \
   LD=em++ \
   HAVE_7ZIP=1 HAVE_CHD=1 \
   HAVE_THREADS=1 PTHREAD_POOL_SIZE=4 \
@@ -139,13 +139,12 @@ real bug was involved):
   size; the CD/talkie games (Fate of Atlantis, Day of the Tentacle) are
   tens to over a hundred MB of game data loaded into the virtual
   filesystem, so the default heap isn't enough headroom.
-- `EMCC_CFLAGS="--pre-js ../build/midi-stub-pre.js"` -- injects a stub
-  `var midiOutputMap = new Map();` global before the module's own code
-  runs. Kept as defense-in-depth even though the WebMIDI plugin that used
-  to need it is no longer linked into the core (guarded on `__LIBRETRO__` in
-  `base/plugins.cpp`, see GOTCHAS.md's WebMIDI section) -- nothing currently
-  reads this global,
-  but it's harmless to leave in place.
+- `EMCC_CFLAGS="--embed-file ..."` -- bakes ScummVM's engine-data files into
+  the wasm at `/engine-data`; see GOTCHAS.md. (A `--pre-js midi-stub-pre.js`
+  used to sit here too, defining a `midiOutputMap` global for the WebMIDI
+  plugin. The plugin is no longer linked, and a link without the stub was
+  checked on 2026-09-12: neither `midiOutputMap` nor `WebMIDI` appears in
+  the output, so it was removed.)
 - `TARGET=scummvm_libretro.js` -- names the output files
   (`scummvm_libretro.js` / `.wasm`).
 
