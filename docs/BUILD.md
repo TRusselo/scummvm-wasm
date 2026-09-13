@@ -226,13 +226,17 @@ Dockerfile expects at `docker/emulatorjs/data`.
 build/emulatorjs/assemble.sh /tmp/ejs-stream-tree
 ```
 
-It requires the output directory as its first argument and refuses to run
-without one. If the directory already exists and is non-empty, it refuses
-unless `--force` is passed -- overwriting 286 MB of someone else's staged
-tree on a typo is exactly the accident this guards against, since the
-equivalent tree on the build machine is the build source for other Docker
-images (including a release candidate) that must not pick up an
-experimental patch.
+It requires an output directory argument (`--force` may appear before or
+after it) and refuses to run without one, or with any other unrecognised
+argument. The output directory must be an **absolute path** -- a relative
+one would resolve against the repo root, not the caller's working
+directory, since the script `cd`s there first -- and it is also refused if
+it names or contains this repository's checkout. If the directory already
+exists and is non-empty, it refuses unless `--force` is passed --
+overwriting 286 MB of someone else's staged tree on a typo is exactly the
+accident this guards against, since the equivalent tree on the build
+machine is the build source for other Docker images (including a release
+candidate) that must not pick up an experimental patch.
 
 The script does not stage its output into any deployment checkout itself;
 it only prints where the assembled tree landed. Copying that tree into a

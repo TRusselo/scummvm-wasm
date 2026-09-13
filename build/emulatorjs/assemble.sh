@@ -16,8 +16,59 @@ cd "$(dirname "$0")/../.."
 
 EJS_COMMIT="0b1c5e9"          # must match ARG EMULATORJS_COMMIT in romm's Dockerfile
 
-OUTPUT="${1:?usage: assemble.sh <output-dir> [--force]}"
-FORCE="${2:-}"
+usage() { echo "usage: assemble.sh <output-dir> [--force]" >&2; }
+
+# Parse flags positionally-independent: --force may appear before or after
+# the output directory, and any other flag-shaped or extra argument is a
+# usage error rather than being silently treated as the output directory.
+FORCE=""
+OUTPUT=""
+for arg in "$@"; do
+  case "$arg" in
+    --force)
+      FORCE="--force"
+      ;;
+    -*)
+      usage
+      exit 2
+      ;;
+    *)
+      if [ -n "$OUTPUT" ]; then
+        usage
+        exit 2
+      fi
+      OUTPUT="$arg"
+      ;;
+  esac
+done
+
+if [ -z "$OUTPUT" ]; then
+  usage
+  exit 2
+fi
+
+# Require an absolute path. Note: `cd` above already moved us to the repo
+# root, so a relative OUTPUT would resolve against the repo, not the
+# caller's original working directory -- surprising, and dangerous once
+# this value flows into `rm -rf`.
+case "$OUTPUT" in
+  /*) ;;
+  *)
+    echo "error: output directory must be an absolute path (got '$OUTPUT')" >&2
+    exit 2
+    ;;
+esac
+
+# Second line of defence: refuse a target that IS the repo root, or that
+# contains it (an ancestor directory) -- rm -rf on either would delete this
+# checkout.
+REPO_ROOT="$PWD"
+case "$REPO_ROOT/" in
+  "$OUTPUT"/*)
+    echo "error: refusing to write to '$OUTPUT' -- it contains this repository" >&2
+    exit 2
+    ;;
+esac
 
 if [ -e "$OUTPUT" ] && [ -n "$(ls -A "$OUTPUT" 2>/dev/null)" ] && [ "$FORCE" != "--force" ]; then
   echo "ERROR: ${OUTPUT} already exists and is not empty. Pass --force to overwrite it." >&2
