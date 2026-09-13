@@ -1,0 +1,99 @@
+--- emulator.js.orig	2026-09-12 21:38:35.417940005 -0600
++++ emulator.js	2026-09-12 21:39:21.543187716 -0600
+@@ -78,7 +78,7 @@
+      * @param {boolean} dontExtract If true, the downloaded file will not be extracted, but will still be cached (default is false, overridden by forceExtract).
+      * @returns A promise that resolves with the downloaded file data.
+      */
+-    downloadFile(path, type, progress, notWithPath, opts, forceExtract = false, dontCache = false, dontExtract = false) {
++    downloadFile(path, type, progress, notWithPath, opts, forceExtract = false, dontCache = false, dontExtract = false, onFile = null) {
+         if (this.debug) console.log("[EJS " + type + "] Downloading " + path);
+         return new Promise(async (resolve) => {
+             // Handle direct data objects (ArrayBuffer, Uint8Array, Blob)
+@@ -133,13 +133,18 @@
+                         responseType,
+                         forceExtract,
+                         dontCache,
+-                        dontExtract
++                        dontExtract,
++                        onFile
+                     );
+ 
+                     if (!cacheItem) {
+                         return { headers: {} };
+                     }
+ 
++                    if (cacheItem.streamed === true) {
++                        return { data: cacheItem, headers: {} };
++                    }
++
+                     if (cacheItem.files && cacheItem.files.length > 0) {
+                         return {
+                             data: cacheItem,
+@@ -841,6 +846,28 @@
+         return new Promise(async (resolve, reject) => {
+             let returnData;
+ 
++            const writeFilesToFS = (fileName, fileData) => {
++                if (fileName.includes("/")) {
++                    const paths = fileName.split("/");
++                    let cp = "";
++                    for (let i = 0; i < paths.length - 1; i++) {
++                        if (paths[i] === "") continue;
++                        cp += `/${paths[i]}`;
++                        if (!this.gameManager.FS.analyzePath(cp).exists) {
++                            this.gameManager.FS.mkdir(cp);
++                        }
++                    }
++                }
++                if (fileName.endsWith("/")) {
++                    if (!this.gameManager.FS.analyzePath(fileName).exists) {
++                        this.gameManager.FS.mkdir(fileName);
++                    }
++                    return null;
++                }
++                this.gameManager.FS.writeFile(`/${fileName}`, fileData);
++                return fileName;
++            };
++
+             // check if url is a file object, and if so convert it to an EJS_CacheItem
+             if (typeof url === "object" && url instanceof File) {
+                 if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Requested download for File object " + url.name);
+@@ -917,7 +944,8 @@
+                     { responseType: "arraybuffer", method: "GET" },
+                     false,
+                     type.dontCache,
+-                    dontExtract
++                    dontExtract,
++                    writeFilesToFS
+                 );
+                 // check for error
+                 if (data === -1) {
+@@ -936,28 +964,6 @@
+ 
+             if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Downloaded content:", returnData);
+ 
+-            const writeFilesToFS = (fileName, fileData) => {
+-                if (fileName.includes("/")) {
+-                    const paths = fileName.split("/");
+-                    let cp = "";
+-                    for (let i = 0; i < paths.length - 1; i++) {
+-                        if (paths[i] === "") continue;
+-                        cp += `/${paths[i]}`;
+-                        if (!this.gameManager.FS.analyzePath(cp).exists) {
+-                            this.gameManager.FS.mkdir(cp);
+-                        }
+-                    }
+-                }
+-                if (fileName.endsWith("/")) {
+-                    if (!this.gameManager.FS.analyzePath(fileName).exists) {
+-                        this.gameManager.FS.mkdir(fileName);
+-                    }
+-                    return null;
+-                }
+-                this.gameManager.FS.writeFile(`/${fileName}`, fileData);
+-                return fileName;
+-            };
+-
+             // extract to the file system
+             if (returnData && returnData.files) {
+                 for (let i = 0; i < returnData.files.length; i++) {
