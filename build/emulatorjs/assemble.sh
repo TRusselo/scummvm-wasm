@@ -110,6 +110,7 @@ echo "==> applying patches"
 # rather than inferred from the diff header.
 patch "$WORK/ejs/data/src/cache.js"    < build/emulatorjs/patches/01-cache-streaming.patch
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/02-emulator-onfile.patch
+patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/03-canvas-pointer-events.patch
 
 echo "==> npm ci"
 ( cd "$WORK/ejs" && npm ci --silent )
@@ -133,6 +134,13 @@ grep -q "romData.fileNames" "$WORK/ejs/data/src/emulator.js" \
   || { echo "ERROR: emulator.js patch missing from the source" >&2; exit 1; }
 grep -q "fileNames" "$WORK/ejs/data/emulator.min.js" \
   || { echo "ERROR: emulator.js patch missing from the minified bundle" >&2; exit 1; }
+# Without this the canvas keeps pointer-events:none on any device reporting a
+# touchscreen, and the mouse does nothing. "ejs-canvas-no-pointer" is present
+# unpatched too, so the removal call is the discriminator.
+grep -q "remove(\"ejs-canvas-no-pointer\")" "$WORK/ejs/data/src/emulator.js" \
+  || { echo "ERROR: canvas pointer-events patch missing from the source" >&2; exit 1; }
+grep -q "ejs-canvas-no-pointer" "$WORK/ejs/data/emulator.min.js" \
+  || { echo "ERROR: canvas pointer-events patch missing from the bundle" >&2; exit 1; }
 # The decompression readout is a third, independently droppable piece: it is
 # what stops the loading text freezing on "Download Game Data 100%" for the
 # whole unpack. "Decompress Game Data" is already translated in every
