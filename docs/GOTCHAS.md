@@ -2573,16 +2573,43 @@ romset zip directly. Streaming unpacks it to loose files, which is precisely
 what that core did not ask for.
 
 ScummVM never sets it (`Core scummvm does not require special handling` in
-every log), so this was unreachable for our core. It was **not** unreachable
-for the deployment: ROMM serves one EmulatorJS build to every platform, so a
->1.5 GiB arcade zip would have hit it. The condition now mirrors the ordinary
-path's rule, `forceExtract === true || dontExtract === false`.
+every log), so this cannot affect our core. It can still affect the
+deployment, because the patch lands in `cache.js`'s `downloadFile()` -- the
+shared download path for **every** core and platform ROMM serves, not
+ScummVM's alone.
 
-Consequence worth knowing: a >2 GiB zip for a core that sets `dontExtract`
-now falls to the ordinary path and fails at `blob.arrayBuffer()` on V8's
-~2 GiB cap. That is upstream EmulatorJS's own failure mode for that case, and
-is the right outcome -- this patch should not silently change behaviour for
-archives it was never designed to handle.
+**What actually triggers it, and what does not.** The first justification
+written here was that a large arcade romset would hit the 1.5 GiB gate. That
+is wrong, and the library disproves it: the largest arcade zip on this server
+is `squash.zip` at 192.6 MB, with the next four at 135, 121, 107 and ~100 MB.
+Per-game romsets are one to two orders of magnitude below the gate and do not
+grow into it. Do not justify this guard that way.
+
+The real trigger is an accident: someone drops a **collection or merged
+romset zip** -- the multi-gigabyte kind -- into a `dontExtract` platform's
+folder, ROMM indexes it as an ordinary ROM, and someone presses play. That
+clears 1.5 GiB easily.
+
+**In that case the guard does not merely fail more tidily -- it makes the
+case work.** With `dontExtract` set, the ordinary path takes the `else`
+branch and stores the archive whole (`files = [new EJS_FileItem(filename,
+data)]`), which emulator.js writes to the FS as a single file -- exactly what
+MAME wants, since it reads the zip itself. Without the guard the size gate
+wins, the archive is streamed and unpacked, and the core is handed loose
+files it cannot use, after gigabytes have gone into MEMFS.
+
+Only above the point where a single `ArrayBuffer` can no longer be allocated
+do both paths fail; there the guard at least fails at download rather than
+after inflating the whole set. That is upstream EmulatorJS's own failure mode
+for that case -- this patch should not silently change behaviour for archives
+it was never designed to handle.
+
+The mirror case is already correct and the guard does not disturb it: the
+same accident in the ScummVM folder still streams and extracts, because
+ScummVM leaves `dontExtract` false.
+
+The condition now mirrors the ordinary path's own rule,
+`forceExtract === true || dontExtract === false`.
 
 ## Core-option labels are lost in RetroArch's legacy export, not by EmulatorJS (2026-09-11)
 
