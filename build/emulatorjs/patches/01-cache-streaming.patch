@@ -17,7 +17,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,116 @@
+@@ -217,6 +218,122 @@
                          }
                          
                          const blob = new Blob(chunks);
@@ -69,13 +69,19 @@
 +                            let needed = 0;
 +                            try {
 +                                const manifest = await readCentralDirectory(blob);
-+                                needed = manifest.reduce((sum, entry) => sum + entry.uncompressedSize, 0);
++                                // The compressed blob stays referenced for the
++                                // whole unpack, so both copies are resident at
++                                // peak. Counting only the unpacked total
++                                // understates what is needed by the size of the
++                                // archive -- which for the titles that actually
++                                // fail is most of the problem.
++                                needed = manifest.reduce((sum, entry) => sum + entry.uncompressedSize, 0) + blob.size;
 +                            } catch (e) {
 +                                // Not a readable zip -- leave it to the paths below.
 +                            }
 +                            if (needed > memoryBudget) {
 +                                const gb = (n) => (n / 1073741824).toFixed(1);
-+                                const err = new Error(`This game needs ${gb(needed)} GB once unpacked, more than the ${gb(memoryBudget)} GB this device can spare.`);
++                                const err = new Error(`This game needs ${gb(needed)} GB to unpack, more than the ${gb(memoryBudget)} GB this device can spare.`);
 +                                err.ejsUserMessage = err.message;
 +                                reject(err);
 +                                return;
