@@ -28,8 +28,9 @@ function makeZip(entries, opts = {}) {
     const crc = e.crcOverride !== undefined ? e.crcOverride : crc32(raw);
     const nameBuf = Buffer.from(e.name, "utf8");
 
+    const needed = opts.zip64 ? 45 : 20;  // zip64 requires >= 4.5
     const local = Buffer.concat([
-      u32(0x04034b50), u16(20), u16(0), u16(store ? 0 : 8),
+      u32(0x04034b50), u16(needed), u16(0), u16(store ? 0 : 8),
       u16(0), u16(0), u32(crc), u32(comp.length), u32(raw.length),
       u16(nameBuf.length), u16(0), nameBuf, comp,
     ]);
@@ -43,7 +44,7 @@ function makeZip(entries, opts = {}) {
       : Buffer.alloc(0);
 
     centrals.push(Buffer.concat([
-      u32(0x02014b50), u16(20), u16(20), u16(0), u16(store ? 0 : 8),
+      u32(0x02014b50), u16(20), u16(needed), u16(0), u16(store ? 0 : 8),
       u16(0), u16(0), u32(crc),
       u32(opts.zip64 ? 0xFFFFFFFF : comp.length),
       u32(opts.zip64 ? 0xFFFFFFFF : raw.length),
