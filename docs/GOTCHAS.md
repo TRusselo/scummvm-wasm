@@ -1761,9 +1761,17 @@ not there.
 
 Rationale: these are point-and-click games, so the two face buttons nearest the
 thumb should be the two mouse buttons. The virtual keyboard moved from Select
-to L3 rather than being lost. One consequence remains: **the ScummVM launcher
-GUI no longer has a button** (it was on Start), reachable now only through
-F5's in-game menu.
+to L3 rather than being lost.
+
+`RETROKE_SCUMMVM_GUI`, the old Start binding, is now unused. It and F5 open the
+*same* thing -- ScummVM's in-game Global Main Menu: the action pushes
+`EVENT_MAINMENU` directly, while F5 is a raw key that the default keymap binds
+to the same "Game menu" action (`engines/metaengine.cpp:106`). The old layout
+simply had two buttons for one menu. The direct event is the more robust of the
+two, since roughly thirty engines reference `KEYCODE_F5` themselves and can
+consume the keypress; that was weighed and dismissed on 2026-09-12, because the
+engines in question are keyboard-driven (agi, glk, parser games) and are not
+played with a controller. R3 is left free rather than spent on a duplicate.
 
 ## `core.json` inside the `.data` is how a core sets its own EmulatorJS defaults (2026-09-12)
 
