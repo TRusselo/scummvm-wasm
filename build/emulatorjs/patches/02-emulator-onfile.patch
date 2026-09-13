@@ -1,5 +1,5 @@
---- emulator.js.orig	2026-09-12 21:38:35.417940005 -0600
-+++ emulator.js	2026-09-12 21:39:21.543187716 -0600
+--- emulator.js.orig	2026-09-13 01:21:40.263557037 -0600
++++ emulator.js	2026-09-13 01:21:49.834059983 -0600
 @@ -78,7 +78,7 @@
       * @param {boolean} dontExtract If true, the downloaded file will not be extracted, but will still be cached (default is false, overridden by forceExtract).
       * @returns A promise that resolves with the downloaded file data.
@@ -97,3 +97,26 @@
              // extract to the file system
              if (returnData && returnData.files) {
                  for (let i = 0; i < returnData.files.length; i++) {
+@@ -1080,13 +1086,15 @@
+      * Extract file names from downloaded ROM data and start game
+      */
+     startGameFromDownload(romData) {
+-        const fileNames = [];
+-        for (const file of romData.files) {
+-            if (file.filename.endsWith("/")) {
+-                continue;
+-            }
+-            fileNames.push(file.filename);
+-        }
++        // A streamed archive was written to the filesystem entry by entry, so
++        // its files array is deliberately empty and the entry names arrive on
++        // fileNames instead. Without this the list is empty and selectRomFile()
++        // leaves this.fileName undefined, which reaches the core as the content
++        // path "/undefined" and names every save file after it.
++        const names = Array.isArray(romData.fileNames)
++            ? romData.fileNames
++            : romData.files.map((file) => file.filename);
++        const fileNames = names.filter((name) => !name.endsWith("/"));
+         this.selectRomFile(fileNames, this.getCore());
+         this.startGame();
+     }

@@ -2441,6 +2441,71 @@ on different schedules. A recent rebase of one says nothing about the other:
 scummvm-core was rebased 2026-09-06, ROMM had not been merged since
 2026-08-30, and this change landed 2026-09-08 in between.
 
+## A streamed zip's `files` array serves two consumers, and only one is obvious (2026-09-13)
+
+The streaming-zip path (`build/emulatorjs/patches/`) writes each entry to the
+Emscripten FS as it inflates, then resolves an `EJS_CacheItem` whose `files`
+array is **empty** -- the whole point being never to hold a 2.6 GB archive in
+memory. That looked complete, because the obvious consumer of `files` is
+`emulator.js`'s extraction loop, which the streaming path replaces.
+
+It is not the only consumer. `startGameFromDownload()` builds its ROM-name
+list from the same array:
+
+```js
+for (const file of romData.files) { ... fileNames.push(file.filename); }
+this.selectRomFile(fileNames, this.getCore());
+```
+
+With `files` empty, `selectRomFile()` falls through to `fileNames[0]` and
+leaves `this.fileName` **undefined**. `startGame()` then does
+`args.push("/" + this.fileName)`, so the core is launched with the content
+path `/undefined`, and RetroArch names everything after it:
+
+```
+[WARN] [Environ] SYSTEM DIR is empty, assume CONTENT DIR "/undefined".
+[INFO] [Override] Redirecting save file to "/data/saves/ScummVM/undefined.srm".
+```
+
+Every streamed run shows this and no non-streamed run does (verified across
+114 test logs; `gabe 2.log` contains both, COMI named correctly and GK2
+`undefined`, in one session). It stayed invisible because nothing then
+depended on it: ScummVM writes no `.srm`, EmulatorJS's own state naming falls
+back to `config.gameName` (which ROMM sets), and our core scans `/` rather
+than the content path, so detection was unaffected.
+
+**The trap when fixing it:** the obvious fix -- populate `files` with
+name-only entries -- is actively destructive. `emulator.js`'s extraction loop
+is *not* guarded against streamed items; it only no-ops today because the
+array is empty:
+
+```js
+if (returnData && returnData.files) {
+    for (...) writeFilesToFS(returnData.files[i].filename, returnData.files[i].bytes)
+}
+```
+
+Give it name-only entries and it rewrites every file with the empty bytes
+they carry, wiping the content that was just streamed -- while making the
+`undefined` symptom disappear. It would look like a successful fix.
+
+The entry names therefore travel on a **separate** `fileNames` property and
+`files` stays empty, so the loop remains unreachable by construction and no
+consumer of `.bytes` is ever handed a zero-length lie.
+
+**Also fixed here:** `assemble.sh` verified only the `cache.js` half of the
+patch set (by grepping for the string `Streaming`). The `emulator.js` half
+contains no string literal, so that half could go missing while the script
+still reported success. It now checks `romData.fileNames` in the source
+(plain `fileNames` is already there unpatched, as a local) and `fileNames` in
+the minified bundle (absent unpatched; terser preserves property names --
+verified by running the real minifier, not assumed).
+
+Regression tests: `build/emulatorjs/test/cache-streaming.test.mjs` and
+`test/rom-filename.test.mjs`. Both patch a throwaway copy of the real
+vendored file and import it in Node, so they exercise the actual patch rather
+than a transcription; both were confirmed to fail against the pre-fix patches.
+
 ## Core-option labels are lost in RetroArch's legacy export, not by EmulatorJS (2026-09-11)
 
 In EJS's Settings > Backend Core Options, `scummvm_gui_aspect_ratio` renders as

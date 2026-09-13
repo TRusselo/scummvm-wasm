@@ -1,5 +1,5 @@
---- cache.js.orig	2026-09-12 21:35:18.372294695 -0600
-+++ cache.js	2026-09-12 21:35:31.407952505 -0600
+--- cache.js.orig	2026-09-13 01:21:40.262897308 -0600
++++ cache.js	2026-09-13 01:21:44.669813741 -0600
 @@ -1,6 +1,7 @@
  import { simpleHash } from "./utils.js";
  import { EJS_STORAGE } from "./storage.js";
@@ -17,7 +17,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,39 @@
+@@ -217,6 +218,47 @@
                          }
                          
                          const blob = new Blob(chunks);
@@ -36,9 +36,11 @@
 +                            // Report bytes written, not entry count: the caller
 +                            // renders `loaded / 1048576` MB whenever total is 0.
 +                            let written = 0;
++                            const entryNames = [];
 +                            try {
 +                                await readZipEntries(blob, (entryName, entryBytes) => {
 +                                    onFile(entryName, entryBytes);
++                                    entryNames.push(entryName);
 +                                    written += entryBytes.length;
 +                                    if (onProgress) onProgress("decompressing", 0, written, 0);
 +                                });
@@ -50,6 +52,12 @@
 +                                "streamed-" + Date.now(), [], now, type, responseType, filename, url, null
 +                            );
 +                            streamedItem.streamed = true;
++                            // The entries are already on the filesystem, so files
++                            // stays empty -- emulator.js's extraction loop would
++                            // otherwise rewrite each one with the bytes held here.
++                            // The names still have to reach selectRomFile(), so
++                            // they travel separately.
++                            streamedItem.fileNames = entryNames;
 +                            resolve(streamedItem);
 +                            return;
 +                        }

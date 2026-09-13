@@ -105,9 +105,19 @@ echo "==> npm run minify"
 # EJS_DEBUG_XX is true and emulator.min.js otherwise, so patching only the
 # source would work under debug and silently do nothing in normal use.
 for f in "$WORK/ejs/data/src/cache.js" "$WORK/ejs/data/emulator.min.js"; do
-  grep -q "Streaming" "$f" || { echo "ERROR: patch missing from $f" >&2; exit 1; }
+  grep -q "Streaming" "$f" || { echo "ERROR: cache.js patch missing from $f" >&2; exit 1; }
 done
-echo "==> verified: both the source and the minified bundle carry the patch"
+# The emulator.js half needs its own check: it carries no string literal, so
+# the grep above cannot see it, and it was possible for that half to go
+# missing while this script still reported success. The entry-name manifest
+# is the discriminator -- "romData.fileNames" in the source (plain
+# "fileNames" appears there unpatched, as a local), and "fileNames" in the
+# bundle, where it appears nowhere unpatched and terser keeps property names.
+grep -q "romData.fileNames" "$WORK/ejs/data/src/emulator.js" \
+  || { echo "ERROR: emulator.js patch missing from the source" >&2; exit 1; }
+grep -q "fileNames" "$WORK/ejs/data/emulator.min.js" \
+  || { echo "ERROR: emulator.js patch missing from the minified bundle" >&2; exit 1; }
+echo "==> verified: both the source and the minified bundle carry both patches"
 
 echo "==> writing tree to ${OUTPUT_ABS}/data"
 rm -rf "${OUTPUT_ABS}"
