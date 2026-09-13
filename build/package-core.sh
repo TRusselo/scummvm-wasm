@@ -24,8 +24,49 @@ mkdir -p test-page/ejs/data/cores
 rm -f test-page/ejs/data/cores/scummvm-wasm.data \
       test-page/ejs/data/cores/scummvm-legacy-wasm.data
 
+# core.json travels inside the .data and is how EmulatorJS learns a core's
+# own defaults -- src/emulator.js reads it at decompression time and sets
+# this.defaultCoreOpts, this.enableMouseLock, this.extensions and the rest.
+# EmulatorJS's own build writes it straight from the core's cores.json stanza
+# (build.sh: `echo ${row} | base64 --decode > ./core.json`), so this file is
+# both the runtime defaults and the draft of our eventual cores.json entry --
+# keep the two identical. Modelled on dosbox_pure, the closest analogue
+# (threads + mouse + keyboard).
+#
+#   useKeyboard    -> "Direct Keyboard Input" defaults to Enabled, which
+#                     parser-driven engines (agi, sci, hugo, glk) need and
+#                     which no core option can set; it is an EmulatorJS
+#                     setting, and this is the only per-core way to default it.
+#   supportsMouse  -> "Lock Mouse" defaults to Enabled (ROMM also sets this
+#                     per-deployment today; this makes it travel with the core).
+#   requireThreads -> the core is built USE_LIBCO=0 on real pthreads; there is
+#                     no non-threaded build to fall back to.
+#   extensions     -> matches the core's own valid_extensions
+#                     (libretro-core.cpp: info->valid_extensions = "scummvm"),
+#                     the .scummvm hook-file mechanism in docs/GOTCHAS.md.
+#                     Anything without one still falls back to fileNames[0].
+mkdir -p build/pkg-staging
+cat > build/pkg-staging/core.json <<'EOF_CORE'
+{
+  "name": "scummvm",
+  "extensions": ["scummvm"],
+  "options": {
+    "requireThreads": true,
+    "supportsMouse": true,
+    "useKeyboard": true,
+    "defaultWebGL2": true
+  },
+  "license": "COPYING",
+  "repo": "https://github.com/libretro/scummvm"
+}
+EOF_CORE
+
 7z a -y test-page/ejs/data/cores/scummvm-thread-wasm.data \
   retroarch/scummvm_libretro.wasm retroarch/scummvm_libretro.js
+# Added from inside the staging dir so it lands at the archive ROOT: emulator.js
+# matches it with `k === "core.json"`, not by suffix, so a stored path of
+# "build/pkg-staging/core.json" would be ignored silently.
+( cd build/pkg-staging && 7z a -y ../../test-page/ejs/data/cores/scummvm-thread-wasm.data core.json )
 cp test-page/ejs/data/cores/scummvm-thread-wasm.data \
    test-page/ejs/data/cores/scummvm-thread-legacy-wasm.data
 

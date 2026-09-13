@@ -1755,15 +1755,48 @@ not there.
 | X | X | **Enter** | was F5 |
 | Y | Y | Escape | unchanged |
 | LB / RB | L / R | left / right click | unchanged, now duplicating A/B |
+| L3 (left stick click) | L3 | **virtual keyboard** | was unmapped |
 | View | Select | **F5 (in-game menu)** | was virtual keyboard |
 | Menu | Start | **Space (pause)** | was ScummVM GUI |
 
 Rationale: these are point-and-click games, so the two face buttons nearest the
-thumb should be the two mouse buttons. Two consequences worth knowing before
-changing them again: **the virtual keyboard no longer has a button** (it was on
-Select), which matters for parser games unless Direct Keyboard Input is used
-instead (next section), and **the ScummVM launcher GUI no longer has one** (it
-was on Start), reachable now only through F5's in-game menu.
+thumb should be the two mouse buttons. The virtual keyboard moved from Select
+to L3 rather than being lost. One consequence remains: **the ScummVM launcher
+GUI no longer has a button** (it was on Start), reachable now only through
+F5's in-game menu.
+
+## `core.json` inside the `.data` is how a core sets its own EmulatorJS defaults (2026-09-12)
+
+Some EmulatorJS behaviour is not a core option and cannot be set from the core
+at runtime -- "Direct Keyboard Input" and "Lock Mouse" are menu settings, not
+libretro variables. The per-core hook is a `core.json` file stored at the ROOT
+of the packaged `.data`. `src/emulator.js` reads it during core decompression
+and sets `defaultCoreOpts`, `enableMouseLock`, `extensions`, `coreName`,
+`repository` and `saveFileExt` from it. The keyboard toggle's default is
+literally `defaultCoreOpts.useKeyboard === true ? "enabled" : "disabled"`.
+
+EmulatorJS's own build writes this file straight from the core's `cores.json`
+stanza (`build.sh`: `echo ${row} | base64 --decode > ./core.json`), so the file
+we ship and the entry we eventually submit must stay identical -- that is why
+`build/package-core.sh` generates it rather than keeping a checked-in copy.
+
+Ours declares `requireThreads`, `supportsMouse`, `useKeyboard` and
+`defaultWebGL2`, modelled on `dosbox_pure`, which is the closest analogue in
+their catalogue (threads, mouse, keyboard).
+
+**Two traps:**
+
+1. **It must be at the archive root.** The parser matches `k === "core.json"`
+   exactly, unlike the `.js`/`.wasm` entries which are matched by suffix and so
+   tolerate the `retroarch/` prefix 7z gives them. A `core.json` stored under a
+   staging path is ignored in silence. `package-core.sh` adds it from inside the
+   staging directory for this reason.
+2. **`extensions` feeds the ROM-picking heuristic.** With no `core.json` the
+   list is empty, `supportsExtension()` is always false, and EmulatorJS falls
+   back to `fileNames[0]`. Declaring `["scummvm"]` matches the core's own
+   `valid_extensions` and makes a `.scummvm` hook file win the pick; archives
+   without one still fall back as before. Declaring a common game extension
+   here would change which file becomes `game->path` for every ROM.
 
 ## Full keyboard input (typing, arrow-key movement) for parser-driven games
 
