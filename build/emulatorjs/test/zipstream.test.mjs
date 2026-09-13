@@ -68,5 +68,43 @@ await check("rejects a non-zip by name", async () => {
   throw new Error("expected a throw");
 });
 
+// The EOCD signature (50 4b 05 06) is the last occurrence of those four
+// bytes; cdOffset sits at signature+16 (uint32 LE), the entry count at
+// signature+10 (uint16 LE). Patch a copy of a real zip's bytes so the rest
+// of the record (comment length, etc.) stays valid.
+const deflateBytes = readFileSync(join(DIR, "deflate.zip"));
+function corruptedDeflateCopy(patch) {
+  const copy = Uint8Array.from(deflateBytes);
+  let sig = -1;
+  for (let i = copy.length - 4; i >= 0; i--) {
+    if (copy[i] === 0x50 && copy[i + 1] === 0x4b && copy[i + 2] === 0x05 && copy[i + 3] === 0x06) { sig = i; break; }
+  }
+  if (sig < 0) throw new Error("test setup: EOCD signature not found in deflate.zip");
+  patch(new DataView(copy.buffer), sig);
+  return new Blob([copy]);
+}
+
+await check("rejects a corrupt central-directory offset by name", async () => {
+  const blob = corruptedDeflateCopy((dv, sig) => dv.setUint32(sig + 16, 0x7000000, true));
+  try {
+    await readCentralDirectory(blob);
+  } catch (err) {
+    if (!/zip:/.test(err.message)) throw new Error(`wrong message: ${err.message}`);
+    return;
+  }
+  throw new Error("expected a throw");
+});
+
+await check("rejects a corrupt entry count by name", async () => {
+  const blob = corruptedDeflateCopy((dv, sig) => dv.setUint16(sig + 10, 99, true));
+  try {
+    await readCentralDirectory(blob);
+  } catch (err) {
+    if (!/zip:/.test(err.message)) throw new Error(`wrong message: ${err.message}`);
+    return;
+  }
+  throw new Error("expected a throw");
+});
+
 console.log(failures ? `\n${failures} failure(s)` : "\nall passed");
 process.exit(failures ? 1 : 0);

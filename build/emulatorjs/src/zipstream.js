@@ -54,11 +54,26 @@ export async function readCentralDirectory(blob) {
   }
 
   const cd = await bytesOf(blob, cdOffset, cdOffset + cdSize);
+
+  // blob.slice() silently clamps to the end of the Blob, so a corrupt
+  // cdOffset/cdSize can hand back a buffer far shorter than the declared
+  // entry count could possibly fit in. Catch that up front rather than
+  // letting the loop below run into a raw DataView RangeError. A cdSize that
+  // is merely *larger* than the real central directory (and so also gets
+  // clamped) is not corrupt — it still contains every real entry — so this
+  // checks against the entry count's minimum possible size, not cdSize.
+  if (cd.length < count * 46) {
+    throw new Error("zip: central directory is truncated or its offset is out of range (archive is corrupt)");
+  }
+
   const cdv = new DataView(cd.buffer);
   const entries = [];
   let p = 0;
 
   for (let i = 0; i < count; i++) {
+    if (p + 46 > cd.length) {
+      throw new Error(`zip: central directory entry ${i} is truncated or its offset is out of range (archive is corrupt)`);
+    }
     if (cdv.getUint32(p, true) !== SIG_CENTRAL) {
       throw new Error(`zip: central directory entry ${i} has a bad signature`);
     }
@@ -71,6 +86,12 @@ export async function readCentralDirectory(blob) {
     const extraLen = cdv.getUint16(p + 30, true);
     const commentLen = cdv.getUint16(p + 32, true);
     let localOffset = cdv.getUint32(p + 42, true);
+
+    const entryEnd = p + 46 + nameLen + extraLen + commentLen;
+    if (entryEnd > cd.length) {
+      throw new Error(`zip: central directory entry ${i} is truncated or its offset is out of range (archive is corrupt)`);
+    }
+
     const name = new TextDecoder().decode(cd.subarray(p + 46, p + 46 + nameLen));
 
     // Zip64 extra field: present values appear in a fixed order, but only for
@@ -94,7 +115,7 @@ export async function readCentralDirectory(blob) {
     }
 
     entries.push({ name, method, flags, crc, compressedSize, uncompressedSize, localOffset });
-    p += 46 + nameLen + extraLen + commentLen;
+    p = entryEnd;
   }
 
   return entries;
