@@ -2,7 +2,7 @@
 
 **Status:** design, approved 2026-09-12. Not yet implemented.
 **Problem:** [issue #5](https://github.com/TRusselo/scummvm-wasm/issues/5).
-**Scope:** one branch in EmulatorJS's `data/src/cache.js` plus one new module.
+**Scope:** one new module plus small changes in `cache.js` and `emulator.js`.
 
 ## The problem
 
@@ -97,6 +97,14 @@ runtime. The override is not a convenience — a size-gated branch is otherwise
 the least-exercised code in the file, and forcing it on small ROMs is how it
 gets tested at all.
 
+### Files touched
+
+| File | Change |
+|---|---|
+| `data/src/zipstream.js` | **new.** The zip reader. Knows nothing about EmulatorJS. |
+| `data/src/cache.js` | `onFile` parameter; the streaming branch; `streamed` marker. |
+| `data/src/emulator.js` | hoist `writeFilesToFS`; thread `onFile` through both download wrappers; widen the cache-item validity check. |
+
 ### The new unit
 
 One self-contained module, `data/src/zipstream.js`, roughly 150 lines:
@@ -141,11 +149,31 @@ chunks[] -> Blob -> per entry: slice -> inflate -> writeFilesToFS -> release
 Peak memory becomes the largest single file in the archive rather than the
 archive plus its full expansion.
 
-The streaming path resolves with an **empty** `files` list and performs the
-writes through the caller's existing `writeFilesToFS` helper, passed in. The
+The streaming path performs its writes through the caller's existing
+`writeFilesToFS` helper, threaded down as a new optional `onFile` callback. The
 filesystem layout — directory creation, the trailing-slash directory-entry
 case, the leading `/` — is therefore produced by the code that already does it
 and cannot drift from the normal path.
+
+**Correction, found while planning (2026-09-12).** An earlier draft of this
+spec said the streaming path would resolve with an empty `files` list. That
+cannot work: `emulator.js` treats an empty list as a failure —
+
+```js
+if (cacheItem.files && cacheItem.files.length > 0) { return { data: cacheItem, ... }; }
+console.error("Invalid cache item returned:", cacheItem);
+return -1;
+```
+
+so a streamed download would be reported as a network error. The cache item
+therefore carries a `streamed = true` marker and that validity check is widened
+to accept it. This is why the change touches `emulator.js` as well, and why the
+diff is three modified files rather than one.
+
+Threading `onFile` down requires one further move: `writeFilesToFS` is
+currently defined *after* the download call in the same function, so it is
+hoisted above it. It is a pure function of `this.gameManager.FS` and moving it
+changes nothing else.
 
 ### Caching
 
