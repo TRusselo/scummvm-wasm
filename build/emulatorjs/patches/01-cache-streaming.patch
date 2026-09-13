@@ -1,0 +1,123 @@
+--- cache.js.orig	2026-09-13 02:33:22.614140784 -0600
++++ cache.js	2026-09-13 02:33:22.645924249 -0600
+@@ -1,6 +1,7 @@
+ import { simpleHash } from "./utils.js";
+ import { EJS_STORAGE } from "./storage.js";
+ import { EJS_COMPRESSION } from "./compression.js";
++import { readCentralDirectory, readZipEntries, streamingSupported } from "./zipstream.js";
+ 
+ const CACHE_BLOB_CHUNK_SIZE = 50 * 1024 * 1024;
+ 
+@@ -106,7 +107,7 @@
+      * @param {boolean} dontExtract - If true, the downloaded file will not be extracted, but will still be cached (default is false, overridden by forceExtract).
+      * @returns {Promise<EJS_CacheItem>} - The downloaded file as an EJS_CacheItem.
+      */
+-    downloadFile(url, type, method = "GET", headers = {}, body = null, onProgress = null, onComplete = null, timeout = 30000, responseType = "arraybuffer", forceExtract = false, dontCache = false, dontExtract = false) {
++    downloadFile(url, type, method = "GET", headers = {}, body = null, onProgress = null, onComplete = null, timeout = 30000, responseType = "arraybuffer", forceExtract = false, dontCache = false, dontExtract = false, onFile = null) {
+         let cacheActiveText = " (cache usage requested)"
+         if (dontCache) {
+             cacheActiveText = "";
+@@ -217,6 +218,103 @@
+                         }
+                         
+                         const blob = new Blob(chunks);
++
++                        // Archives beyond this size cannot be flattened into a
++                        // single ArrayBuffer (V8 caps one at ~2 GiB), and the
++                        // wasm extractor could not hold them either. Read them
++                        // straight out of the Blob one entry at a time instead.
++                        // Everything smaller keeps the original path exactly.
++                        const streamThreshold = (typeof window !== "undefined" && typeof window.EJS_streamZipThreshold === "number")
++                            ? window.EJS_streamZipThreshold
++                            : 1610612736;
++                        const isZip = (filename.toLowerCase().split(".").pop() === "zip");
++
++                        // MEMFS keeps file contents in JS typed arrays, not in
++                        // the core's wasm heap, so the unpacked total is what
++                        // the browser must find room for -- and a zip's central
++                        // directory states it exactly before a byte is written.
++                        // Without this a 2 GB handheld learns the game does not
++                        // fit by dying mid-unpack, after downloading all of it.
++                        //
++                        // Refused only when the game alone exceeds the device's
++                        // ENTIRE RAM. navigator.deviceMemory is coarse, reports
++                        // total rather than free, and is absent on Firefox and
++                        // Safari; anything tighter would refuse games that do
++                        // work. This catches the certain failures only.
++                        const deviceMemory = (typeof navigator !== "undefined" && typeof navigator.deviceMemory === "number")
++                            ? navigator.deviceMemory * 1073741824
++                            : 0;
++                        // The unpacked game is never the only resident. The
++                        // core's .data is ~94 MB on top of a 256 MB initial
++                        // wasm heap, the compressed Blob stays referenced for
++                        // the length of the unpack (browsers may or may not
++                        // back it with disk, and that is not detectable), and
++                        // the browser and OS need their own room. Reserve a
++                        // flat allowance rather than pretend to model any of
++                        // it; EJS_memoryOverheadBytes tunes it.
++                        const memoryOverhead = (typeof window !== "undefined" && typeof window.EJS_memoryOverheadBytes === "number")
++                            ? window.EJS_memoryOverheadBytes
++                            : 1073741824;
++                        const budgetOverridden = (typeof window !== "undefined" && typeof window.EJS_maxUnpackedBytes === "number");
++                        // A computed budget of zero still refuses; only the
++                        // absence of any figure to compare against skips.
++                        const haveBudget = budgetOverridden || deviceMemory > 0;
++                        const memoryBudget = budgetOverridden
++                            ? window.EJS_maxUnpackedBytes
++                            : Math.max(0, deviceMemory - memoryOverhead);
++                        if (isZip && haveBudget && streamingSupported()) {
++                            let needed = 0;
++                            try {
++                                const manifest = await readCentralDirectory(blob);
++                                needed = manifest.reduce((sum, entry) => sum + entry.uncompressedSize, 0);
++                            } catch (e) {
++                                // Not a readable zip -- leave it to the paths below.
++                            }
++                            if (needed > memoryBudget) {
++                                const gb = (n) => (n / 1073741824).toFixed(1);
++                                const err = new Error(`This game needs ${gb(needed)} GB once unpacked, more than the ${gb(memoryBudget)} GB this device can spare.`);
++                                err.ejsUserMessage = err.message;
++                                reject(err);
++                                return;
++                            }
++                        }
++                        // dontExtract is how a core asks for the archive itself
++                        // rather than its contents -- the arcade/MAME family
++                        // reads a romset zip directly -- and forceExtract
++                        // overrides that. Mirror the ordinary path's rule below
++                        // instead of letting the size gate outrank it.
++                        const extractionWanted = (forceExtract === true || dontExtract === false);
++                        if (blob.size > streamThreshold && isZip && extractionWanted && typeof onFile === "function" && streamingSupported()) {
++                            console.log(`[EJS Download] Streaming ${filename} (${(blob.size / 1048576).toFixed(0)} MB) directly to the filesystem`);
++                            const entryNames = [];
++                            try {
++                                await readZipEntries(blob, (entryName, entryBytes) => {
++                                    onFile(entryName, entryBytes);
++                                    entryNames.push(entryName);
++                                }, (written, total) => {
++                                    // The zip's central directory gives a real
++                                    // total, so this reports a true percentage
++                                    // rather than a byte count with no end.
++                                    if (onProgress) onProgress("decompressing", total ? written / total * 100 : 0, written, total);
++                                });
++                            } catch (e) {
++                                reject(`Decompression failed: ${e}`);
++                                return;
++                            }
++                            const streamedItem = new EJS_CacheItem(
++                                "streamed-" + Date.now(), [], now, type, responseType, filename, url, null
++                            );
++                            streamedItem.streamed = true;
++                            // The entries are already on the filesystem, so files
++                            // stays empty -- emulator.js's extraction loop would
++                            // otherwise rewrite each one with the bytes held here.
++                            // The names still have to reach selectRomFile(), so
++                            // they travel separately.
++                            streamedItem.fileNames = entryNames;
++                            resolve(streamedItem);
++                            return;
++                        }
++
+                         const ab = await blob.arrayBuffer();
+                         data = new Uint8Array(ab);
+                     } else {

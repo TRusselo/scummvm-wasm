@@ -213,6 +213,42 @@ Run this any time you have a fresh local build to deploy, before running
 `docker build` in the ROMM checkout -- it doesn't touch anything in this
 repo (`scummvm-wasm`) besides reading the already-packaged `.data` files.
 
+### Assembling the EmulatorJS tree
+
+`docker/emulatorjs/` in a ROMM checkout is committed to no repository.
+`build/emulatorjs/assemble.sh <output-dir>` rebuilds the patched tree from
+scratch: clone EmulatorJS at the pinned commit, add `zipstream.js`, apply
+`build/emulatorjs/patches/*.patch`, `npm ci`, `npm run minify`, verify, then
+write the result to `<output-dir>/data` -- matching the layout the ROMM
+Dockerfile expects at `docker/emulatorjs/data`.
+
+```bash
+build/emulatorjs/assemble.sh /tmp/ejs-stream-tree
+```
+
+It requires an output directory argument (`--force` may appear before or
+after it) and refuses to run without one, or with any other unrecognised
+argument. The output directory must be an **absolute path** -- a relative
+one would resolve against the repo root, not the caller's working
+directory, since the script `cd`s there first -- and it is also refused if
+it names or contains this repository's checkout. If the directory already
+exists and is non-empty, it refuses unless `--force` is passed --
+overwriting 286 MB of someone else's staged tree on a typo is exactly the
+accident this guards against, since the equivalent tree on the build
+machine is the build source for other Docker images (including a release
+candidate) that must not pick up an experimental patch.
+
+The script does not stage its output into any deployment checkout itself;
+it only prints where the assembled tree landed. Copying that tree into a
+real deployment (e.g. a ROMM checkout's `docker/emulatorjs/`) is a
+separate, deliberate step left to the operator.
+
+Run it whenever a patch changes or the pinned commit moves. It verifies
+that both `data/src/cache.js` and `data/emulator.min.js` carry the patch,
+because `loader.js` serves the source only when `EJS_DEBUG_XX` is true and
+the minified bundle otherwise -- patching one and not the other works
+under debug and fails silently in normal use.
+
 ## `test-page/download-emulatorjs.sh`
 
 Not part of the core-build pipeline proper -- fetches the EmulatorJS

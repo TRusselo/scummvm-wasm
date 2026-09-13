@@ -212,6 +212,107 @@ Real MIDI hardware output was never a goal for this project (these are
 SCUMM adventure games using their own AdLib/MT-32/etc. music emulation);
 excluding the plugin loses nothing.
 
+## SCI games cannot save-state at all, and ScummVM's own saves never reach the server (2026-09-13)
+
+Three separate problems, found while testing Gabriel Knight 2 and Riven. Only
+the first is SCI-specific; the third affects every engine we ship.
+
+### 1. Every SCI game refuses save states, by upstream default
+
+Riven refuses only during motion -- `MohawkEngine_Riven::canSaveGameStateCurrently()`
+checks `_scriptMan->hasQueuedScripts()`, so an animation blocks it and a static
+screen does not. That is the engine's own rule and is working correctly.
+
+GK2 refuses *always*, and the reason is a config default, not the game.
+`SciEngine::canSaveGameStateCurrently()` (`engines/sci/metaengine.cpp:387`):
+
+```cpp
+return _features->canSaveFromGMM() &&
+       !_gamestate->executionStackBase &&
+       _guestAdditions->userHasControl();
+```
+
+and `GameFeatures::canSaveFromGMM()` (`engines/sci/engine/features.cpp:867`)
+opens with:
+
+```cpp
+if (!ConfMan.getBool("gmm_save_enabled"))
+    return false;
+```
+
+`gmm_save_enabled` defaults to **false** (`engines/sci/detection_options.h:236`),
+carrying upstream's warning that GMM saves "may be corrupted and unusable". So
+**no SCI game can save-state in any build that does not set it**, and our
+save-state bridge is refused for the same reason ScummVM's own GMM Save is
+greyed out. GK2 is *not* on the incompatible-save-scheme blocklist (Hoyle,
+Jones, Mothergoose, Phantasmagoria, RAMA, Slater) -- it is caught by the global
+default.
+
+**Do not read this as "SCI saving is broken".** `kSaveGame`
+(`engines/sci/engine/kfile.cpp`) and the GMM path both call the same
+`gamestate_save()`. Identical serializer, identical format. The only difference
+is *when*: the game's own menu picks a safe moment, the GMM does not. The
+residual risk is named in `engines/sci/sci.h` -- internal script loops such as
+an open inventory, where the user has control but the loop state is not in the
+save. That is also why SCI disables autosave (`getAutosaveSlot()` returns -1).
+
+History, so nobody re-derives it: Filippos Karapetis *enabled* GMM saving in
+2022 (`d8336a31ffb`) listing ~37 games he had verified -- GK2 is not among them
+-- then disabled it by default 2024-11-04 (`609e8b54e01`) "This addresses bug
+15358". **Bug 15358 was never read**: bugs.scummvm.org sits behind Anubis bot
+protection and returns an access-denied page to any fetch. Read it before
+deciding anything about flipping this flag; it is the only evidence of what
+actually broke.
+
+### 2. The toggle exists, is reachable, and cannot persist
+
+`GAMEOPTION_ENABLE_GMM_SAVE` is part of `GUIO_GK2`
+(`engines/sci/detection_tables.h:1065`), so it appears in ScummVM's own Game
+Options > Engine tab. Turning it on there does nothing across a reload, because
+`OSystem_libretro::getDefaultConfigFileName()`
+(`backends/platform/libretro/src/libretro-os-utils.cpp:68`) puts `scummvm.ini`
+in the system directory -- which under EmulatorJS is `/`:
+
+```
+[WARN] [Environ] SYSTEM DIR is empty, assume CONTENT DIR "/b2_data.MHK".
+[INFO] [Environ] GET_SYSTEM_DIRECTORY: "/"
+[libretro WARN] WARNING: FSNode::createReadStream: 'scummvm.ini' does not exist!
+```
+
+`/` is MEMFS, rebuilt from nothing on every load. **No setting ever made in the
+ScummVM GUI has survived a reload in this deployment** -- not this option, not
+audio, not subtitles. Only `/data/saves` is IDBFS-backed and persistent.
+
+### 3. ScummVM's own saves never reach the server, for any engine
+
+EmulatorJS models a save as exactly **one** file. `GameManager.js:454`:
+
+```js
+getSaveFile(save) {
+    const exists = this.FS.analyzePath(this.getSaveFilePath()).exists;
+    return (exists ? this.FS.readFile(this.getSaveFilePath()) : null);
+}
+```
+
+`getSaveFilePath()` is RetroArch's `save_file_path`, a single `.srm`. ScummVM
+writes many files (`gk2.000`, `comi.s00`, `tentacle.s200`) into a directory and
+never creates a `.srm`, so `exists` is false, `getSaveFile()` returns `null`,
+and `saveSaveFiles()` fires `callEvent("saveSaveFiles", null)`. ROMM's listener
+(`frontend/src/views/Player/EmulatorJS/Player.vue:296`) bails on
+`!saveFile?.byteLength`.
+
+So in-game saves live in IndexedDB only -- per-origin, evictable, invisible to
+ROMM -- while save states go to the server. That asymmetry, not the SCI flag, is
+why "my saves vanished" is possible at all. This is a frontend that assumes SRAM
+meeting an engine with multi-file saves, and it is pure browser-environment
+divergence rather than anything upstream ScummVM got wrong.
+
+**Order this implies:** fix 3 and 2 before touching 1. If ScummVM's native saves
+reach the server, GK2 has a working server-backed save path through its own
+in-game menu -- the path upstream considers safe -- and `gmm_save_enabled`
+stops mattering. Flipping a flag upstream defaults off, against a bug report we
+have not read, to work around a sync gap we own, would be the wrong order.
+
 ## Save states: implementing retro_serialize()/retro_unserialize()
 
 `scummvm-core/backends/platform/libretro/src/libretro-core.cpp`'s
@@ -2400,6 +2501,14 @@ outage.
 git log --oneline HEAD..upstream/master --grep='!:' --grep='BREAKING' -E -i
 ```
 
+**And when the upstream is ScummVM, check `docs/pr/PR-DRAFTS.md` first.** A
+conflict in a file we patched is not automatically ours to win: upstream may
+have fixed the same bug their own way, which is what happened to the WebMIDI
+guard (our `f3c5255` vs their `de8c01b`, 2026-09-13 -- take theirs). PR-DRAFTS
+records, per patch, whether our version is still the one to keep. Resolving
+those conflicts by reflex in favour of the fork is how a fix we no longer need
+gets carried forever.
+
 Then, for each hit, decide whether it touches configuration or data this
 deployment already has on disk. Code conflicts announce themselves at merge
 time; a config schema change does not -- it merges perfectly cleanly and fails
@@ -2440,6 +2549,245 @@ Note also that the scummvm-core rebase and the ROMM merge are different trees
 on different schedules. A recent rebase of one says nothing about the other:
 scummvm-core was rebased 2026-09-06, ROMM had not been merged since
 2026-08-30, and this change landed 2026-09-08 in between.
+
+## The loading text freezes at "100%" during unpack: the progress adapter drops every status but one (2026-09-13)
+
+During a streamed archive's unpack the readout sat on
+`Download Game Data 100%` for minutes with no sign of life, then the game
+appeared with no warning. Not a hang, and not our streaming code either --
+`emulator.js`'s progress adapter:
+
+```js
+const onProgress = progress instanceof Function ? (status, percentage, loaded, total) => {
+    if (status === "downloading") {          // <- everything else dropped
+        ...
+        progress(progressText);
+    }
+} : null;
+```
+
+`cache.js` emits `onProgress("decompressing", ...)`, and always has -- both
+from our streaming branch and from upstream's own wasm extractor. The adapter
+discards all of it, so the text keeps whatever the last *download* tick wrote,
+which is always `100%`. Upstream has the identical gap; ordinary extraction is
+just too brief for anyone to notice. At 2.6 GB it is minutes.
+
+**The tell that this is a regression, not a missing feature:** the strings
+`Decompress Game Data`, `Decompress Game BIOS`, `Decompress Game Parent` and
+`Decompress Game Patch` are translated in *every* `data/localization/*.json`
+and referenced by **no source file at all**. Only `Decompress Game Core` is
+still used. Those translations are the fossil record of a readout the adapter
+broke.
+
+The fix passes the phase through as a second argument (`progress(text,
+status)`), so each caller picks its own label; callers that ignore it are
+unaffected. The ROM and core callers now use the already-translated
+`Decompress Game ...` keys. The core caller matters as well as the ROM one --
+it passes `forceExtract`, so `cache.js` genuinely does decompress it and
+genuinely was emitting ticks that went nowhere.
+
+Streaming also now reports a **real percentage** rather than a byte count:
+`readZipEntries()` sums every entry's `uncompressedSize` from the central
+directory before inflating anything, so the total is known up front and is
+handed to an optional `onProgress(written, total)`.
+
+Still unused after this, and left alone deliberately: `Download Game BIOS`,
+`Download Game Parent` and `Download Game Patch`. `download()` hardcodes
+`Download Game Data` for every type, so a BIOS download is labelled "Data".
+Same fossil pattern, separate fix, no bearing on this one.
+
+Regression tests: `build/emulatorjs/test/progress-text.test.mjs`, covering all
+three layers (cache.js emits a real total; the adapter forwards the phase; the
+caller labels it). `assemble.sh` now greps `Decompress Game Data` in both the
+source and the minified bundle -- absent from both unpatched, and a string
+literal, so terser preserves it.
+
+## Nothing checks whether a game will fit in memory, and the browser will not tell you (2026-09-13)
+
+**Correcting an earlier claim in this file and in conversation:** the unpacked
+game does *not* live in the core's wasm heap. Emscripten's MEMFS stores file
+contents as plain JS typed arrays --
+
+```js
+node.contents = new Uint8Array(newCapacity);   // MEMFS.expandFileStorage
+```
+
+-- so the game sits in the **JavaScript heap**, and the core's 4 GiB wasm
+ceiling (`INITIAL_MEMORY=268435456`, `ALLOW_MEMORY_GROWTH=1`, `maximum: 65536`
+pages, `shared: true`) does not bound it. They are two separate pools that both
+come out of the same system RAM. The old "zip + unpacked under 4 GiB" limit in
+this file was the *extractor worker's* wasm heap, which streaming bypasses.
+
+**No layer checks capacity.** EmulatorJS has no `navigator.storage.estimate()`,
+no `deviceMemory`, no heap inspection anywhere in `data/src`. Growth failure is
+swallowed outright:
+
+```js
+growMemory = size => { ... try { wasmMemory.grow(pages); ...; return 1 } catch(e) {} };
+```
+
+So the three possible outcomes on a machine that cannot fit the game are: a
+catchable `RangeError: Array buffer allocation failed` from `new Uint8Array`;
+the OOM killer taking the browser with nothing logged (Linux overcommit); or
+minutes of swapping. Which one you get is the OS's decision.
+
+**What the preflight does.** A zip's central directory states the exact
+unpacked total before a byte is written -- the same figure that feeds the
+decompression percentage -- so the check is free. It compares that against
+`navigator.deviceMemory` minus a 1 GiB reserve and refuses up front.
+
+The reserve exists because the game is never the only resident: the core's
+`.data` is ~94 MB on top of a 256 MB initial wasm heap, the compressed Blob
+stays referenced for the length of the unpack, and the browser and OS need
+their own room. Comparing against all of RAM would pass games that cannot
+possibly run.
+
+| game | unpacked | 2 GB device | 4 GB | 8 GB+ |
+|---|---|---|---|---|
+| Feeble Files (2CD) | 1.083G | refuse | allow | allow |
+| Phantasmagoria | 2.144G | refuse | allow | allow |
+| Zork: Grand Inquisitor | 2.359G | refuse | allow | allow |
+| Riven (CD) | 2.674G | refuse | allow | allow |
+| Gabriel Knight 2 | 3.343G | refuse | refuse | allow |
+
+**What it deliberately does not do.** `navigator.deviceMemory` reports *total*
+device RAM, rounded, capped at 8 -- so a 16 or 32 GB desktop also reports 8 and
+gets a 7 GiB budget -- and it is absent on Firefox and Safari. There is no API
+for *free* memory: `performance.memory` is Chrome-only and JS-heap-only,
+`storage.estimate()` is disk quota. With no figure to compare against the check
+does nothing at all, because a false refusal blocks a game that works, which is
+worse than the late failure it replaces. This guards the certain failures, not
+the marginal ones. Tune with `EJS_maxUnpackedBytes` (absolute) or
+`EJS_memoryOverheadBytes` (the reserve).
+
+**The refusal had to be made visible separately.** Every download failure in
+`emulator.js` collapsed to `-1` and was reported as "Network Error", so the
+refusal would have blamed the network. Errors carrying `ejsUserMessage` now
+pass their reason through and it is cleared once shown -- otherwise one refused
+game would make every later failure claim the same cause. Ordinary failures
+still say "Network Error" rather than leaking raw exception text.
+
+Regression tests: `test/cache-streaming.test.mjs` (budget, reserve, and the
+no-figure case) and `test/download-errors.test.mjs` (the reason reaching the
+screen, and not outliving its download).
+
+## A streamed zip's `files` array serves two consumers, and only one is obvious (2026-09-13)
+
+The streaming-zip path (`build/emulatorjs/patches/`) writes each entry to the
+Emscripten FS as it inflates, then resolves an `EJS_CacheItem` whose `files`
+array is **empty** -- the whole point being never to hold a 2.6 GB archive in
+memory. That looked complete, because the obvious consumer of `files` is
+`emulator.js`'s extraction loop, which the streaming path replaces.
+
+It is not the only consumer. `startGameFromDownload()` builds its ROM-name
+list from the same array:
+
+```js
+for (const file of romData.files) { ... fileNames.push(file.filename); }
+this.selectRomFile(fileNames, this.getCore());
+```
+
+With `files` empty, `selectRomFile()` falls through to `fileNames[0]` and
+leaves `this.fileName` **undefined**. `startGame()` then does
+`args.push("/" + this.fileName)`, so the core is launched with the content
+path `/undefined`, and RetroArch names everything after it:
+
+```
+[WARN] [Environ] SYSTEM DIR is empty, assume CONTENT DIR "/undefined".
+[INFO] [Override] Redirecting save file to "/data/saves/ScummVM/undefined.srm".
+```
+
+Every streamed run shows this and no non-streamed run does (verified across
+114 test logs; `gabe 2.log` contains both, COMI named correctly and GK2
+`undefined`, in one session). It stayed invisible because nothing then
+depended on it: ScummVM writes no `.srm`, EmulatorJS's own state naming falls
+back to `config.gameName` (which ROMM sets), and our core scans `/` rather
+than the content path, so detection was unaffected.
+
+**The trap when fixing it:** the obvious fix -- populate `files` with
+name-only entries -- is actively destructive. `emulator.js`'s extraction loop
+is *not* guarded against streamed items; it only no-ops today because the
+array is empty:
+
+```js
+if (returnData && returnData.files) {
+    for (...) writeFilesToFS(returnData.files[i].filename, returnData.files[i].bytes)
+}
+```
+
+Give it name-only entries and it rewrites every file with the empty bytes
+they carry, wiping the content that was just streamed -- while making the
+`undefined` symptom disappear. It would look like a successful fix.
+
+The entry names therefore travel on a **separate** `fileNames` property and
+`files` stays empty, so the loop remains unreachable by construction and no
+consumer of `.bytes` is ever handed a zero-length lie.
+
+**Also fixed here:** `assemble.sh` verified only the `cache.js` half of the
+patch set (by grepping for the string `Streaming`). The `emulator.js` half
+contains no string literal, so that half could go missing while the script
+still reported success. It now checks `romData.fileNames` in the source
+(plain `fileNames` is already there unpatched, as a local) and `fileNames` in
+the minified bundle (absent unpatched; terser preserves property names --
+verified by running the real minifier, not assumed).
+
+Regression tests: `build/emulatorjs/test/cache-streaming.test.mjs` and
+`test/rom-filename.test.mjs`. Both patch a throwaway copy of the real
+vendored file and import it in Node, so they exercise the actual patch rather
+than a transcription; both were confirmed to fail against the pre-fix patches.
+
+### The size gate must not outrank the caller's extraction intent
+
+Found while fixing the above. The streaming condition originally read:
+
+```js
+if (blob.size > streamThreshold && isZip && typeof onFile === "function" && ...)
+```
+
+which ignores both `forceExtract` and `dontExtract`. `dontExtract` is how a
+core says it wants the **archive itself**, not its contents -- set by
+`downloadType.dontExtractIfCore` for the arcade/MAME family, which reads a
+romset zip directly. Streaming unpacks it to loose files, which is precisely
+what that core did not ask for.
+
+ScummVM never sets it (`Core scummvm does not require special handling` in
+every log), so this cannot affect our core. It can still affect the
+deployment, because the patch lands in `cache.js`'s `downloadFile()` -- the
+shared download path for **every** core and platform ROMM serves, not
+ScummVM's alone.
+
+**What actually triggers it, and what does not.** The first justification
+written here was that a large arcade romset would hit the 1.5 GiB gate. That
+is wrong, and the library disproves it: the largest arcade zip on this server
+is `squash.zip` at 192.6 MB, with the next four at 135, 121, 107 and ~100 MB.
+Per-game romsets are one to two orders of magnitude below the gate and do not
+grow into it. Do not justify this guard that way.
+
+The real trigger is an accident: someone drops a **collection or merged
+romset zip** -- the multi-gigabyte kind -- into a `dontExtract` platform's
+folder, ROMM indexes it as an ordinary ROM, and someone presses play. That
+clears 1.5 GiB easily.
+
+**In that case the guard does not merely fail more tidily -- it makes the
+case work.** With `dontExtract` set, the ordinary path takes the `else`
+branch and stores the archive whole (`files = [new EJS_FileItem(filename,
+data)]`), which emulator.js writes to the FS as a single file -- exactly what
+MAME wants, since it reads the zip itself. Without the guard the size gate
+wins, the archive is streamed and unpacked, and the core is handed loose
+files it cannot use, after gigabytes have gone into MEMFS.
+
+Only above the point where a single `ArrayBuffer` can no longer be allocated
+do both paths fail; there the guard at least fails at download rather than
+after inflating the whole set. That is upstream EmulatorJS's own failure mode
+for that case -- this patch should not silently change behaviour for archives
+it was never designed to handle.
+
+The mirror case is already correct and the guard does not disturb it: the
+same accident in the ScummVM folder still streams and extracts, because
+ScummVM leaves `dontExtract` false.
+
+The condition now mirrors the ordinary path's own rule,
+`forceExtract === true || dontExtract === false`.
 
 ## Core-option labels are lost in RetroArch's legacy export, not by EmulatorJS (2026-09-11)
 

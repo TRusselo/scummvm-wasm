@@ -8,3 +8,4 @@ build/embed-staging/
 .worktrees/
 useful-links.txt
 build/pkg-staging/
+build/emulatorjs/test/fixtures/

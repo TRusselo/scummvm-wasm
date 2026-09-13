@@ -595,10 +595,14 @@ Assisted-by: Claude:claude-opus-5"
 The entire point of the change is the memory profile. This task proves it, because nothing in Tasks 2 and 3 would fail if the implementation quietly buffered everything.
 
 **Files:**
+- Create: `build/emulatorjs/test/make-big-fixture.mjs`
 - Create: `build/emulatorjs/test/memory.test.mjs`
 
 **Interfaces:**
 - Consumes: `readZipEntries` from Task 3.
+
+**Step order:** write the generator (Step 2) *before* the test that invokes it
+(Step 1), or the first run fails with ENOENT.
 
 - [ ] **Step 1: Write the test**
 
