@@ -47,9 +47,17 @@ export function patchedTree({ full = false } = {}) {
     input: readFileSync(join(PATCHES, "01-cache-streaming.patch")),
   });
   if (full) {
-    execFileSync("patch", ["-s", join(work, "emulator.js")], {
-      input: readFileSync(join(PATCHES, "02-emulator-onfile.patch")),
-    });
+    // Every emulator.js patch, in the order assemble.sh applies them -- a test
+    // against a partially patched file is testing something we do not ship.
+    for (const name of [
+      "02-emulator-onfile.patch",
+      "03-canvas-pointer-events.patch",
+      "04-savestate-retry.patch",
+    ]) {
+      execFileSync("patch", ["-s", join(work, "emulator.js")], {
+        input: readFileSync(join(PATCHES, name)),
+      });
+    }
   }
   return work;
 }

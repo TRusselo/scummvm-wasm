@@ -111,6 +111,7 @@ echo "==> applying patches"
 patch "$WORK/ejs/data/src/cache.js"    < build/emulatorjs/patches/01-cache-streaming.patch
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/02-emulator-onfile.patch
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/03-canvas-pointer-events.patch
+patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/04-savestate-retry.patch
 
 echo "==> npm ci"
 ( cd "$WORK/ejs" && npm ci --silent )
@@ -150,7 +151,17 @@ for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js"; do
   grep -q "Decompress Game Data" "$f" \
     || { echo "ERROR: decompression-progress patch missing from $f" >&2; exit 1; }
 done
-echo "==> verified: both the source and the minified bundle carry both patches"
+
+# Save-state retry. An engine that refuses to save mid-animation (Riven, while
+# it has queued scripts) is retried from here rather than waited out inside the
+# core, which would block the main thread and freeze the tab. The waiting
+# message appears in no unpatched source or bundle, so it is a clean marker.
+for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js"; do
+  grep -q "WAITING FOR THE SCENE TO END" "$f" \
+    || { echo "ERROR: save-state-retry patch missing from $f" >&2; exit 1; }
+done
+
+echo "==> verified: both the source and the minified bundle carry all patches"
 
 echo "==> writing tree to ${OUTPUT_ABS}/data"
 rm -rf "${OUTPUT_ABS}"

@@ -1,0 +1,41 @@
+@@ -2225,12 +2225,35 @@
+ 
+         let stateUrl;
+         const saveState = addButton(this.config.buttonOpts.saveState, async () => {
++            // An engine can refuse a save while a scene is still playing:
++            // Riven's canSaveGameStateCurrently() is false for as long as it
++            // has queued scripts, and a queued script stays queued for the
++            // whole length of the animation it is running.
++            //
++            // The core cannot usefully wait for that itself. It owns the main
++            // thread while it blocks, so nothing is drawn and the tab freezes
++            // for however long it waits. Waiting here costs nothing: the game
++            // keeps running between attempts, the scene plays out on screen,
++            // and the save lands the moment the engine will accept it.
++            //
++            // The state is therefore captured when the scene ends rather than
++            // when the button was pressed -- a few seconds of game time later,
++            // which is the same thing the engine's own save menu does.
++            const retryUntil = Date.now() + ((typeof window !== "undefined"
++                && typeof window.EJS_saveStateWaitMs === "number") ? window.EJS_saveStateWaitMs : 10000);
+             let state;
+-            try {
+-                state = this.gameManager.getState();
+-            } catch(e) {
+-                this.displayMessage(this.localization("FAILED TO SAVE STATE"));
+-                return;
++            for (;;) {
++                try {
++                    state = this.gameManager.getState();
++                    break;
++                } catch(e) {
++                    if (Date.now() >= retryUntil) {
++                        this.displayMessage(this.localization("FAILED TO SAVE STATE"));
++                        return;
++                    }
++                    this.displayMessage(this.localization("WAITING FOR THE SCENE TO END"));
++                    await new Promise((resolve) => setTimeout(resolve, 400));
++                }
+             }
+             const { screenshot, format } = await this.takeScreenshot(this.capture.photo.source, this.capture.photo.format, this.capture.photo.upscale);
+             const called = this.callEvent("saveState", {
