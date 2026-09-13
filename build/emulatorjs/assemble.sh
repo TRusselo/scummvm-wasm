@@ -3,8 +3,24 @@
 # patches applied, at <output>/data -- matching the layout the ROMM
 # Dockerfile expects at docker/emulatorjs/data.
 #
-# The tree is ~286 MB and is committed to no repository, so this script is
-# the only record of how it is built. It writes to an explicit output
+# INCOMPLETE ON ITS OWN -- READ THIS BEFORE STAGING THE RESULT.
+#
+# This produces the JavaScript half only: data/ with our patches applied,
+# about 3.5 MB and zero cores. A ROMM deployment needs ~298 MB: the same
+# data/ plus 187 core *.data files and 48 reports/*.json, which come from
+# the 47 "@emulatorjs/core-*" packages listed in data/cores/package.json.
+# `npm ci` at the repo root does NOT fetch them -- they are a separate
+# install, and every one of them is pinned to "latest", so refetching can
+# silently pull newer cores for every other platform in the library.
+#
+# Staging this output alone yields an image whose every non-ScummVM core is
+# missing. Either install the core packages, or copy cores/ and
+# cores/reports/ from a known-good complete tree (what the 2026-09-13 build
+# did, to avoid an untested "latest" core bump riding along with unrelated
+# JS fixes). Expect exactly 187 and 48; the ScummVM core and its report are
+# COPYd in separately by ROMM'"'"'s Dockerfile and should not be included here.
+#
+# It writes to an explicit output
 # directory rather than staging into any deployment checkout directly --
 # staging the result into a real deployment (e.g. a ROMM checkout's
 # docker/emulatorjs/) is a separate, deliberate step left to the operator,
@@ -133,5 +149,9 @@ rm -rf "${OUTPUT_ABS}"
 mkdir -p "${OUTPUT_ABS}"
 cp -r "$WORK/ejs/data" "${OUTPUT_ABS}/data"
 
-echo "==> done. Patched tree is at ${OUTPUT_ABS}/data."
+CORE_COUNT="$(ls "${OUTPUT_ABS}"/data/cores/*.data 2>/dev/null | wc -l)"
+echo "==> done. Patched tree is at ${OUTPUT_ABS}/data (JS only: ${CORE_COUNT} cores)."
+echo "    INCOMPLETE: a deployment needs 187 cores and 48 reports as well -- see"
+echo "    the note at the top of this script. Staging this as-is ships an image"
+echo "    with no cores for any platform but ScummVM."
 echo "    Staging it into a deployment (e.g. a ROMM checkout's docker/emulatorjs/) is a separate, deliberate step -- not performed by this script."
