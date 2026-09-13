@@ -376,6 +376,64 @@ no longer blocks anything.
 defaults to off, which is a different thing from flipping an upstream default
 against a bug report nobody has read.
 
+## A refused save/load means "not right now", not "never" (2026-09-13)
+
+`canSaveGameStateCurrently()` / `canLoadGameStateCurrently()` answer a question
+about *this instant*. The bridge used to treat a `false` as a permanent
+refusal, fail the whole operation and clear the pending request. That produced
+two symptoms that looked unrelated for weeks:
+
+- **Riven could only save with nothing moving on screen.**
+  `MohawkEngine_Riven::canSaveGameStateCurrently()` checks
+  `_scriptMan->hasQueuedScripts()`, which is true for the length of any
+  animation.
+- **KQ5 (and every SCI game) could not load a state at all.** SCI's returns
+  `!_gamestate->executionStackBase`, which covers most of a game's startup --
+  exactly when EmulatorJS fires its load.
+
+Both windows open on their own a moment later. The fix keeps the request
+pending for up to `LIBRETRO_SAVESTATE_MAX_REFUSALS` (180) frames inside the
+existing `LIBRETRO_SAVESTATE_MAX_SWITCHES` (600) loop, and only then reports a
+refusal. If a retest still shows a refusal, the log now says
+`Load refused for 180 frames, giving up` -- raise the budget rather than
+re-diagnose.
+
+**The three failure exits used to be silent**, which is what made this take so
+long: the OSD notification uses `RETRO_MESSAGE_TARGET_OSD`, so it never reaches
+the log, and the other two exits printed nothing at all. All three now log.
+
+### SCI's load is deferred, and it did not say so
+
+`SciEngine::loadGameState()` only sets `_gamestate->_delayedRestoreGameId` and
+returns `kNoError`; the restore happens later from
+`GuestAdditions::kGetEventHook()`/`kWaitHook()`. `Engine::isSaveOrLoadPending()`
+defaults to `return false`, and **SCUMM was the only engine in the whole tree
+that overrode it** -- which is why the bridge, developed against SCUMM and
+Mohawk, never hit this. For SCI we declared the load finished before the engine
+had run it, and `EngineState::reset()` could then discard the armed restore,
+leaving the game at a fresh start. SCI now reports
+`_delayedRestoreGameId != -1`.
+
+## Reading a save state by hand
+
+EmulatorJS states on the ROMM server are **RetroArch RASTATE containers**, not
+raw core payloads:
+
+```
+5241 5354 4154 4501   "RASTATE" + version 1
+4d45 4d20 0000 1000   "MEM " + block size          <- retro_serialize() output
+2ea3 0500             our outer payload length
+314d 5653             'S','V','M','1' -> MKTAG magic, little-endian 0x53564d31
+0300 0000             entry count
+```
+
+So anything parsing a `.state` must skip to the `MEM ` block first. States live
+on the Unraid host at
+`/mnt/user/appdata/romm/assets/users/<id>/states/<platform>/<rom id>/<core>/`.
+Dumping one settles "is the save side working?" in seconds, with no rebuild --
+it was how the KQ5 investigation proved the container held `kq5.200` plus the
+user's own `kq5.001`/`kq5.002` saves, moving the entire fault to the load path.
+
 ## Save states: implementing retro_serialize()/retro_unserialize()
 
 `scummvm-core/backends/platform/libretro/src/libretro-core.cpp`'s
