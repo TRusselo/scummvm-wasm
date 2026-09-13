@@ -155,8 +155,14 @@ export function streamingSupported() {
   return typeof DecompressionStream === "function" && typeof Blob !== "undefined";
 }
 
-export async function readZipEntries(blob, onEntry) {
+export async function readZipEntries(blob, onEntry, onProgress) {
   const entries = await readCentralDirectory(blob);
+
+  // Every entry's uncompressed size is in the central directory, so the total
+  // is known before a single byte is inflated -- callers can show a real
+  // percentage instead of a running byte count that never reaches an end.
+  const total = entries.reduce((sum, e) => sum + e.uncompressedSize, 0);
+  let written = 0;
 
   for (const e of entries) {
     if (e.flags & FLAG_ENCRYPTED) {
@@ -165,6 +171,7 @@ export async function readZipEntries(blob, onEntry) {
 
     if (e.name.endsWith("/")) {
       onEntry(e.name, new Uint8Array(0));
+      if (onProgress) onProgress(written, total);
       continue;
     }
 
@@ -194,6 +201,8 @@ export async function readZipEntries(blob, onEntry) {
     }
 
     onEntry(e.name, bytes);
+    written += bytes.length;
+    if (onProgress) onProgress(written, total);
   }
 
   return entries.length;

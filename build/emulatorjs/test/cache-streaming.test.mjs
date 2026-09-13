@@ -1,51 +1,17 @@
 // Tests the streaming branch of the patched cache.js -- the real vendored
 // file with patches/01-cache-streaming.patch applied to a throwaway copy,
 // exactly as assemble.sh builds it, rather than a transcription of it.
-//
-// cache.js is not in this repository (assemble.sh clones EmulatorJS at a
-// pinned commit), so point EJS_SRC at an EmulatorJS checkout's data/src to
-// run this. Without one the test skips rather than failing.
-import { readFileSync, mkdtempSync, copyFileSync, rmSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { tmpdir, homedir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { execFileSync } from "node:child_process";
+import { patchedTree, harness } from "./helpers/patched-tree.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURES = join(HERE, "fixtures");
-const PATCHES = join(HERE, "..", "patches");
-const OURS = join(HERE, "..", "src");
-
-const EJS_SRC = process.env.EJS_SRC || join(homedir(), "git", "EmulatorJS", "data", "src");
-if (!existsSync(join(EJS_SRC, "cache.js"))) {
-  console.log(`SKIP  no EmulatorJS source at ${EJS_SRC}`);
-  console.log("      set EJS_SRC=<EmulatorJS checkout>/data/src to run this test");
-  process.exit(0);
-}
-
-const work = mkdtempSync(join(tmpdir(), "ejs-cache-test-"));
-process.on("exit", () => rmSync(work, { recursive: true, force: true }));
-for (const f of ["utils.js", "storage.js", "compression.js", "cache.js"]) {
-  copyFileSync(join(EJS_SRC, f), join(work, f));
-}
-copyFileSync(join(OURS, "zipstream.js"), join(work, "zipstream.js"));
-execFileSync("patch", ["-s", join(work, "cache.js")], {
-  input: readFileSync(join(PATCHES, "01-cache-streaming.patch")),
-});
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
+const work = patchedTree();
+if (!work) process.exit(0);
 
 const { EJS_Download } = await import(pathToFileURL(join(work, "cache.js")).href);
-
-let failures = 0;
-function check(name, fn) {
-  return fn().then(
-    () => console.log(`  ok    ${name}`),
-    (e) => { failures++; console.error(`  FAIL  ${name}\n        ${e.message}`); }
-  );
-}
-function eq(actual, expected, what) {
-  const a = JSON.stringify(actual), b = JSON.stringify(expected);
-  if (a !== b) throw new Error(`${what}: got ${a}, want ${b}`);
-}
+const { check, eq, report } = harness();
 
 // The threshold is read off window, which is also the only way to make a
 // small fixture take the streaming path without a multi-GB archive.
@@ -118,5 +84,4 @@ await check("forceExtract still streams an oversized archive", async () => {
   eq(item.fileNames, DIRS_ZIP_ENTRIES, "manifest");
 });
 
-console.log(failures ? `\n${failures} failure(s)` : "\nall passed");
-process.exit(failures ? 1 : 0);
+report();

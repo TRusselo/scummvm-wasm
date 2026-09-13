@@ -2441,6 +2441,58 @@ on different schedules. A recent rebase of one says nothing about the other:
 scummvm-core was rebased 2026-09-06, ROMM had not been merged since
 2026-08-30, and this change landed 2026-09-08 in between.
 
+## The loading text freezes at "100%" during unpack: the progress adapter drops every status but one (2026-09-13)
+
+During a streamed archive's unpack the readout sat on
+`Download Game Data 100%` for minutes with no sign of life, then the game
+appeared with no warning. Not a hang, and not our streaming code either --
+`emulator.js`'s progress adapter:
+
+```js
+const onProgress = progress instanceof Function ? (status, percentage, loaded, total) => {
+    if (status === "downloading") {          // <- everything else dropped
+        ...
+        progress(progressText);
+    }
+} : null;
+```
+
+`cache.js` emits `onProgress("decompressing", ...)`, and always has -- both
+from our streaming branch and from upstream's own wasm extractor. The adapter
+discards all of it, so the text keeps whatever the last *download* tick wrote,
+which is always `100%`. Upstream has the identical gap; ordinary extraction is
+just too brief for anyone to notice. At 2.6 GB it is minutes.
+
+**The tell that this is a regression, not a missing feature:** the strings
+`Decompress Game Data`, `Decompress Game BIOS`, `Decompress Game Parent` and
+`Decompress Game Patch` are translated in *every* `data/localization/*.json`
+and referenced by **no source file at all**. Only `Decompress Game Core` is
+still used. Those translations are the fossil record of a readout the adapter
+broke.
+
+The fix passes the phase through as a second argument (`progress(text,
+status)`), so each caller picks its own label; callers that ignore it are
+unaffected. The ROM and core callers now use the already-translated
+`Decompress Game ...` keys. The core caller matters as well as the ROM one --
+it passes `forceExtract`, so `cache.js` genuinely does decompress it and
+genuinely was emitting ticks that went nowhere.
+
+Streaming also now reports a **real percentage** rather than a byte count:
+`readZipEntries()` sums every entry's `uncompressedSize` from the central
+directory before inflating anything, so the total is known up front and is
+handed to an optional `onProgress(written, total)`.
+
+Still unused after this, and left alone deliberately: `Download Game BIOS`,
+`Download Game Parent` and `Download Game Patch`. `download()` hardcodes
+`Download Game Data` for every type, so a BIOS download is labelled "Data".
+Same fossil pattern, separate fix, no bearing on this one.
+
+Regression tests: `build/emulatorjs/test/progress-text.test.mjs`, covering all
+three layers (cache.js emits a real total; the adapter forwards the phase; the
+caller labels it). `assemble.sh` now greps `Decompress Game Data` in both the
+source and the minified bundle -- absent from both unpatched, and a string
+literal, so terser preserves it.
+
 ## A streamed zip's `files` array serves two consumers, and only one is obvious (2026-09-13)
 
 The streaming-zip path (`build/emulatorjs/patches/`) writes each entry to the

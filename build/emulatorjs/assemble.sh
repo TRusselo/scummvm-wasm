@@ -117,6 +117,15 @@ grep -q "romData.fileNames" "$WORK/ejs/data/src/emulator.js" \
   || { echo "ERROR: emulator.js patch missing from the source" >&2; exit 1; }
 grep -q "fileNames" "$WORK/ejs/data/emulator.min.js" \
   || { echo "ERROR: emulator.js patch missing from the minified bundle" >&2; exit 1; }
+# The decompression readout is a third, independently droppable piece: it is
+# what stops the loading text freezing on "Download Game Data 100%" for the
+# whole unpack. "Decompress Game Data" is already translated in every
+# localization/*.json but appears in no unpatched source or bundle, so it is
+# a clean marker in both.
+for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js"; do
+  grep -q "Decompress Game Data" "$f" \
+    || { echo "ERROR: decompression-progress patch missing from $f" >&2; exit 1; }
+done
 echo "==> verified: both the source and the minified bundle carry both patches"
 
 echo "==> writing tree to ${OUTPUT_ABS}/data"

@@ -6,60 +6,16 @@
 // manifest existed this.fileName came out undefined and reached the core as
 // the content path "/undefined" -- which is what RetroArch then named every
 // save file after ("undefined.srm", "undefined.state").
-//
-// As with cache-streaming.test.mjs, emulator.js is vendored and patched at
-// assemble time; point EJS_SRC at an EmulatorJS checkout's data/src.
-import { readFileSync, mkdtempSync, cpSync, copyFileSync, rmSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { tmpdir, homedir } from "node:os";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { execFileSync } from "node:child_process";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { patchedTree, stubBrowserGlobals, harness } from "./helpers/patched-tree.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const PATCHES = join(HERE, "..", "patches");
-const OURS = join(HERE, "..", "src");
-
-const EJS_SRC = process.env.EJS_SRC || join(homedir(), "git", "EmulatorJS", "data", "src");
-if (!existsSync(join(EJS_SRC, "emulator.js"))) {
-  console.log(`SKIP  no EmulatorJS source at ${EJS_SRC}`);
-  console.log("      set EJS_SRC=<EmulatorJS checkout>/data/src to run this test");
-  process.exit(0);
-}
-
-const work = mkdtempSync(join(tmpdir(), "ejs-emu-test-"));
-process.on("exit", () => rmSync(work, { recursive: true, force: true }));
-cpSync(EJS_SRC, work, { recursive: true });
-copyFileSync(join(OURS, "zipstream.js"), join(work, "zipstream.js"));
-execFileSync("patch", ["-s", join(work, "cache.js")], {
-  input: readFileSync(join(PATCHES, "01-cache-streaming.patch")),
-});
-execFileSync("patch", ["-s", join(work, "emulator.js")], {
-  input: readFileSync(join(PATCHES, "02-emulator-onfile.patch")),
-});
-
-// emulator.js touches these at import time. navigator already exists in Node
-// and is getter-only, so it is deliberately left alone.
-globalThis.window = globalThis;
-globalThis.document = {
-  createElement: () => ({
-    style: {}, classList: { add() {}, remove() {} },
-    setAttribute() {}, appendChild() {},
-  }),
-  addEventListener() {},
-  body: { appendChild() {} },
-};
+const work = patchedTree({ full: true });
+if (!work) process.exit(0);
+stubBrowserGlobals();
 
 const EmulatorJS = (await import(pathToFileURL(join(work, "emulator.js")).href)).default;
-
-let failures = 0;
-function check(name, fn) {
-  try { fn(); console.log(`  ok    ${name}`); }
-  catch (e) { failures++; console.error(`  FAIL  ${name}\n        ${e.message}`); }
-}
-function eq(actual, expected, what) {
-  const a = JSON.stringify(actual), b = JSON.stringify(expected);
-  if (a !== b) throw new Error(`${what}: got ${a}, want ${b}`);
-}
+const { check, eq, report } = harness();
 
 // Drives the two real methods against a fake instance carrying only what
 // they touch, rather than constructing EmulatorJS (whose constructor builds
@@ -111,5 +67,4 @@ check("non-streamed and streamed shapes agree on the same entries", () => {
   eq(launch({ files: [], fileNames: names }), launch(asFiles(names)), "fileName");
 });
 
-console.log(failures ? `\n${failures} failure(s)` : "\nall passed");
-process.exit(failures ? 1 : 0);
+report();

@@ -1,5 +1,5 @@
---- cache.js.orig	2026-09-13 01:31:51.696421258 -0600
-+++ cache.js	2026-09-13 01:31:51.713368943 -0600
+--- cache.js.orig	2026-09-13 01:36:48.032711317 -0600
++++ cache.js	2026-09-13 01:36:48.051564735 -0600
 @@ -1,6 +1,7 @@
  import { simpleHash } from "./utils.js";
  import { EJS_STORAGE } from "./storage.js";
@@ -39,16 +39,16 @@
 +                        const extractionWanted = (forceExtract === true || dontExtract === false);
 +                        if (blob.size > streamThreshold && isZip && extractionWanted && typeof onFile === "function" && streamingSupported()) {
 +                            console.log(`[EJS Download] Streaming ${filename} (${(blob.size / 1048576).toFixed(0)} MB) directly to the filesystem`);
-+                            // Report bytes written, not entry count: the caller
-+                            // renders `loaded / 1048576` MB whenever total is 0.
-+                            let written = 0;
 +                            const entryNames = [];
 +                            try {
 +                                await readZipEntries(blob, (entryName, entryBytes) => {
 +                                    onFile(entryName, entryBytes);
 +                                    entryNames.push(entryName);
-+                                    written += entryBytes.length;
-+                                    if (onProgress) onProgress("decompressing", 0, written, 0);
++                                }, (written, total) => {
++                                    // The zip's central directory gives a real
++                                    // total, so this reports a true percentage
++                                    // rather than a byte count with no end.
++                                    if (onProgress) onProgress("decompressing", total ? written / total * 100 : 0, written, total);
 +                                });
 +                            } catch (e) {
 +                                reject(`Decompression failed: ${e}`);
