@@ -36,6 +36,8 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 | 8 | libretro/scummvm#111 → scummvm/scummvm#7947 | `base/plugins.cpp` | EMSCRIPTEN builds only | #111 closed — `spleen1981`: belongs upstream. Rewritten as a one-line `__LIBRETRO__` guard, **#7947 open**; fork carries it as `f3c5255` |
 | 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | blocked until 5 and 6 land |
 | 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | open; `spleen1981` questioned the premise (zips unsupported); reply posted explaining the EmulatorJS case, no answer yet |
+| 13 | libretro/scummvm#113 | `libretro-os-utils.cpp` | libretro core, all targets | **open** 2026-09-12, base `staging_master` |
+| 14 | libretro/scummvm#114 | `libretro-os.h`, `libretro-os-utils.cpp` | EMSCRIPTEN-guarded | **open** 2026-09-12, base `staging_master` |
 | — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | open since 2026-09-06, no comment |
 
 Two of the three closures disputed only the trailers; PR 1's also disputed the
@@ -222,8 +224,8 @@ Scan from "/" instead, which always contains the full tree. Guarded to
 EMSCRIPTEN -- on a native build "/" is the real OS root.
 ```
 
-## PR 13 — `LIBRETRO: Log the unknown-game report when autodetection finds nothing` — VERIFIED 2026-09-12, NOT OPENED
-`9ebc6940b1c` · +2 · `backends/platform/libretro/src/libretro-os-utils.cpp` · issue #6 item 1
+## PR 13 — `LIBRETRO: Log the unknown-game report when autodetection finds nothing` — OPEN as libretro/scummvm#113
+`9ebc6940b1c` (PR head `31ebc43` on `staging_master`) · +2 · `backends/platform/libretro/src/libretro-os-utils.cpp` · issue #6 item 1
 
 Platform-agnostic. Uses the backend's existing `logMessage()` and ScummVM's own
 `generateUnknownGameReport()`, the same call `--detect` makes in
@@ -238,8 +240,8 @@ empty launcher and no clue which files did not match. Log the report the
 Add Game dialog would have shown.
 ```
 
-## PR 14 — `LIBRETRO: Implement kFeatureOpenUrl on Emscripten` — VERIFIED 2026-09-12, NOT OPENED
-`cdeaa23430d` · +26 · `libretro-os.h`, `libretro-os-utils.cpp` · issue #6 item 2 · EMSCRIPTEN-guarded
+## PR 14 — `LIBRETRO: Implement kFeatureOpenUrl on Emscripten` — OPEN as libretro/scummvm#114
+`cdeaa23430d` (PR head `65d7f53` on `staging_master`) · +26 · `libretro-os.h`, `libretro-os-utils.cpp` · issue #6 item 2 · EMSCRIPTEN-guarded
 
 Verified live: EMI's md5-check dialog ("Could not open the file voice.lab")
 shows Open URL and the click opens the wiki in a new tab; Chrome did not block
