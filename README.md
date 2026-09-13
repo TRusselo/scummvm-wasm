@@ -33,8 +33,11 @@ per-engine sourcing notes and packaging quirks behind each result.
 
 ## Save states work here, and carry your in-game saves with them
 
-Save states do **not** work on the official ScummVM libretro core. All three
-entry points are permanent stubs on `libretro/scummvm` master:
+Save states do **not** work on the official ScummVM libretro core. Libretro's
+own documentation lists the feature as unsupported --
+[docs.libretro.com/library/scummvm](https://docs.libretro.com/library/scummvm/)
+gives Saves ✔, **States ✕**, Rewind ✕ -- and all three entry points are
+permanent stubs on `libretro/scummvm` master:
 
 ```cpp
 size_t retro_serialize_size(void) { return 0; }
@@ -71,6 +74,9 @@ Caveats worth knowing:
   honoured rather than overridden -- Riven, for instance, will not save while
   a script is running, so an animation has to finish first.
 - A state written by this core will not load on an older build of it.
+- Rewind is still unsupported, and cannot work here: RetroArch serialises
+  every frame, and a state costs a real engine save. Libretro's docs list it
+  ✕ for this core too.
 
 <img width="1890" height="1180" alt="image" src="https://github.com/user-attachments/assets/860f20a3-a6f2-4d12-8f6b-e7d2b9f532ce" />
 
