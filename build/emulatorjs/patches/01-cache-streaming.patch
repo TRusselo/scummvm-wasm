@@ -1,5 +1,5 @@
---- cache.js.orig	2026-09-12 21:30:46.080321089 -0600
-+++ cache.js	2026-09-12 21:31:08.778744126 -0600
+--- cache.js.orig	2026-09-12 21:35:18.372294695 -0600
++++ cache.js	2026-09-12 21:35:31.407952505 -0600
 @@ -1,6 +1,7 @@
  import { simpleHash } from "./utils.js";
  import { EJS_STORAGE } from "./storage.js";
@@ -17,7 +17,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,32 @@
+@@ -217,6 +218,39 @@
                          }
                          
                          const blob = new Blob(chunks);
@@ -27,18 +27,25 @@
 +                        // wasm extractor could not hold them either. Read them
 +                        // straight out of the Blob one entry at a time instead.
 +                        // Everything smaller keeps the original path exactly.
-+                        const streamThreshold = (typeof window !== "undefined" && window.EJS_streamZipThreshold) || 1610612736;
++                        const streamThreshold = (typeof window !== "undefined" && typeof window.EJS_streamZipThreshold === "number")
++                            ? window.EJS_streamZipThreshold
++                            : 1610612736;
 +                        const isZip = (filename.toLowerCase().split(".").pop() === "zip");
 +                        if (blob.size > streamThreshold && isZip && typeof onFile === "function" && streamingSupported()) {
 +                            console.log(`[EJS Download] Streaming ${filename} (${(blob.size / 1048576).toFixed(0)} MB) directly to the filesystem`);
 +                            // Report bytes written, not entry count: the caller
 +                            // renders `loaded / 1048576` MB whenever total is 0.
 +                            let written = 0;
-+                            await readZipEntries(blob, (entryName, entryBytes) => {
-+                                onFile(entryName, entryBytes);
-+                                written += entryBytes.length;
-+                                if (onProgress) onProgress("decompressing", 0, written, 0);
-+                            });
++                            try {
++                                await readZipEntries(blob, (entryName, entryBytes) => {
++                                    onFile(entryName, entryBytes);
++                                    written += entryBytes.length;
++                                    if (onProgress) onProgress("decompressing", 0, written, 0);
++                                });
++                            } catch (e) {
++                                reject(`Decompression failed: ${e}`);
++                                return;
++                            }
 +                            const streamedItem = new EJS_CacheItem(
 +                                "streamed-" + Date.now(), [], now, type, responseType, filename, url, null
 +                            );
