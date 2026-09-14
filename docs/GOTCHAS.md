@@ -391,12 +391,33 @@ two symptoms that looked unrelated for weeks:
   `!_gamestate->executionStackBase`, which covers most of a game's startup --
   exactly when EmulatorJS fires its load.
 
-Both windows open on their own a moment later. The fix keeps the request
-pending for up to `LIBRETRO_SAVESTATE_MAX_REFUSALS` (180) frames inside the
-existing `LIBRETRO_SAVESTATE_MAX_SWITCHES` (600) loop, and only then reports a
-refusal. If a retest still shows a refusal, the log now says
-`Load refused for 180 frames, giving up` -- raise the budget rather than
-re-diagnose.
+Both windows open on their own a moment later -- but **the core is the wrong
+place to wait for them.** Each retry is a `retro_switch_to_emu_thread()`, which
+hands the main thread to the emulator and blocks until it yields ~8ms later
+(`LibretroTimerManager::_interval`). The engine does advance; nothing is drawn
+while we hold the thread. A 180-frame budget measured ~1.9s of frozen tab and
+still did not outlast a Riven animation, which runs for seconds. Budget and
+freeze are the same number, so buying enough to help costs more than the help.
+
+The core therefore keeps only a momentary budget
+(`LIBRETRO_SAVESTATE_MAX_REFUSALS`, 10 frames), and the real waiting happens in
+the frontend (`patches/04-savestate-retry.patch`): the save button retries
+`getState()` every 400ms for up to 10s. Between attempts the game keeps running
+*and drawing*, so the scene actually plays out and the save lands when the
+engine accepts it. The state is captured when the scene ends rather than when
+the button was pressed -- the same thing the engine's own save menu does.
+
+### "Motion on screen" was the wrong description of Riven's gate
+
+Riven refuses while `_scriptMan->hasQueuedScripts()` is true, and
+`runQueuedScripts()` does not clear the queue until every queued script has
+*finished running* -- so a script playing a movie holds the gate shut for the
+movie's whole length. That is scripts, not pixels. Riven's **water ripples are
+a graphics-layer effect** (`WaterEffect` in `riven_graphics.h`, "move slightly
+the water portions of a view to simulate waves"), updated per frame and never
+queued, so a scene with constant rippling water saves instantly. Confirmed by
+testing 2026-09-13: saves during a transition (waits, then succeeds), on a
+still screen (instant), and on a rippling-water screen (instant).
 
 **The three failure exits used to be silent**, which is what made this take so
 long: the OSD notification uses `RETRO_MESSAGE_TARGET_OSD`, so it never reaches
