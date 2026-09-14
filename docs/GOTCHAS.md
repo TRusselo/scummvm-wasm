@@ -481,13 +481,29 @@ still screen (instant), and on a rippling-water screen (instant).
 long: the OSD notification uses `RETRO_MESSAGE_TARGET_OSD`, so it never reaches
 the log, and the other two exits printed nothing at all. All three now log.
 
-### The OSD is not a reporting channel here, and neither is displayMessage()
+### Who owns which message channel (and why most of them are invisible)
 
-Two separate discoveries on 2026-09-13, each of which silently swallowed a
-message that the code was correctly producing.
+Four layers sit between the core and the user, and it is easy to attribute a
+swallowed message to the wrong one:
 
-**`retro_osd_notification()` reaches neither the log nor the screen under
-EmulatorJS.** A message was added there explaining that SCI refuses saves
+| layer | owns |
+|---|---|
+| this core | produces the message |
+| RetroArch (EmulatorJS fork) | the OSD proper -- `SET_MESSAGE_EXT` |
+| EmulatorJS | pipes the core's stdout to `console.log`, **only when its debug flag is on** (`emulator.js`, `print`/`printErr`); owns `div.ejs_message` and `displayMessage()` |
+| ROMM | decides what actually appears on screen |
+
+**Only the bottom row reaches an ordinary user.** The console lines that look
+like ours -- `emulator.js:1177 [libretro WARN] [scummvm] ...` -- are
+EmulatorJS printing our stdout, and they disappear entirely without debug mode.
+Do not treat the log as a user-facing channel.
+
+Two discoveries on 2026-09-13, each of which silently swallowed a message the
+code was correctly producing.
+
+**RetroArch's OSD reaches neither the log nor the screen under EmulatorJS.**
+`retro_osd_notification()` is a `SET_MESSAGE_EXT` call into RetroArch, not
+anything EmulatorJS or ROMM renders. A message was added there explaining that SCI refuses saves
 while `gmm_save_enabled` is off; it was invisible in both places, and the only
 way to tell was that the user saw nothing change. The notification calls are
 kept, because this backend also runs on frontends that do draw them, but
