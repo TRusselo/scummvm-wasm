@@ -421,9 +421,22 @@ a deployment, not just ours. Not filed yet.
 
 | # | where | one line | status |
 |---|---|---|---|
-| D1 | rommapp/romm | `.ejs_message` is `visibility: hidden`, so EmulatorJS's own messages never appear | ready to file |
-| D2 | EmulatorJS/EmulatorJS | `EJS_Download` never sets `this.debug`, so three log statements are dead | ready to file |
+| D1 | rommapp/romm#4504 | `.ejs_message` is `visibility: hidden`, so EmulatorJS's own messages never appear | **filed** 2026-09-13, with the AI disclosure CONTRIBUTING.md requires |
+| D2 | EmulatorJS/EmulatorJS | `EJS_Download` never sets `this.debug`, so three log statements are dead | **will not be filed by an agent** -- see note |
 | D3 | rommapp/romm | core variant is unpinned, so the same core caches twice | **blocked** — see note |
+
+**D2 must be filed by a human, or not at all.** EmulatorJS's bug template
+(`.github/ISSUE_TEMPLATE/bug.md`) carries two checkboxes we cannot honestly
+tick:
+
+> - [ ] I am not an LLM/Ai. Bug reports filed by ai will be closed. Just type
+>       out the issue yourself it's not that hard
+> - [ ] I have not made any changes to the EmulatorJS instance I am running
+>       into this bug on.
+
+The first is an explicit prohibition; the second fails anyway, since this
+deployment runs four local patches. Do not file it from here. The finding stays
+recorded below in case a human wants to report it from an unpatched instance.
 
 **D3 is not filable as-is.** Pinning `EJS_webgl2Enabled` is a workaround for a
 report-fetch flake; the real path is our core being a normal EmulatorJS core
