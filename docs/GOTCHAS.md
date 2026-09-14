@@ -212,7 +212,14 @@ Real MIDI hardware output was never a goal for this project (these are
 SCUMM adventure games using their own AdLib/MT-32/etc. music emulation);
 excluding the plugin loses nothing.
 
-## SCI games cannot save-state at all, and ScummVM's own saves never reach the server (2026-09-13)
+## SCI save states, and why ScummVM's own saves never reach the server (2026-09-13)
+
+> **Resolved 2026-09-13.** SCI games save-state normally once the
+> `scummvm_gmm_save` core option is on (section 2b), and a save state carries
+> the target's other save files, so in-game saves reach the server inside it.
+> The analysis below is kept because it explains *why* each piece is shaped the
+> way it is -- read it before changing any of them.
+
 
 Three separate problems, found while testing Gabriel Knight 2 and Riven. Only
 the first is SCI-specific; the third affects every engine we ship.
@@ -2791,6 +2798,57 @@ possibly run.
 | Zork: Grand Inquisitor | 2.359G | refuse | allow | allow |
 | Riven (CD) | 2.674G | refuse | allow | allow |
 | Gabriel Knight 2 | 3.343G | refuse | refuse | allow |
+
+### Measured afterwards: the table above is theory, and one premise is wrong
+
+Two corrections from live testing on 2026-09-13, both from watching system
+memory through a full GK2 load rather than reasoning about it:
+
+**The compressed Blob is not resident during the unpack.** Memory rises to ~80%
+as the download completes, then **drops to ~50% before decompression starts** --
+Chrome spills the Blob to disk. So "the compressed Blob stays referenced for the
+length of the unpack", given above as part of the reserve's justification, does
+not hold on this path. `b51c2a2` added the archive's size to the requirement on
+that assumption and `f3ee4f1` reverted it: counting the zip would refuse games
+that work. The reserve is still right, for the other reasons listed.
+
+**`deviceMemory` is total RAM, so the table's verdicts are not what happens.**
+GK2 is "allow" on 8 GB above, and it *is* allowed -- then dies at ~20% of the
+unpack with `RangeError: Array buffer allocation failed` on a laptop already
+75% full, while loading fine on a desktop reporting the same 8 GB. The preflight
+cannot separate them, and no browser API can: free memory is deliberately not
+exposed. **The preflight only catches games that cannot fit in a device's entire
+RAM.** It is a floor, not a prediction.
+
+### MEMFS was holding every entry twice (fixed 2026-09-13)
+
+Found while chasing the above. Emscripten's MEMFS copies the buffer unless the
+caller hands it over:
+
+```js
+write(stream, buffer, offset, length, position, canOwn) {
+  if (canOwn) { node.contents = buffer.subarray(offset, offset+length); }   // adopt
+  else if (!node.usedBytes && !position) {
+    node.contents = buffer.slice(offset, offset+length);                     // full copy
+  }
+```
+
+`FS.writeFile(path, data)` passes no opts, so `canOwn` was falsy and every
+streamed entry was held twice at peak, the inflated original still live while
+MEMFS took its own copy. `6e5b660` passes `canOwn` from the streaming path only:
+`readZipEntries` allocates a fresh array per entry and a streamed cache item
+keeps `files` empty, so nothing else aliases those bytes. The ordinary path must
+keep copying -- there `romData.files` holds the buffers and may be cached, so
+adoption would alias a cached copy.
+
+To check MEMFS honours it in a given build, from the console:
+
+```js
+const FS = EJS_emulator.gameManager.FS, a = new Uint8Array(1<<20);
+FS.writeFile('/t_copy', a);  FS.writeFile('/t_own', a, {canOwn: true});
+FS.analyzePath('/t_copy').object.contents.buffer === a.buffer;  // false: copied
+FS.analyzePath('/t_own').object.contents.buffer  === a.buffer;  // true: adopted
+```
 
 **What it deliberately does not do.** `navigator.deviceMemory` reports *total*
 device RAM, rounded, capped at 8 -- so a 16 or 32 GB desktop also reports 8 and

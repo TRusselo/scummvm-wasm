@@ -71,13 +71,18 @@ Caveats worth knowing:
   and the rest) need one setting turned on first.** ScummVM defaults
   `gmm_save_enabled` off for that engine, and without it the engine refuses to
   save outside its own in-game menu, so save states fail. Turn on
-  **Enable save states in SCI games** under System in the emulator's settings.
-  It is off by default here too, because ScummVM warns that a save made at an
-  arbitrary moment may be unusable -- save from a normal gameplay screen rather
-  than with a menu or inventory open.
+  **Enable save states in SCI games**, the first entry in the emulator's
+  settings. It is off by default here too, because ScummVM warns that a save
+  made at an arbitrary moment may be unusable -- save from a normal gameplay
+  screen rather than with a menu or inventory open. EmulatorJS stores the
+  setting **per game and per device**, so turning it on for one SCI title does
+  not turn it on for another, or on your other machine.
 - Engines refuse to save at moments they consider unsafe, and that refusal is
-  honoured rather than overridden -- Riven, for instance, will not save while
-  a script is running, so an animation has to finish first.
+  honoured rather than overridden -- but it is treated as *not yet* rather than
+  *no*. Riven will not save while a script is running, so clicking save during
+  a transition shows a brief wait and the state is written the moment the
+  engine accepts it, from just after the scene ends. Effects drawn per frame,
+  such as Riven's rippling water, are not scripts and never delay a save.
 - A state written by this core will not load on an older build of it.
 - Rewind is still unsupported, and cannot work here: RetroArch serialises
   every frame, and a state costs a real engine save. Libretro's docs list it
