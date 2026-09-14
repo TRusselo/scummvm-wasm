@@ -167,10 +167,12 @@ done
 # way to tell a cache hit from a miss without the Network panel. Submitted
 # upstream as EmulatorJS/EmulatorJS (fix-download-debug-logging); drop this
 # patch once that lands.
-for f in "$WORK/ejs/data/src/cache.js" "$WORK/ejs/data/emulator.min.js"; do
-  grep -Eq "this\\.debug *= *EJS *\\? *EJS\\.debug" "$f" \
-    || { echo "ERROR: download-debug-logging patch missing from $f" >&2; exit 1; }
-done
+# Source only, unlike the checks above. Every other marker is a string literal
+# and survives minification verbatim; this patch adds no literal, and the
+# minifier renames the identifiers it does add (EJS -> i), so there is nothing
+# stable to grep for in the bundle.
+grep -Eq "this\\.debug *= *EJS *\\? *EJS\\.debug" "$WORK/ejs/data/src/cache.js" \
+  || { echo "ERROR: download-debug-logging patch missing from src/cache.js" >&2; exit 1; }
 
 echo "==> verified: both the source and the minified bundle carry all patches"
 
