@@ -168,7 +168,7 @@ rm -rf "${OUTPUT_ABS}"
 mkdir -p "${OUTPUT_ABS}"
 cp -r "$WORK/ejs/data" "${OUTPUT_ABS}/data"
 
-CORE_COUNT="$(ls "${OUTPUT_ABS}"/data/cores/*.data 2>/dev/null | wc -l)"
+CORE_COUNT="$(find "${OUTPUT_ABS}/data/cores" -maxdepth 1 -name '*.data' 2>/dev/null | wc -l)"
 echo "==> done. Patched tree is at ${OUTPUT_ABS}/data (JS only: ${CORE_COUNT} cores)."
 echo "    INCOMPLETE: a deployment needs 187 cores and 48 reports as well -- see"
 echo "    the note at the top of this script. Staging this as-is ships an image"
