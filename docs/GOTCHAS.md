@@ -264,12 +264,59 @@ an open inventory, where the user has control but the loop state is not in the
 save. That is also why SCI disables autosave (`getAutosaveSlot()` returns -1).
 
 History, so nobody re-derives it: Filippos Karapetis *enabled* GMM saving in
-2022 (`d8336a31ffb`) listing ~37 games he had verified -- GK2 is not among them
--- then disabled it by default 2024-11-04 (`609e8b54e01`) "This addresses bug
-15358". **Bug 15358 was never read**: bugs.scummvm.org sits behind Anubis bot
-protection and returns an access-denied page to any fetch. Read it before
-deciding anything about flipping this flag; it is the only evidence of what
-actually broke.
+2022 (`d8336a31ffb`), listing 38 games he had verified, then disabled it by
+default 2024-11-04 (`609e8b54e01`) "This addresses bug 15358".
+
+### Bug 15358, read at last (2026-09-13)
+
+bugs.scummvm.org sits behind Anubis bot protection and refuses any fetch, so
+this was an open question here for weeks. Tristyn opened it in a browser and
+saved the page. It is decisive, and it closes off two ideas that looked
+reasonable while it was unread.
+
+**The ticket is `#15358 SCI: SQ6: GMM Saving not loadable`, priority blocker,
+closed "fixed" by `609e8b54` -- the default-off itself. There was no repair of
+the underlying problem.** The mitigation *is* the fix.
+
+The reported failure, which is the shape to remember:
+
+> "saving from the in-game save option works fine and loads fine, but saving
+> from the GMM works fine but **crashes on load**"
+>
+> `kAddScreenItem: Plane 000f:081d not found for screen item 0028:2c92!`
+
+**A GMM save writes cleanly and fails when restored** -- possibly long
+afterwards, with the working save already overwritten. That is what makes it
+dangerous rather than merely unreliable.
+
+`sluicebox`, the contributor who handled the earlier reports of this:
+
+> "Saving SCI games from GMM is an unsafe feature that never should have
+> shipped. It should be removed immediately because it can never be fixed...
+> it ruins games and actively hurts users." -- and, on a linked report
+> (#15250), "it happens so often i've lost count".
+
+**Do not hard-code a list of "safe" SCI games.** The obvious candidate is
+Karapetis's 2022 list of 38 verified titles (BRAIN1, BRAIN2, ECOQUEST1/2,
+FAIRYTALES, PHARKAS, GK1, ICEMAN, KQ1, KQ4, KQ5, KQ6, KQ7, LB1, LB2, LONGBOW,
+LSL1, LSL2, LSL3, LSL5, LSL6, LSL6HIRES, PEPPER, PQ1-4, PQSWAT, QFG1, QFG1VGA,
+QFG2-4, SQ1, SQ3, SQ4, SQ5, SQ6). **SQ6 is on that list and SQ6 is this bug.**
+The list was verified by hand and then invalidated by a single report; treating
+it as a safety guarantee repeats the mistake that produced the blocker.
+
+One distinction worth keeping: the ticket's keyword is **SCI32** and the crash
+is in SCI32's graphics layer (planes, screen items). The SCI32 titles are GK2,
+SQ6, KQ7, LSL6HIRES, PQ4, Phantasmagoria, RAMA, Shivers, Torin. KQ5 -- which
+save-states cleanly in this build, repeatedly -- is SCI1. That is not a
+clearance for SCI1, since sluicebox's objection was to SCI generally, but it is
+the likeliest reason SCI1 testing here has been uneventful.
+
+**This applies directly to our save states.** The bridge drives
+`saveGameState()` into a reserved slot and `loadGameState()` on restore, which
+*is* the GMM path -- so an SCI save state inherits exactly this risk, including
+the save-clean/fail-on-load pattern. That is the real reason
+`scummvm_gmm_save` defaults off here, and why it should stay off: not caution
+about an unknown, but the documented resolution of a release blocker.
 
 ### 2. The ScummVM GUI toggle is reachable and cannot persist
 

@@ -72,11 +72,21 @@ Caveats worth knowing:
   `gmm_save_enabled` off for that engine, and without it the engine refuses to
   save outside its own in-game menu, so save states fail. Turn on
   **Enable save states in SCI games**, the first entry in the emulator's
-  settings. It is off by default here too, because ScummVM warns that a save
-  made at an arbitrary moment may be unusable -- save from a normal gameplay
-  screen rather than with a menu or inventory open. EmulatorJS stores the
-  setting **per game and per device**, so turning it on for one SCI title does
-  not turn it on for another, or on your other machine.
+  settings. EmulatorJS stores it **per game and per device**, so turning it on
+  for one SCI title does not turn it on for another, or on your other machine.
+
+  **It is off by default for a reason worth reading.** ScummVM disabled this
+  path in 2024 to close a release blocker
+  ([bug 15358](https://bugs.scummvm.org/ticket/15358), "SCI: SQ6: GMM Saving
+  not loadable"), and the fix was the default itself -- the underlying problem
+  was never repaired. The failure mode is the nasty one: **the save is written
+  successfully and crashes when you restore it**, potentially long afterwards.
+  One SCI contributor's summary on that ticket is that the feature "can never
+  be fixed" and "ruins games". The crash reported there is in SCI32's graphics
+  layer, so SCI32 titles (Gabriel Knight 2, Space Quest 6, King's Quest 7,
+  Phantasmagoria, Larry 6 hires, Police Quest 4) look like the higher risk;
+  SCI1 titles such as King's Quest 5 have save-stated cleanly here. Treat an
+  SCI save state as something to verify by loading it, not to rely on.
 - Engines refuse to save at moments they consider unsafe, and that refusal is
   honoured rather than overridden -- but it is treated as *not yet* rather than
   *no*. Riven will not save while a script is running, so clicking save during
