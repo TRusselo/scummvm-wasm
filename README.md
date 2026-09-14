@@ -91,8 +91,11 @@ Caveats worth knowing:
   honoured rather than overridden -- but it is treated as *not yet* rather than
   *no*. Riven will not save while a script is running, so clicking save during
   a transition shows a brief wait and the state is written the moment the
-  engine accepts it, from just after the scene ends. Effects drawn per frame,
-  such as Riven's rippling water, are not scripts and never delay a save.
+  engine accepts it, from just after the scene ends. A scene that runs longer
+  than about ten seconds -- Riven's travel-between-islands cutscenes -- gives
+  up and says the game is busy, rather than waiting indefinitely. Effects drawn
+  per frame, such as Riven's rippling water, are not scripts and never delay a
+  save.
 - A state written by this core will not load on an older build of it.
 - Rewind is still unsupported, and cannot work here: RetroArch serialises
   every frame, and a state costs a real engine save. Libretro's docs list it
