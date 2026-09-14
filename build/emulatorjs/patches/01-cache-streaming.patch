@@ -4,7 +4,7 @@
  import { simpleHash } from "./utils.js";
  import { EJS_STORAGE } from "./storage.js";
  import { EJS_COMPRESSION } from "./compression.js";
-+import { readCentralDirectory, readZipEntries, streamingSupported } from "./zipstream.js";
++import { readZipEntries, streamingSupported } from "./zipstream.js";
  
  const CACHE_BLOB_CHUNK_SIZE = 50 * 1024 * 1024;
  
@@ -17,7 +17,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,120 @@
+@@ -217,6 +218,80 @@
                          }
                          
                          const blob = new Blob(chunks);
@@ -31,56 +31,6 @@
 +                            ? window.EJS_streamZipThreshold
 +                            : 1610612736;
 +                        const isZip = (filename.toLowerCase().split(".").pop() === "zip");
-+
-+                        // MEMFS keeps file contents in JS typed arrays, not in
-+                        // the core's wasm heap, so the unpacked total is what
-+                        // the browser must find room for -- and a zip's central
-+                        // directory states it exactly before a byte is written.
-+                        // Without this a 2 GB handheld learns the game does not
-+                        // fit by dying mid-unpack, after downloading all of it.
-+                        //
-+                        // Refused only when the game alone exceeds the device's
-+                        // ENTIRE RAM. navigator.deviceMemory is coarse, reports
-+                        // total rather than free, and is absent on Firefox and
-+                        // Safari; anything tighter would refuse games that do
-+                        // work. This catches the certain failures only.
-+                        const deviceMemory = (typeof navigator !== "undefined" && typeof navigator.deviceMemory === "number")
-+                            ? navigator.deviceMemory * 1073741824
-+                            : 0;
-+                        // The unpacked game is never the only resident. The
-+                        // core's .data is ~94 MB on top of a 256 MB initial
-+                        // wasm heap, the compressed Blob stays referenced for
-+                        // the length of the unpack (browsers may or may not
-+                        // back it with disk, and that is not detectable), and
-+                        // the browser and OS need their own room. Reserve a
-+                        // flat allowance rather than pretend to model any of
-+                        // it; EJS_memoryOverheadBytes tunes it.
-+                        const memoryOverhead = (typeof window !== "undefined" && typeof window.EJS_memoryOverheadBytes === "number")
-+                            ? window.EJS_memoryOverheadBytes
-+                            : 1073741824;
-+                        const budgetOverridden = (typeof window !== "undefined" && typeof window.EJS_maxUnpackedBytes === "number");
-+                        // A computed budget of zero still refuses; only the
-+                        // absence of any figure to compare against skips.
-+                        const haveBudget = budgetOverridden || deviceMemory > 0;
-+                        const memoryBudget = budgetOverridden
-+                            ? window.EJS_maxUnpackedBytes
-+                            : Math.max(0, deviceMemory - memoryOverhead);
-+                        if (isZip && haveBudget && streamingSupported()) {
-+                            let needed = 0;
-+                            try {
-+                                const manifest = await readCentralDirectory(blob);
-+                                needed = manifest.reduce((sum, entry) => sum + entry.uncompressedSize, 0);
-+                            } catch (e) {
-+                                // Not a readable zip -- leave it to the paths below.
-+                            }
-+                            if (needed > memoryBudget) {
-+                                const gb = (n) => (n / 1073741824).toFixed(1);
-+                                const err = new Error(`This game needs ${gb(needed)} GB once unpacked, more than the ${gb(memoryBudget)} GB this device can spare.`);
-+                                err.ejsUserMessage = err.message;
-+                                reject(err);
-+                                return;
-+                            }
-+                        }
 +                        // dontExtract is how a core asks for the archive itself
 +                        // rather than its contents -- the arcade/MAME family
 +                        // reads a romset zip directly -- and forceExtract
@@ -90,6 +40,7 @@
 +                        if (blob.size > streamThreshold && isZip && extractionWanted && typeof onFile === "function" && streamingSupported()) {
 +                            console.log(`[EJS Download] Streaming ${filename} (${(blob.size / 1048576).toFixed(0)} MB) directly to the filesystem`);
 +                            const entryNames = [];
++                            let reportedTotal = false;
 +                            try {
 +                                await readZipEntries(blob, (entryName, entryBytes) => {
 +                                    // readZipEntries allocates a fresh array per
@@ -99,6 +50,16 @@
 +                                    onFile(entryName, entryBytes, true);
 +                                    entryNames.push(entryName);
 +                                }, (written, total) => {
++                                    // Nothing gates this on memory: a browser will
++                                    // not report what is free, and navigator.deviceMemory
++                                    // gives total RAM rounded and capped, which says
++                                    // nothing about what is available. State the
++                                    // requirement instead, so the out-of-memory failure
++                                    // below is immediately interpretable.
++                                    if (!reportedTotal && total) {
++                                        reportedTotal = true;
++                                        console.log(`[EJS Download] ${filename} unpacks to ${(total / 1073741824).toFixed(2)} GB, all of which must be resident`);
++                                    }
 +                                    // The zip's central directory gives a real
 +                                    // total, so this reports a true percentage
 +                                    // rather than a byte count with no end.
@@ -109,10 +70,9 @@
 +                                // "Network Error". That is actively misleading
 +                                // here: the download already finished, and what
 +                                // failed was the unpack. Out of memory is the
-+                                // likely cause on a device that got past the
-+                                // preflight above only because
-+                                // navigator.deviceMemory reports total RAM
-+                                // rather than what is actually free.
++                                // likely cause, and nothing upstream of here
++                                // could have predicted it: no browser reports
++                                // free memory.
 +                                const text = String((e && e.message) || e);
 +                                const err = new Error(`Decompression failed: ${text}`);
 +                                err.ejsUserMessage = /allocation failed|out of memory|RangeError/i.test(text)

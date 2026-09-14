@@ -2780,26 +2780,33 @@ catchable `RangeError: Array buffer allocation failed` from `new Uint8Array`;
 the OOM killer taking the browser with nothing logged (Linux overcommit); or
 minutes of swapping. Which one you get is the OS's decision.
 
-**What the preflight does.** A zip's central directory states the exact
-unpacked total before a byte is written -- the same figure that feeds the
-decompression percentage -- so the check is free. It compares that against
-`navigator.deviceMemory` minus a 1 GiB reserve and refuses up front.
+**A preflight was tried and removed (2026-09-13).** It read the unpacked total
+from the zip's central directory -- free, since the same figure drives the
+decompression percentage -- and refused up front when it exceeded
+`navigator.deviceMemory` minus a 1 GiB reserve.
 
-The reserve exists because the game is never the only resident: the core's
-`.data` is ~94 MB on top of a 256 MB initial wasm heap, the compressed Blob
-stays referenced for the length of the unpack, and the browser and OS need
-their own room. Comparing against all of RAM would pass games that cannot
-possibly run.
+It was removed for two reasons. It **never fired on the failures we actually
+hit**: `deviceMemory` reports *total* RAM, rounded and capped at 8, so GK2
+(3.343 GiB unpacked) passes the check on an 8 GB laptop and then dies at ~20%
+of the unpack with `RangeError: Array buffer allocation failed`, while loading
+fine on a desktop reporting the same 8 GB. It only ever caught a game exceeding
+a device's *entire* RAM -- a floor, not a prediction -- while implying a
+guarantee the code could not make. And it is **not upstreamable**:
+`navigator.deviceMemory` is Chromium-only, coarse, and a fingerprinting
+surface, which is not a basis for a gate in EmulatorJS's loader.
 
-| game | unpacked | 2 GB device | 4 GB | 8 GB+ |
-|---|---|---|---|---|
-| Feeble Files (2CD) | 1.083G | refuse | allow | allow |
-| Phantasmagoria | 2.144G | refuse | allow | allow |
-| Zork: Grand Inquisitor | 2.359G | refuse | allow | allow |
-| Riven (CD) | 2.674G | refuse | allow | allow |
-| Gabriel Knight 2 | 3.343G | refuse | refuse | allow |
+What replaced it is a statement of fact rather than a judgement. On the first
+progress tick the loader logs
 
-### Measured afterwards: the table above is theory, and one premise is wrong
+```
+[EJS Download] <game>.zip unpacks to 3.34 GB, all of which must be resident
+```
+
+and a failure below names memory explicitly rather than reporting a network
+error. Together those make an out-of-memory failure self-explaining without
+pretending to predict it.
+
+### What measurement showed, and why the premise was wrong
 
 Two corrections from live testing on 2026-09-13, both from watching system
 memory through a full GK2 load rather than reasoning about it:
@@ -2812,13 +2819,10 @@ not hold on this path. `b51c2a2` added the archive's size to the requirement on
 that assumption and `f3ee4f1` reverted it: counting the zip would refuse games
 that work. The reserve is still right, for the other reasons listed.
 
-**`deviceMemory` is total RAM, so the table's verdicts are not what happens.**
-GK2 is "allow" on 8 GB above, and it *is* allowed -- then dies at ~20% of the
-unpack with `RangeError: Array buffer allocation failed` on a laptop already
-75% full, while loading fine on a desktop reporting the same 8 GB. The preflight
-cannot separate them, and no browser API can: free memory is deliberately not
-exposed. **The preflight only catches games that cannot fit in a device's entire
-RAM.** It is a floor, not a prediction.
+**Free memory is not observable, by design.** No browser API reports it --
+`deviceMemory` is total, `storage.estimate()` is about disk quota. Two machines
+reporting the same 8 GB genuinely cannot be told apart from JavaScript, which is
+what makes any capacity gate here dishonest rather than merely imprecise.
 
 ### MEMFS was holding every entry twice (fixed 2026-09-13)
 
