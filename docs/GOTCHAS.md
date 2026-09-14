@@ -481,6 +481,44 @@ still screen (instant), and on a rippling-water screen (instant).
 long: the OSD notification uses `RETRO_MESSAGE_TARGET_OSD`, so it never reaches
 the log, and the other two exits printed nothing at all. All three now log.
 
+### The OSD is not a reporting channel here, and neither is displayMessage()
+
+Two separate discoveries on 2026-09-13, each of which silently swallowed a
+message that the code was correctly producing.
+
+**`retro_osd_notification()` reaches neither the log nor the screen under
+EmulatorJS.** A message was added there explaining that SCI refuses saves
+while `gmm_save_enabled` is off; it was invisible in both places, and the only
+way to tell was that the user saw nothing change. The notification calls are
+kept, because this backend also runs on frontends that do draw them, but
+**nothing may depend on the OSD being seen.** The reason is now written to
+`/savestate_error.txt` in the Emscripten filesystem, which the page shares with
+the core, as `permanent` or `temporary` plus the text -- and logged through
+`retro_log_cb`, which demonstrably works.
+
+**ROMM hides EmulatorJS's own messages.** `displayMessage()` writes into a
+`div.ejs_message`, and ROMM's player styles it
+(`frontend/src/views/Player/EmulatorJS/Player.vue`):
+
+```css
+#game .ejs_message            { visibility: hidden; }
+#game .ejs_message.msg-info    { visibility: visible; }
+#game .ejs_message.msg-error   { visibility: visible; }
+#game .ejs_message.msg-success { visibility: visible; }
+```
+
+ROMM adds one of those classes from its own wrapper, so **messages ROMM sends
+are visible and every message EmulatorJS raises for itself is not** -- ours,
+`FAILED TO SAVE STATE`, `SAVED STATE TO SLOT`, all of them, for every core.
+`patches/04-savestate-retry.patch` adds `msg-error`/`mdi-alert` alongside the
+text, which costs nothing where nothing styles those classes. The real fix
+belongs in ROMM: a default of `visibility: hidden` on a class EmulatorJS writes
+to directly is an integration bug affecting every core.
+
+The diagnostic that settles which of these is biting: `displayMessage("x")`
+then inspect `EJS_emulator.msgElem` -- present in the DOM with the right text
+means it is being styled out, not unsent.
+
 ### SCI's load is deferred, and it did not say so
 
 `SciEngine::loadGameState()` only sets `_gamestate->_delayedRestoreGameId` and
