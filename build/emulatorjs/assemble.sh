@@ -168,7 +168,7 @@ done
 # upstream as EmulatorJS/EmulatorJS (fix-download-debug-logging); drop this
 # patch once that lands.
 for f in "$WORK/ejs/data/src/cache.js" "$WORK/ejs/data/emulator.min.js"; do
-  grep -q "this.debug = EJS ? EJS.debug : false" "$f" \
+  grep -Eq "this\\.debug *= *EJS *\\? *EJS\\.debug" "$f" \
     || { echo "ERROR: download-debug-logging patch missing from $f" >&2; exit 1; }
 done
 
