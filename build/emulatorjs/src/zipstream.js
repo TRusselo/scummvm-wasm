@@ -142,13 +142,46 @@ function crc32(bytes) {
   return (c ^ 0xFFFFFFFF) >>> 0;
 }
 
-async function inflateRaw(blob, name) {
+// The output buffer is allocated once, up front, from the size the central
+// directory already states, rather than letting
+// `new Response(stream).arrayBuffer()` accumulate and concatenate chunks.
+//
+// The point of this is diagnostic, not memory. Response's body errors all
+// surface as "Failed to fetch" whatever caused them, so a buffer that could
+// not be allocated and a blob that could not be read were indistinguishable --
+// which is exactly the ambiguity that blocked diagnosing a GK2 failure on
+// 2026-09-13. Allocating here raises a plain RangeError naming the size, and
+// anything thrown while reading is reported as a read failure with a byte
+// count.
+//
+// The memory saving is real but small: measured 88.0 MB -> 80.2 MB peak on
+// test/memory.test.mjs (40 x 8 MB entries), about 9%. An earlier guess that
+// this would halve per-entry peak was wrong. Note that measurement is Node's
+// undici Response, which need not behave like Chrome's.
+async function inflateRaw(blob, name, uncompressedSize) {
+  let out;
   try {
-    const stream = blob.stream().pipeThrough(new DecompressionStream("deflate-raw"));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
+    out = new Uint8Array(uncompressedSize);
   } catch (e) {
-    throw new Error(`zip: failed to decompress "${name}": ${e.message}`);
+    throw new Error(`zip: "${name}" needs ${uncompressedSize} bytes to unpack and they could not be allocated: ${e.message}`);
   }
+
+  let offset = 0;
+  try {
+    const reader = blob.stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (offset + value.length > out.length) {
+        throw new Error(`declared ${uncompressedSize} bytes but produced more`);
+      }
+      out.set(value, offset);
+      offset += value.length;
+    }
+  } catch (e) {
+    throw new Error(`zip: failed to decompress "${name}" (${offset} of ${uncompressedSize} bytes read): ${e.message}`);
+  }
+  return offset === out.length ? out : out.subarray(0, offset);
 }
 
 export function streamingSupported() {
@@ -191,7 +224,7 @@ export async function readZipEntries(blob, onEntry, onProgress) {
 
     const bytes = e.method === METHOD_STORE
       ? new Uint8Array(await slice.arrayBuffer())
-      : await inflateRaw(slice, e.name);
+      : await inflateRaw(slice, e.name, e.uncompressedSize);
 
     if (bytes.length !== e.uncompressedSize) {
       throw new Error(`zip: "${e.name}" unpacked to ${bytes.length} bytes, expected ${e.uncompressedSize}`);
