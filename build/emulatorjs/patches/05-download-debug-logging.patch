@@ -1,0 +1,8 @@
+@@ -25,6 +25,7 @@
+     constructor(storageCache = null, EJS = null) {
+         this.storageCache = storageCache;
+         this.EJS = EJS;
++        this.debug = EJS ? EJS.debug : false;
+     }
+ 
+     /**

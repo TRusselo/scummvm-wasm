@@ -112,6 +112,7 @@ patch "$WORK/ejs/data/src/cache.js"    < build/emulatorjs/patches/01-cache-strea
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/02-emulator-onfile.patch
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/03-canvas-pointer-events.patch
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/04-savestate-retry.patch
+patch "$WORK/ejs/data/src/cache.js"    < build/emulatorjs/patches/05-download-debug-logging.patch
 
 echo "==> npm ci"
 ( cd "$WORK/ejs" && npm ci --silent )
@@ -159,6 +160,16 @@ done
 for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js"; do
   grep -q "WAITING FOR THE SCENE TO END" "$f" \
     || { echo "ERROR: save-state-retry patch missing from $f" >&2; exit 1; }
+done
+
+# Cache-hit logging. EJS_Download never assigned this.debug upstream, so its
+# three "Using cached version of" statements could never run -- there was no
+# way to tell a cache hit from a miss without the Network panel. Submitted
+# upstream as EmulatorJS/EmulatorJS (fix-download-debug-logging); drop this
+# patch once that lands.
+for f in "$WORK/ejs/data/src/cache.js" "$WORK/ejs/data/emulator.min.js"; do
+  grep -q "this.debug = EJS ? EJS.debug : false" "$f" \
+    || { echo "ERROR: download-debug-logging patch missing from $f" >&2; exit 1; }
 done
 
 echo "==> verified: both the source and the minified bundle carry all patches"
