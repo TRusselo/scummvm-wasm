@@ -269,10 +269,14 @@ default 2024-11-04 (`609e8b54e01`) "This addresses bug 15358".
 
 ### Bug 15358, read at last (2026-09-13)
 
-bugs.scummvm.org sits behind Anubis bot protection and refuses any fetch, so
-this was an open question here for weeks. Tristyn opened it in a browser and
-saved the page. It is decisive, and it closes off two ideas that looked
-reasonable while it was unread.
+bugs.scummvm.org sits behind Anubis bot protection and refuses `curl`/WebFetch,
+which is why this sat here as "never read" for weeks. That was a mistake in
+method, not a real obstacle: a browser session passes the same check a human
+does, so **use the claude-in-chrome tools, or just ask -- do not record a
+bot-protected page as unobtainable.** Tristyn opened it and saved the HTML, and
+it answered in minutes a question that had been gating a decision for weeks.
+The ticket is decisive, and it closes off two ideas that looked reasonable
+while it was unread.
 
 **The ticket is `#15358 SCI: SQ6: GMM Saving not loadable`, priority blocker,
 closed "fixed" by `609e8b54` -- the default-off itself. There was no repair of
