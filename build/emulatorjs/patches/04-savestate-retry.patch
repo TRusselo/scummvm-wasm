@@ -1,4 +1,4 @@
-@@ -2225,12 +2225,35 @@
+@@ -2225,12 +2225,55 @@
  
          let stateUrl;
          const saveState = addButton(this.config.buttonOpts.saveState, async () => {
@@ -24,13 +24,33 @@
 -            } catch(e) {
 -                this.displayMessage(this.localization("FAILED TO SAVE STATE"));
 -                return;
++            // The core leaves the reason in the shared filesystem, because the
++            // libretro OSD reaches neither the log nor the screen here. First
++            // line is "permanent" or "temporary"; the rest is what to show.
++            const savestateError = () => {
++                try {
++                    const text = this.gameManager.FS.readFile("/savestate_error.txt", { encoding: "utf8" });
++                    const nl = text.indexOf("\n");
++                    if (nl < 0) return null;
++                    return { permanent: text.slice(0, nl).trim() === "permanent", message: text.slice(nl + 1).trim() };
++                } catch(e) { return null; }
++            };
++
 +            for (;;) {
 +                try {
 +                    state = this.gameManager.getState();
 +                    break;
 +                } catch(e) {
++                    const reason = savestateError();
++                    // A refusal the engine will never lift -- an SCI game with
++                    // save states switched off -- must not be retried for ten
++                    // seconds to arrive at the same answer.
++                    if (reason && reason.permanent) {
++                        this.displayMessage(reason.message);
++                        return;
++                    }
 +                    if (Date.now() >= retryUntil) {
-+                        this.displayMessage(this.localization("FAILED TO SAVE STATE"));
++                        this.displayMessage(reason ? reason.message : this.localization("FAILED TO SAVE STATE"));
 +                        return;
 +                    }
 +                    this.displayMessage(this.localization("WAITING FOR THE SCENE TO END"));
