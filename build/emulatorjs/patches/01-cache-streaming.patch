@@ -17,7 +17,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,80 @@
+@@ -217,6 +218,91 @@
                          }
                          
                          const blob = new Blob(chunks);
@@ -41,6 +41,7 @@
 +                            console.log(`[EJS Download] Streaming ${filename} (${(blob.size / 1048576).toFixed(0)} MB) directly to the filesystem`);
 +                            const entryNames = [];
 +                            let reportedTotal = false;
++                            let lastWritten = 0, lastTotal = 0;
 +                            try {
 +                                await readZipEntries(blob, (entryName, entryBytes) => {
 +                                    // readZipEntries allocates a fresh array per
@@ -60,6 +61,7 @@
 +                                        reportedTotal = true;
 +                                        console.log(`[EJS Download] ${filename} unpacks to ${(total / 1073741824).toFixed(2)} GB, all of which must be resident`);
 +                                    }
++                                    lastWritten = written; lastTotal = total;
 +                                    // The zip's central directory gives a real
 +                                    // total, so this reports a true percentage
 +                                    // rather than a byte count with no end.
@@ -73,8 +75,17 @@
 +                                // likely cause, and nothing upstream of here
 +                                // could have predicted it: no browser reports
 +                                // free memory.
++                                // How far it got is the one number worth having:
++                                // it separates "died immediately" from "nearly
++                                // made it", and it is the only way to compare
++                                // two builds' peak usage without guessing from
++                                // a system memory graph.
 +                                const text = String((e && e.message) || e);
-+                                const err = new Error(`Decompression failed: ${text}`);
++                                const mb = (n) => (n / 1048576).toFixed(0);
++                                const progress = lastTotal
++                                    ? ` after ${mb(lastWritten)} MB of ${mb(lastTotal)} MB unpacked (${Math.floor(lastWritten / lastTotal * 100)}%)`
++                                    : "";
++                                const err = new Error(`Decompression failed${progress}: ${text}`);
 +                                err.ejsUserMessage = /allocation failed|out of memory|RangeError/i.test(text)
 +                                    ? `Ran out of memory while unpacking ${filename}. Close other tabs or apps and try again.`
 +                                    : `Could not unpack ${filename}: ${text}`;

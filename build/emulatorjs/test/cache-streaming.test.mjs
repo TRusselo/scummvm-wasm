@@ -108,6 +108,22 @@ await check("running out of memory mid-unpack says so, and does not say network"
 
 // A corrupt archive is a real, non-memory unpack failure. It must still be
 // reported as an unpacking problem rather than a network one.
+// Without this the log says only that decompression failed. How far it got
+// separates "died immediately" from "nearly made it", and is the only way to
+// compare two builds' memory behaviour without reading a system memory graph.
+await check("a failed unpack records how far it got", async () => {
+  let err = null;
+  try {
+    await download("dirs.zip", 1, {
+      onFileImpl: (name) => { if (!name.endsWith("/")) throw new RangeError("Array buffer allocation failed"); },
+    });
+  } catch (e) { err = e; }
+  if (err === null) throw new Error("expected the unpack to fail");
+  if (!/MB of .* MB unpacked \(\d+%\)/.test(err.message)) {
+    throw new Error(`message should state progress: ${err.message}`);
+  }
+});
+
 await check("a corrupt archive is reported as an unpack failure, not a network one", async () => {
   let err = null;
   try {
