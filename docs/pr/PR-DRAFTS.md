@@ -410,3 +410,93 @@ a log line; do not put it to a maintainer without a reproducible case.
 
 **Order.** scummvm: 1, 2, 3, 5 (6 held). libretro: 7, 8, 11, then 9 after 5
 and 6 land.
+
+---
+
+# Downstream issue drafts (ROMM / EmulatorJS), 2026-09-13
+
+Found while making a save-state refusal visible. None are ScummVM or libretro
+issues; all three are in the layers below us, and all three affect every core in
+a deployment, not just ours. Not filed yet.
+
+| # | where | one line | status |
+|---|---|---|---|
+| D1 | rommapp/romm | `.ejs_message` is `visibility: hidden`, so EmulatorJS's own messages never appear | ready to file |
+| D2 | EmulatorJS/EmulatorJS | `EJS_Download` never sets `this.debug`, so three log statements are dead | ready to file |
+| D3 | rommapp/romm | core variant is unpinned, so the same core caches twice | **blocked** — see note |
+
+**D3 is not filable as-is.** Pinning `EJS_webgl2Enabled` is a workaround for a
+report-fetch flake; the real path is our core being a normal EmulatorJS core
+whose `reports/scummvm.json` is served the way every other core's is. That
+depends on issue #4 (release blockers). Raise it with EmulatorJS as part of that
+conversation rather than as a ROMM bug.
+
+## D1 — ROMM hides every message EmulatorJS raises for itself
+
+`frontend/src/views/Player/EmulatorJS/Player.vue`:
+
+```css
+#game .ejs_message            { visibility: hidden; }
+#game .ejs_message.msg-info    { visibility: visible; }
+#game .ejs_message.msg-error   { visibility: visible; }
+#game .ejs_message.msg-success { visibility: visible; }
+```
+
+ROMM adds one of those classes from its own `displayMessage` wrapper, so
+messages ROMM sends are visible. But `.ejs_message` is the element
+EmulatorJS's own `displayMessage()` writes to, and it adds no class -- so
+**every message EmulatorJS raises for itself is invisible**: `FAILED TO SAVE
+STATE`, `SAVED STATE TO SLOT`, core download errors, and anything a core
+surfaces through it. This affects all cores.
+
+Reproduce: in a running game, `EJS_emulator.displayMessage("test")`. The
+element gets the text (`EJS_emulator.msgElem.textContent`) and never appears.
+
+Suggested fix: make the base class visible and let ROMM's classes control
+colour only, or have the wrapper add a default class. Either way the default
+should not hide an element ROMM does not exclusively own.
+
+## D2 — `EJS_Download` never assigns `this.debug`
+
+`data/src/cache.js`:
+
+```js
+constructor(storageCache = null, EJS = null) {
+    this.storageCache = storageCache;
+    this.EJS = EJS;
+}
+```
+
+No `this.debug`, so the three `if (this.debug) console.log("Using cached
+version of", url)` statements (lines ~141, ~153, ~158) can never fire. The
+`this.debug = debug` at line ~400 belongs to `EJS_Cache`, a different class.
+
+Consequence: there is no way to tell a cache hit from a miss in the console.
+Diagnosing one currently needs the Network panel. `EJS_emulator.downloader.debug
+= true` before starting a game is a usable workaround and confirms the
+statements are otherwise correct.
+
+## D3 — core variant depends on a report fetch, so the same core can cache twice
+
+`data/src/emulator.js`:
+
+```js
+if (this.webgl2Enabled === null) {
+    this.webgl2Enabled = rep.options ? rep.options.defaultWebGL2 : false;
+}
+let legacy = (this.supportsWebgl2 && this.webgl2Enabled ? "" : "-legacy");
+let filename = this.getCore() + (threads ? "-thread" : "") + legacy + "-wasm.data";
+```
+
+When `reports/<core>.json` fails to fetch, `defaultWebGL2` is unknown and the
+`-legacy` filename is chosen instead. Those are two different cache keys, so an
+intermittent report fetch means the same core is downloaded and cached twice.
+For a ~1 MB core that is unremarkable; for ours it is 198 MB per copy once
+extracted.
+
+Also note the warning text is wrong: on that path `buildStart` is set to
+`Math.random() * 100` under a message saying "Core caching will be disabled",
+but `buildStart` is never read anywhere in this version.
+
+**Do not file this at ROMM.** See the note above.
+
