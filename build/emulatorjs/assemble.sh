@@ -32,17 +32,25 @@ cd "$(dirname "$0")/../.."
 
 EJS_COMMIT="0b1c5e9"          # must match ARG EMULATORJS_COMMIT in romm's Dockerfile
 
-usage() { echo "usage: assemble.sh <output-dir> [--force]" >&2; }
+usage() { echo "usage: assemble.sh <output-dir> [--force] [--vanilla] [--patch=<file>]..." >&2; }
 
 # Parse flags positionally-independent: --force may appear before or after
 # the output directory, and any other flag-shaped or extra argument is a
 # usage error rather than being silently treated as the output directory.
 FORCE=""
+VANILLA=""
 OUTPUT=""
+PATCH_OVERRIDE=()
 for arg in "$@"; do
   case "$arg" in
     --force)
       FORCE="--force"
+      ;;
+    --vanilla)
+      VANILLA="1"
+      ;;
+    --patch=*)
+      PATCH_OVERRIDE+=("$(realpath -m -- "${arg#--patch=}")")
       ;;
     -*)
       usage
@@ -102,6 +110,16 @@ echo "==> cloning EmulatorJS at ${EJS_COMMIT}"
 git clone -q https://github.com/EmulatorJS/EmulatorJS "$WORK/ejs"
 git -C "$WORK/ejs" checkout -q "$EJS_COMMIT"
 
+if [ -n "$VANILLA" ]; then
+echo "==> vanilla: no patches, no zipstream.js -- this is upstream EmulatorJS at ${EJS_COMMIT}"
+elif [ ${#PATCH_OVERRIDE[@]} -gt 0 ]; then
+echo "==> applying ${#PATCH_OVERRIDE[@]} override patch(es) only -- the standard set is NOT applied"
+for pf in "${PATCH_OVERRIDE[@]}"; do
+  [ -f "$pf" ] || { echo "error: no such patch: $pf" >&2; exit 2; }
+  echo "    $pf"
+  ( cd "$WORK/ejs/data/src" && patch -p0 --forward < "$pf" )
+done
+else
 echo "==> adding zipstream.js"
 cp build/emulatorjs/src/zipstream.js "$WORK/ejs/data/src/zipstream.js"
 
@@ -113,6 +131,7 @@ patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/02-emulator-on
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/03-canvas-pointer-events.patch
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/04-savestate-retry.patch
 patch "$WORK/ejs/data/src/cache.js"    < build/emulatorjs/patches/05-download-debug-logging.patch
+fi
 
 echo "==> npm ci"
 ( cd "$WORK/ejs" && npm ci --silent )
@@ -120,6 +139,9 @@ echo "==> npm ci"
 echo "==> npm run minify"
 ( cd "$WORK/ejs" && npm run minify )
 
+if [ -n "$VANILLA" ] || [ ${#PATCH_OVERRIDE[@]} -gt 0 ]; then
+echo "==> skipping patch verification (not the standard set)"
+else
 # Both artifacts must carry the change: loader.js serves data/src/*.js when
 # EJS_DEBUG_XX is true and emulator.min.js otherwise, so patching only the
 # source would work under debug and silently do nothing in normal use.
@@ -175,14 +197,18 @@ grep -Eq "this\\.debug *= *EJS *\\? *EJS\\.debug" "$WORK/ejs/data/src/cache.js" 
   || { echo "ERROR: download-debug-logging patch missing from src/cache.js" >&2; exit 1; }
 
 echo "==> verified: both the source and the minified bundle carry all patches"
+fi
 
 echo "==> writing tree to ${OUTPUT_ABS}/data"
+[ -n "$VANILLA" ] && echo "    (vanilla upstream tree -- none of this project's patches are in it)"
 rm -rf "${OUTPUT_ABS}"
 mkdir -p "${OUTPUT_ABS}"
 cp -r "$WORK/ejs/data" "${OUTPUT_ABS}/data"
 
 CORE_COUNT="$(find "${OUTPUT_ABS}/data/cores" -maxdepth 1 -name '*.data' 2>/dev/null | wc -l)"
-echo "==> done. Patched tree is at ${OUTPUT_ABS}/data (JS only: ${CORE_COUNT} cores)."
+LABEL="Patched"; [ -n "$VANILLA" ] && LABEL="Vanilla"
+[ ${#PATCH_OVERRIDE[@]} -gt 0 ] && LABEL="Override-patched"
+echo "==> done. ${LABEL} tree is at ${OUTPUT_ABS}/data (JS only: ${CORE_COUNT} cores)."
 echo "    INCOMPLETE: a deployment needs 187 cores and 48 reports as well -- see"
 echo "    the note at the top of this script. Staging this as-is ships an image"
 echo "    with no cores for any platform but ScummVM."

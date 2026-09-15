@@ -3292,3 +3292,57 @@ absent engines do not build whatever their flag says. `gl-core.list` records
 
 *(Retracted 2026-09-10: this section used to say the exclusion had no effect and
 that `hpl1`/`twp` were compiled in anyway. Same backwards reasoning as above.)*
+
+### The core runs in stock EmulatorJS; only the ROM extension stops it
+
+Measured 2026-09-14 with `build/emulatorjs/standalone.sh --vanilla`, which
+builds upstream EmulatorJS at the pinned commit with none of this project's
+patches and installs only the ScummVM core. Zak McKracken and Beneath a Steel
+Sky both auto-detected, launched and played with sound, and save states wrote
+to and loaded from the desktop. Booting needs none of
+`build/emulatorjs/patches/`.
+
+**Playing does.** On this machine the mouse does nothing in-game under vanilla;
+an Xbox pad works. That is patch 03: the canvas is given
+`ejs-canvas-no-pointer` at construction whenever the device merely *reports* a
+touchscreen, so the virtual gamepad overlay can receive touches -- but the
+overlay is only displayed once a real touch occurs. On a touch-capable desktop
+or laptop the two never agree: no overlay, and a canvas that ignores the mouse.
+For a point-and-click engine that is not a nicety, it is the input method.
+Patch 03 is a genuine EmulatorJS bug fix and should be submitted as one.
+
+What did fail: `zak.scm` landed at `/zak.scm` unextracted, the launcher opened
+empty, and the core logged `Game not found. Check path and content of
+'/zak.scm'`. Renaming the identical bytes to `zak.zip` launched the game.
+`cache.js` decides by extension alone:
+
+    const ext = filename.toLowerCase().split('.').pop();
+    if (forceExtract === true || (dontExtract === false && ["zip", "7z", "rar"].includes(ext)))
+
+So the `.scm` bundle extension from the original scoping is dead unless
+EmulatorJS sets `forceExtract` for this core. Ship `.zip`.
+
+### EmulatorJS never reads the core report, so every core is fetched `-legacy`
+
+Same run. `emulator.js` requests `cores/reports/<core>.json` with
+`responseType: "text"`, then throws the result away:
+
+    if (rep === -1 || typeof rep === "string" || typeof rep.data === "string") {
+        rep = {};
+
+A text response always has a string `.data`, so `rep` is always `{}`. Nothing
+parses the JSON. Two consequences, and only one of them is what the warning
+says:
+
+- `options.defaultWebGL2` is never seen, so `this.webgl2Enabled` falls to
+  `false` and the filename gains `-legacy`. Observed: our report sets
+  `defaultWebGL2: true` and the console still read `Downloading core:
+  scummvm-thread-legacy-wasm.data`. **This is why both filenames have to
+  exist** -- it is not a first-visit heuristic, the regular name is never
+  requested at all.
+- `Could not fetch core report JSON! Core caching will be disabled!` is
+  misleading. `buildStart` is set to `Math.random() * 100` but never read
+  again in this commit, and caching still works: a second load of the same
+  page fetched `index.html`, `loader.js`, the localization and the report,
+  and **no `.data` at all**. Do not cite this warning as the cause of a
+  repeated 94 MB download.
