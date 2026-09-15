@@ -34,6 +34,19 @@ cp "$CORE_FILE_LEGACY" "$DEST_DIR/scummvm-thread-legacy-wasm.data"
 # the core keyed on this build's timestamp.
 cp "test-page/ejs/data/cores/reports/scummvm.json" "$DEST_DIR/scummvm.json"
 
-echo "Staged core (both variants) and report JSON at $DEST_DIR/"
+# Engine-data is no longer embedded in the wasm: the core fetches each file
+# from cores/scummvm-engine-data/ on first read. Without this the core loads
+# and then 404s on every engine that needs a .dat -- see the design doc at
+# docs/superpowers/specs/2026-09-14-engine-data-on-demand-design.md.
+ENGINE_DATA_SRC="test-page/ejs/data/cores/scummvm-engine-data"
+if [ ! -d "$ENGINE_DATA_SRC" ]; then
+  echo "error: $ENGINE_DATA_SRC not found -- run build/package-core.sh first" >&2
+  exit 1
+fi
+rm -rf "$DEST_DIR/scummvm-engine-data"
+mkdir -p "$DEST_DIR/scummvm-engine-data"
+cp "$ENGINE_DATA_SRC"/* "$DEST_DIR/scummvm-engine-data/"
+
+echo "Staged core (both variants), report JSON, and $(ls "$DEST_DIR/scummvm-engine-data" | wc -l) engine-data files at $DEST_DIR/"
 echo "Next, from $1:"
 echo "  docker build -f docker/Dockerfile --target full-image -t romm-scummvm:local ."
