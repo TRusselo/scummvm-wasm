@@ -40,12 +40,22 @@ is **not found in fonts.dat** -- any font, not only CJK ones:
     if (!f->open(..., *archive)) {
         // Trying fonts-cjk.dat
 
-SCUMM HE reaches that path by design. `engines/scumm/he/font_he.cpp:303`
-probes a list of candidate font names, calling `loadTTFFontFromArchive` for
-each; every candidate absent from `fonts.dat` falls through to the 36.5 MiB
-file. So HE titles -- Backyard Baseball, Blue's Clues, Pajama Sam and the rest
-of a large family -- pay for `fonts-cjk.dat` whether or not they display a
-single CJK glyph.
+SCUMM HE can reach that path: `engines/scumm/he/font_he.cpp:303` probes a list
+of candidate font names, calling `loadTTFFontFromArchive` for each, and any
+candidate absent from `fonts.dat` falls through to the 36.5 MiB file.
+
+**Measured 2026-09-14, and the risk is smaller than that reads.** Across
+TeenAgent, Kyrandia, Lure, Ultima VIII, Lands of Lore (PC98) and Pajama Sam --
+including an HE title and a Japanese release -- **neither `fonts.dat` nor
+`fonts-cjk.dat` was ever fetched.** Japanese text rendered correctly in the
+PC98 game, because PC98 and FM-TOWNS titles draw through `Graphics::FontSJIS`
+(`engines/kyra/graphics/screen.h:227`) using the platform's own SJIS data.
+`fonts-cjk.dat` serves ScummVM's GUI and TTF-based engines, not CJK games as
+such.
+
+So the 36.5 MiB file is dead weight for very nearly every session, which is the
+strongest argument for this design -- and the case where it is fetched remains
+unexercised, so the stall it would cause is still only inference.
 
 Consequences:
 
@@ -167,6 +177,7 @@ compressed better inside the wasm than subtracting raw sizes suggested).
 |---|---|
 | TeenAgent | `teenagent.dat` (403 KB) |
 | Kyrandia | `kyra.dat` (2.0 MB) |
+| Lands of Lore (PC98, Japanese) | `kyra.dat` |
 | Lure of the Temptress | `lure.dat` |
 | Pajama Sam (HE) | none |
 | Ultima VIII | none |
@@ -195,10 +206,11 @@ Engine-data holds two zips, `helpdialog.zip` (207 KB) and `wintermute.zip`
 nothing. The embedded build did the same scan; it was free because the files
 were local.
 
-Fix: omit `.zip` from `listMembers()` while leaving `hasFile()`, `getMember()`
-and `createReadStreamForMember()` answering for exact names. Theme scanning
-stops fetching and Wintermute still gets its zip when it asks for it by name.
-Not yet implemented -- the measurements above are from the build without it.
+**Decided 2026-09-14: leave it alone.** Omitting `.zip` from `listMembers()`
+would stop the scan fetching, but ThemeEngine is not optional and not
+per-core -- it renders the launcher, the in-game menu and every dialog, and the
+scan is how it finds installed themes. 212 KB per launch is not worth lying to
+it about what the archive contains.
 
 ## Design B: two tiers (fallback)
 
