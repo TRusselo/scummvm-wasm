@@ -47,7 +47,7 @@ cd retroarch
 # wasm-ld began rejecting the link with "initial memory too small, 186199984
 # bytes needed". ALLOW_MEMORY_GROWTH=1 is on, so this is only the startup
 # floor, not a cap; MAXIMUM_MEMORY stays at 4GB.
-EMCC_CFLAGS="--embed-file ../build/embed-staging/engine-data@/engine-data" emmake make -f Makefile.emulatorjs \
+emmake make -f Makefile.emulatorjs \
   LD=em++ \
   HAVE_7ZIP=1 HAVE_CHD=1 \
   HAVE_THREADS=1 PTHREAD_POOL_SIZE=4 \

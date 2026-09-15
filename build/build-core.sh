@@ -2,6 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+python3 build/gen-engine-data-manifest.py \
+  scummvm-core/dists/engine-data \
+  scummvm-core/backends/platform/libretro/include/libretro-engine-data-manifest.h
+
 # Scope the build's engine set. Defaults to all-engines.list -- every ScummVM
 # engine except those requiring real OpenGL, which live in gl-core.list (see
 # build/engine-lists/README.md). Override by pointing ENGINES_LIST_FILE at a

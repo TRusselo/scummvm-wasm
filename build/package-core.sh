@@ -71,6 +71,16 @@ cp test-page/ejs/data/cores/scummvm-thread-wasm.data \
    test-page/ejs/data/cores/scummvm-thread-legacy-wasm.data
 
 
+# Engine-data is no longer embedded in the wasm; it is published next to the
+# core and fetched on first read. The staged directory is the same one
+# build-retroarch-core.sh assembles, so the manifest compiled into the core and
+# the files served here always come from one rsync.
+ENGINE_DATA_DEST="test-page/ejs/data/cores/scummvm-engine-data"
+rm -rf "$ENGINE_DATA_DEST"
+mkdir -p "$ENGINE_DATA_DEST"
+cp build/embed-staging/engine-data/* "$ENGINE_DATA_DEST/"
+echo "Published engine-data: $(ls "$ENGINE_DATA_DEST" | wc -l) files, $(du -sh "$ENGINE_DATA_DEST" | cut -f1)"
+
 # Core report JSON. EmulatorJS (src/emulator.js, downloadGameCore) fetches
 # cores/reports/<core>.json and reads exactly two things from it:
 #   - buildStart: the key for its IndexedDB core cache. Without it EmulatorJS
