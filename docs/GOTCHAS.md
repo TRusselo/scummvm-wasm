@@ -3324,22 +3324,35 @@ EmulatorJS sets `forceExtract` for this core. Ship `.zip`.
 
 ### EmulatorJS never reads the core report, so every core is fetched `-legacy`
 
-Same run. `emulator.js` requests `cores/reports/<core>.json` with
-`responseType: "text"`, then throws the result away:
+Same run. `emulator.js` requests `cores/reports/<core>.json` and never decodes
+it:
 
     if (rep === -1 || typeof rep === "string" || typeof rep.data === "string") {
         rep = {};
+    } else {
+        rep = rep.data;
+    }
 
-A text response always has a string `.data`, so `rep` is always `{}`. Nothing
-parses the JSON. Two consequences, and only one of them is what the warning
-says:
+**Corrected 2026-09-14 after a patch built on the first reading failed to
+change anything.** `downloadFile` resolves `{ data, headers }` where `data` is
+an `EJS_CacheItem` -- an object whose `files[0].bytes` holds the report's raw
+bytes. So `typeof rep.data === "string"` is false, the `else` runs, and `rep`
+becomes the cache item: an object with `key`, `files`, `added`, `type`, `url`
+and no `buildStart` and no `options`. The JSON is never decoded from those
+bytes at all. The fix is to `TextDecoder().decode(files[0].bytes)` and parse
+that; see `build/emulatorjs/patches/06-parse-core-report.patch`.
+
+Two consequences, and only one of them is what the warning says:
 
 - `options.defaultWebGL2` is never seen, so `this.webgl2Enabled` falls to
   `false` and the filename gains `-legacy`. Observed: our report sets
   `defaultWebGL2: true` and the console still read `Downloading core:
   scummvm-thread-legacy-wasm.data`. **This is why both filenames have to
   exist** -- it is not a first-visit heuristic, the regular name is never
-  requested at all.
+  requested at all. With patch 06 applied, ScummVM is fetched as
+  `scummvm-thread-wasm.data` while `fceumm`, whose report carries an empty
+  `options`, still gets `-legacy`: the fix reaches only cores that declare the
+  option.
 - `Could not fetch core report JSON! Core caching will be disabled!` is
   misleading. `buildStart` is set to `Math.random() * 100` but never read
   again in this commit, and caching still works: a second load of the same
