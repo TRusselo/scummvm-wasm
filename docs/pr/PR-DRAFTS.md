@@ -278,6 +278,107 @@ since the engine runs on a worker where window.open() does not exist.
 
 ---
 
+# EmulatorJS/EmulatorJS — four fixes, ready to open
+
+Prepared 2026-09-15. All four are built and verified as **vanilla EmulatorJS at
+`0b1c5e9` plus exactly one patch**, each with a regression check on a second
+core, using `build/emulatorjs/standalone.sh --patch=<file>`.
+
+**Their rules, re-read 2026-09-15 before drafting.** `CONTRIBUTING.md` in
+`EmulatorJS/EmulatorJS`; nothing in `EmulatorJS/emulatorjs.org` beyond setup
+instructions. Neither repo has a PR template, and **neither has an AI policy** —
+unlike `scummvm/scummvm`. Our own `Assisted-by: Claude:<model-id>` trailer still
+applies.
+
+What their CI and docs actually demand:
+
+- **Do not let an editor reformat anything.** CONTRIBUTING.md asks contributors
+  to disable the VS Code formatter before submitting, and suggests
+  `diffEditor.ignoreTrimWhitespace: false`. Keep diffs to the changed lines.
+- **Every non-binary file must end with a newline** — enforced by
+  `.github/workflows/newlines.yml` on every PR.
+- **ESLint runs** (`eslint.config.js`): `no-var`, `prefer-const`,
+  `prefer-arrow-callback`, all warnings, ES2020 modules. All four changes
+  comply. Note the config does not extend `eslint:recommended`, so `no-undef`
+  is off and `TextDecoder` not being in their `globals` list is not a failure.
+- Base branch `main`. One topic per PR.
+
+**No comments in any of these diffs.** Checked line by line.
+
+---
+
+## PR 15 — `Restore mouse input on devices that report a touchscreen`
+
+`build/emulatorjs/patches/03b-canvas-pointer-supports-mouse.patch` · +2 ·
+`data/src/emulator.js`
+
+```
+The canvas is given ejs-canvas-no-pointer at construction whenever the device
+reports a touchscreen, so the virtual gamepad overlay can receive touches. The
+overlay is only displayed once a real touch happens. On a touchscreen laptop
+neither is true: no overlay is shown, and the canvas still ignores the mouse,
+so nothing receives pointer input.
+
+Restore pointer events when the overlay is not up and the core declares
+supportsMouse in its core.json, leaving every other core exactly as it is.
+```
+
+Verified on a touchscreen laptop, patched build: ScummVM (`supportsMouse: true`)
+gets `pointerEvents: auto` and the mouse works; `fceumm` (`options: {}`) keeps
+`ejs-canvas-no-pointer`, `pointerEvents: none`, and plays normally. A
+keyboard-driven game (King's Quest 1, AGI parser) still takes typed input and
+arrow keys, so restoring pointer events costs nothing on that side.
+
+## PR 16 — `Decode the core report so its options are honoured`
+
+`build/emulatorjs/patches/06-parse-core-report.patch` · +18/-3 ·
+`data/src/emulator.js`
+
+```
+downloadFile() resolves the core report to { data, headers } where data is an
+EJS_CacheItem holding the raw bytes in files[0].bytes. The handler assigns
+rep = rep.data, so rep becomes the cache item -- no buildStart, no options --
+and the JSON is never decoded. Every core is then fetched under its -legacy
+filename regardless of what its report says, and the warning about caching
+being disabled fires on every launch.
+
+Decode the bytes and parse them.
+```
+
+Verified with a core whose report sets `defaultWebGL2: true`: before the patch
+it is fetched as `scummvm-thread-legacy-wasm.data`, after it as
+`scummvm-thread-wasm.data`. `fceumm`, whose report carries an empty `options`,
+still gets `-legacy` and still plays — only cores that declare the option
+change behaviour.
+
+## PR 17 — `Set this.debug in EJS_Download`
+
+Branch `TRusselo/EmulatorJS:fix-download-debug-logging`, **pushed 2026-09-13,
+never opened** · +1 · `data/src/cache.js`
+
+```
+EJS_Download's constructor never assigned this.debug, so its three
+"Using cached version of" statements could not run and a cache hit was
+indistinguishable from a miss without the Network panel.
+```
+
+Verified in a browser: the line appears on a cache hit after the change and
+never before it.
+
+## PR 18 — `docs: build RetroArch from v1.22.2, not next`
+
+`EmulatorJS/emulatorjs.org` · `content/2.docs4devs/4.buildingRAW.md`
+
+```
+The instructions clone the RetroArch fork with --branch next. That branch was
+last updated 2026-05-16; v1.22.2 is the repository default and current to
+2026-08-07. Anyone following the page builds cores against a stale branch.
+```
+
+Different repo from the other three. Documentation only.
+
+---
+
 # EmulatorJS/RetroArch
 
 ## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
