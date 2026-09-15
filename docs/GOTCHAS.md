@@ -3359,3 +3359,49 @@ Two consequences, and only one of them is what the warning says:
   page fetched `index.html`, `loader.js`, the localization and the report,
   and **no `.data` at all**. Do not cite this warning as the cause of a
   repeated 94 MB download.
+
+### TeenAgent corrupts on any mid-intro restore, including ScummVM's own save
+
+Do not use `teenagent` as a canary for save-state work. Verified 2026-09-14 by
+loading a **ScummVM save through ScummVM's own menu** during the opening
+sequence: identical corruption to loading a libretro save state there. Nothing
+in this project's save-state path is involved.
+
+The cause is in the engine. `engines/teenagent/teenagent.cpp:632` decides once,
+at startup, which of two branches the session takes:
+
+    int loadSlot = ConfMan.getInt("save_slot");
+    if (loadSlot >= 0) {
+        loadGameState(loadSlot);
+    } else {
+        showCDLogo(); showLogo(); showMetropolis();
+        scene->intro = true; _sceneBusy = true;
+        fnIntro();
+    }
+
+Restoring from outside after the `else` branch has begun leaves the intro
+running on top of the restored scene: the logo screens repaint over it (wrong
+palette on the splash) and `fnIntro()` spawns its own copy of an actor the save
+already placed -- the reported "car on the road, then a second car drives in and
+parks on it".
+
+Upstream says the same in fewer words: the compatibility entry for
+`teenagent:teenagent` is *good -- minor issues and corruption, non game
+breaking*. The engine also binds ESC to "skip starting cutscene", so it treats
+that sequence as a mode of its own.
+
+`canLoadGameStateCurrently()` is no help here -- `teenagent.h:103` returns a
+bare `true`, so the engine claims a load is always safe. (Saving is gated
+properly, on `!_sceneBusy`, which is why the same session logs
+`Save refused for 10 frames` throughout the intro.)
+
+**Workaround, and the thing to tell a player:** if a game does not launch
+straight into its state, get past the menu or opening cutscene first, then load
+from the EmulatorJS menubar. A restore after the intro works correctly.
+
+**If this is ever worth fixing properly**, the route is `--save-slot`: write the
+payload to the slot and relaunch, so the engine takes the `loadGameState`
+branch and never plays the intro. 149 files under `engines/` read `save_slot`,
+and it is how the desktop launcher enters a save. Prototyped and reverted
+2026-09-14 -- the problem turned out to be upstream's rather than ours, so it
+is an improvement, not a fix.
