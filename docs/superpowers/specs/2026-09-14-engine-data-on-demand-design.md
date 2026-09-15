@@ -1,7 +1,6 @@
 # On-demand engine-data for the WASM core
 
-**Status:** design, not approved for implementation. Depends on an answer from
-EmulatorJS (issue #1263) about whether they will publish a second artifact.
+**Status:** implemented and measured. Nothing here waits on EmulatorJS.
 
 **Supersedes** the embed half of
 `2026-09-02-wasm-engine-data-embed-design.md`. That design stays correct for
@@ -254,7 +253,7 @@ needs a hardcoded `if (this.getCore() === "scummvm")` branch in
 | 42 sequential fetches are slower than one transfer | Only files an engine actually needs are fetched, usually one. Falls back to B. |
 | A deployment serves the core but not the data directory | `hasFile()` answers from the manifest, so the failure surfaces as a fetch error at engine start, not as a silent missing-feature. Needs a clear message. |
 | Upstream adds or renames an engine-data file | The manifest is generated at build time from the same clone, so it cannot drift. |
-| EmulatorJS declines to publish a second artifact | Keep `--embed-file`. This design is shelved, not abandoned. |
+| A distribution declines to publish the second directory | Keep `--embed-file`; the build flag is the only difference. |
 
 ## Open questions
 
