@@ -2623,6 +2623,14 @@ it is EmulatorJS's extractor.
 for "ENOTDIR" always returns zero and looks like a clean run. Grep for
 `ErrnoError` instead.
 
+**Fixed upstream, and shipped here since 2026-09-11.** EmulatorJS `9a12941`
+guards the standalone-directory branch the same way the path-walk branch
+above it already was. It reached `main` but no release, so it was carried as
+a Dockerfile `sed` until `6bb3cdf6e` replaced the 4.2.3 release fetch with a
+pinned `main` checkout, which has it. A zip with explicit directory entries
+should now extract with no console errors at all -- if `ErrnoError` still
+appears, the staged EmulatorJS tree is not the one that was built.
+
 ## Quitting hangs the browser tab if an engine never acknowledges EVENT_QUIT (bounded 2026-09-04, cause still unknown)
 
 Exiting Griffon Legend froze the tab with nothing logged at all. Only griffon

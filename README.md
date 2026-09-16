@@ -249,15 +249,18 @@ The packaging rule, in order of how often you'll need each part:
    developed in -- Python's `zipfile` module works identically and is
    always available.)
 
-2. **Never split files across multiple sibling subdirectories in the
-   same zip** (e.g. a `DATA/` folder next to a `VIDEO/` folder) --
-   confirmed to intermittently crash EmulatorJS's own bundled
-   decompression worker (`Uncaught ErrnoError {errno: 20}`, `ENOTDIR`)
-   before ScummVM's code ever runs. This is a real bug in EmulatorJS's
-   own vendored code, not something this project introduced or can fix
-   -- collapsing to one directory level is the only known workaround.
-   See [docs/GOTCHAS.md](docs/GOTCHAS.md)'s "Multiple sibling
-   subdirectories" section for the full investigation.
+2. **Sibling subdirectories are fine.** This rule used to say the
+   opposite. A `DATA/` folder next to a `VIDEO/` folder was blamed for
+   an intermittent `Uncaught ErrnoError {errno: 20}` (`ENOTDIR`) in
+   EmulatorJS's bundled decompression worker. Root-caused 2026-09-04:
+   the trigger is a zip that stores *standalone directory entries*
+   alongside its file paths, which makes EmulatorJS create the same
+   folder twice; it is deterministic, a property of how the archive was
+   written, and benign, because the throw is swallowed at the worker
+   boundary and the game plays. It is also fixed upstream (EmulatorJS
+   `9a12941`) and present in the build this project ships. See
+   [docs/GOTCHAS.md](docs/GOTCHAS.md)'s "The 'flaky' ENOTDIR extraction
+   error" for the evidence.
 
 3. **Exception: some engines need their subdirectory structure
    preserved, not flattened.** `griffon` is the known example -- its own
@@ -460,9 +463,10 @@ found," even with a correctly-placed hook file.
   identical when the engine *is* present but no detection entry matches the
   dump -- all three Discworld dumps landed there, with `tinsel` built, until
   two detection entries were added --
-  and identical again when the archive carries standalone directory entries and
-  trips the ENOTDIR extraction bug. Check `all-engines.list`, then the dump's
-  file sizes, then `7z l -slt x.zip | grep -c 'Folder = +'`.
+  Check `all-engines.list`, then the dump's file sizes. (Standalone directory
+  entries -- `7z l -slt x.zip | grep -c 'Folder = +'` -- used to be a third
+  cause; that throw is benign and is fixed in the EmulatorJS this project
+  ships.)
 
 - **Music is AdLib-only, which makes some games depend on files their dump may
   omit.** `SharedArrayBuffer`-era browsers give us no MIDI hardware (the WebMIDI
