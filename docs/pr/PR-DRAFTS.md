@@ -40,7 +40,7 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 | 14 | libretro/scummvm#114 | `libretro-os.h`, `libretro-os-utils.cpp` | EMSCRIPTEN-guarded | **MERGED** 2026-09-15 by `spleen1981`. He asked about `LIBCO=0` and withdrew the question himself; a review comment asked `hasFeature()` to move to `libretro-os-base.cpp`, done — `openUrl()` stayed, that file defines `FORBIDDEN_SYMBOL_ALLOW_ALL` and without it `forbidden.h`'s `FILE` macro breaks `<emscripten.h>`. **Both commits dropped from the fork 2026-09-15** |
 | 20 | — | `data/emulator.css`, `data/src/{emulator,GameManager,netplay}.js` | every core, every embedder | **drafted 2026-09-15, not opened.** Branch `msg-severity` pushed nowhere yet; clean against #1267/#1268/#1269 |
 | 21 | — | `libretro-core.cpp`, `libretro-os-utils.cpp`, `include/libretro-core.h` | libretro core, all targets | **drafted 2026-09-15, not opened.** Upstream's own uninitialised `retro_message_ext`, unchanged since 2023 |
-| 22 | rommapp/romm#4539 | `docker/Dockerfile` | RomM image only | **CLOSED** 2026-09-16 by `zurdi15`: *"I'm not gonna merge a messy patch for something that emujs will release at some point. Lets wait for them to release 4.3.0"*. Costs us nothing — our own fork had already dropped this backport in `6bb3cdf6e`. See "RomM is on EmulatorJS 4.2.3 indefinitely" below |
+| 22 | rommapp/romm#4539 | `docker/Dockerfile` | RomM image only | **CLOSED** 2026-09-16 by `zurdi15`: *"I'm not gonna merge a messy patch for something that emujs will release at some point. Lets wait for them to release 4.3.0"*. Correct call — the fix is in `v4.3.0-pre` — and it costs us nothing, our fork had already dropped this backport in `6bb3cdf6e`. See "RomM's EmulatorJS version" below |
 | — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | **open, the release gate.** Reframed 2026-09-15: upstream FreeType already made this exact change, and the vendored copy here is 2.7.0 against upstream's 2.14.3. Our explanatory comment was removed so the files match upstream character for character |
 
 Two of the three closures disputed only the trailers; PR 1's also disputed the
@@ -637,7 +637,7 @@ and 6 land.
 
 ---
 
-## RomM is on EmulatorJS 4.2.3 indefinitely
+## RomM's EmulatorJS version
 
 rommapp/romm#4539 was the duplicate-mkdir backport: two `sed` calls against the
 vendored EmulatorJS 4.2.3 in RomM's Dockerfile, each guarded by a `grep -q` so a
@@ -647,26 +647,34 @@ right about the shape. We reached the same conclusion independently: `6bb3cdf6e`
 deleted that exact patch from our fork when we moved to a pinned `main` checkout,
 for the same reason.
 
-What the closure tells us is worth more than the patch was:
+**He is waiting for a real thing.** 4.3.0 is in pre-release testing:
+`v4.3.0-pre`, published 2026-05-17 with a `4.3.0-pre.7z` asset, and `9a12941`
+-- the duplicate-mkdir fix -- is in it, which our own `c073a5297` said at the
+time. Waiting for that to go stable rather than `sed`-patching 4.2.3 is the
+right call, and this file briefly claimed otherwise off a misread of
+`package.json`'s unbumped `4.2.4` dev version.
+
+What is worth recording is the timeline, not a complaint about it:
 
 | | |
 |---|---|
-| last EmulatorJS **stable** release | `v4.2.3`, 2025-07-05 -- 14 months ago |
-| newest tag of any kind | `v4.3.0-pre`, 2026-05-17, still a prerelease |
-| `package.json` on `main` | `4.2.4` -- not 4.3.0 |
+| last **stable** release | `v4.2.3`, 2025-07-05 |
+| 4.3.0 pre-release | `v4.3.0-pre`, 2026-05-17, still prerelease |
+| commits on `main`, last 90 days | 15, most recent 2026-08-07 |
 
-So "wait for 4.3.0" is waiting on a prerelease that has sat for four months, from
-a project that last cut a stable release fourteen months ago. **RomM ships
-EmulatorJS 4.2.3 and will keep shipping it for the foreseeable future.**
+RomM's Dockerfile pins 4.2.3 today and moves when 4.3.0 goes stable, which is
+not imminent at that cadence.
 
 Two consequences:
 
-1. Anything offered to RomM has to work on **4.2.3**, not on the `main` commit we
-   pin. Our vanilla test (GOTCHAS, 2026-09-14) was against `main`, so it says
-   nothing about this. That gap is now the interesting one.
-2. It retro-justifies `6bb3cdf6e`. Pinning `main` was recorded as a dev-image
-   decision; it is also the only way to get a year of upstream fixes into a RomM
-   image, and upstream RomM is not going to take them one `sed` at a time.
+1. Anything offered to RomM has to work on the EmulatorJS RomM actually ships --
+   **4.2.3 now, 4.3.0 when it lands** -- not on the `main` commit we pin. Our
+   vanilla test (GOTCHAS, 2026-09-14) was against `main`, so it says nothing
+   about either. That gap is now the interesting one.
+2. It bounds `6bb3cdf6e`. Pinning `main` gets us fixes RomM will not carry as
+   one-off patches, but it is a bridge to 4.3.0, not a permanent divergence --
+   revisit the pin once 4.3.0 is stable, since much of what we pin `main` for
+   is already in the prerelease.
 
 Second downstream in a row to say the fix belongs upstream rather than in their
 tree -- `spleen1981` on libretro/scummvm#111, now `zurdi15` here. Offer the fix
