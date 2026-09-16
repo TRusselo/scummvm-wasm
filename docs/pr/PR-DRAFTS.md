@@ -32,12 +32,14 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 | 3 | scummvm/scummvm#7928 → #7946 | `engines/chamber/cga.cpp` | all platforms, chamber only | #7928 closed — AI co-authorship; **#7946 open**, quiet since 2026-09-13 |
 | 5 | scummvm/scummvm#7927 → #7945 | `engines/scumm/scumm.h` | all platforms, SCUMM only | #7927 closed — no AI disclosure, and comment far too long; **#7945 MERGED** 2026-09-14 into `master` |
 | 6 | — | `engines/engine.h`, `engines/scumm/scumm.h` | new base-class virtual | **on hold with 9** — see "Save states: asked before submitting" below |
-| 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | **merged** 2026-09-12 into `staging_master` (not `master` yet); `spleen1981` asked for the code comment to go, and it did |
-| 8 | libretro/scummvm#111 → scummvm/scummvm#7947 | `base/plugins.cpp` | EMSCRIPTEN builds only | **FIXED UPSTREAM, both closed.** #111: `spleen1981`, belongs upstream. #7947 approved by `chkuendig` 08:37:18Z, then `lephilousophe` committed the same fix to master as `de8c01b` 32 s later; closed as superseded 2026-09-13. **Fork's `f3c5255` must be dropped on the next sync — see PR 8 below** |
+| 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | **merged** 2026-09-12 into `staging_master` (not `master` yet); `spleen1981` asked for the code comment to go, and it did. Reached `master`; **dropped from the fork 2026-09-15** |
+| 8 | libretro/scummvm#111 → scummvm/scummvm#7947 | `base/plugins.cpp` | EMSCRIPTEN builds only | **FIXED UPSTREAM, both closed.** #111: `spleen1981`, belongs upstream. #7947 approved by `chkuendig` 08:37:18Z, then `lephilousophe` committed the same fix to master as `de8c01b` 32 s later; closed as superseded 2026-09-13. **Fork's `48dea85` and `f3c5255` both dropped 2026-09-15** — upstream guards the whole platform-MIDI block on `__LIBRETRO__` rather than the plugin line |
 | 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | **on hold** — issue opened asking whether it is wanted at all, 2026-09-15 |
 | 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | **CLOSED** 2026-09-14 by `spleen1981`: "let's avoid platform specific workarounds to support an unsupported use case". Stays in our fork as permanent divergence |
-| 13 | libretro/scummvm#113 | `libretro-os-utils.cpp` | libretro core, all targets | **MERGED** into `staging_master`; patch-present in `libretro/master`, droppable on the next rebase |
-| 14 | libretro/scummvm#114 | `libretro-os.h`, `libretro-os-utils.cpp` | EMSCRIPTEN-guarded | **MERGED** 2026-09-15 by `spleen1981`. He asked about `LIBCO=0` and withdrew the question himself; a review comment asked `hasFeature()` to move to `libretro-os-base.cpp`, done — `openUrl()` stayed, that file defines `FORBIDDEN_SYMBOL_ALLOW_ALL` and without it `forbidden.h`'s `FILE` macro breaks `<emscripten.h>` |
+| 13 | libretro/scummvm#113 | `libretro-os-utils.cpp` | libretro core, all targets | **MERGED** into `staging_master`; patch-present in `libretro/master`; **dropped from the fork 2026-09-15** |
+| 14 | libretro/scummvm#114 | `libretro-os.h`, `libretro-os-utils.cpp` | EMSCRIPTEN-guarded | **MERGED** 2026-09-15 by `spleen1981`. He asked about `LIBCO=0` and withdrew the question himself; a review comment asked `hasFeature()` to move to `libretro-os-base.cpp`, done — `openUrl()` stayed, that file defines `FORBIDDEN_SYMBOL_ALLOW_ALL` and without it `forbidden.h`'s `FILE` macro breaks `<emscripten.h>`. **Both commits dropped from the fork 2026-09-15** |
+| 20 | — | `data/emulator.css`, `data/src/{emulator,GameManager,netplay}.js` | every core, every embedder | **drafted 2026-09-15, not opened.** Branch `msg-severity` pushed nowhere yet; clean against #1267/#1268/#1269 |
+| 21 | — | `libretro-core.cpp`, `libretro-os-utils.cpp`, `include/libretro-core.h` | libretro core, all targets | **drafted 2026-09-15, not opened.** Upstream's own uninitialised `retro_message_ext`, unchanged since 2023 |
 | — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | **open, the release gate.** Reframed 2026-09-15: upstream FreeType already made this exact change, and the vendored copy here is 2.7.0 against upstream's 2.14.3. Our explanatory comment was removed so the files match upstream character for character |
 
 Two of the three closures disputed only the trailers; PR 1's also disputed the
@@ -158,6 +160,12 @@ miss the file.
 
 ## PR 6 — `ENGINES: Add Engine::isSaveOrLoadPending()`
 split from `955aef0429e` · +14
+
+**Smaller since #7945 merged.** That commit carried the SCUMM
+`getSaveStateName()` override as well; upstream has it now, and the
+2026-09-15 rebase resolved the `scumm.h` conflict in upstream's favour. What
+is left to offer is the base-class virtual plus SCUMM's one-line override of
+it, nothing else.
 
 ```
 Engines that defer their save/load I/O rather than performing it in
@@ -444,6 +452,57 @@ and a normal load still fetches the core and its engine-data and runs.
 since it is an entry for a core they do not have. Keep `requireThreads: true`
 in our `core.json` regardless -- it matches what every threaded core declares.
 
+## PR 20 — `Show errors in red and stop styling every message as one` — DRAFTED, NOT OPENED
+
+`EmulatorJS/EmulatorJS` branch `msg-severity` · `data/emulator.css`,
+`data/src/emulator.js`, `data/src/GameManager.js`, `data/src/netplay.js`
+
+```
+.ejs_message is styled `color: red` for every message, so "SAVED STATE TO
+SLOT 1" reads as a failure. displayMessage() takes an optional severity that
+colours the element, and the save-state and netplay call sites pass it.
+```
+
+Reach: every core, every embedder. No behaviour change beyond colour; a caller
+that passes no severity gets the element it always got, minus the red.
+
+Independent of #1267, #1268 and #1269 — `git merge-tree` is clean against all
+three, and only #1268/#1269 touch `emulator.js` at all.
+
+This also retires the one place we were writing RomM's own class names into
+EmulatorJS. Patch 04 added `msg-error`/`mdi-alert` from inside `showFailure()`
+because RomM hid every unclassed `.ejs_message` (D1); rommapp/romm#4520 fixed
+that, so `showFailure()` is now one line and the class names are gone.
+
+Not verified in a browser yet — see the test list on issue #12 §3.
+
+---
+
+# libretro/scummvm
+
+## PR 21 — `LIBRETRO: Give OSD notifications a severity` — DRAFTED, NOT OPENED
+
+`260af0f0ad8` · +13/−10 · `backends/platform/libretro/src/libretro-core.cpp`,
+`libretro-os-utils.cpp`, `include/libretro-core.h`
+
+```
+retro_osd_notification() fills four fields of retro_message_ext and leaves
+priority, level and progress at whatever was on the stack. Zero-initialise it
+and take a level, so a frontend that ranks or filters messages gets a real
+value.
+```
+
+Reach: **libretro core, all targets, not Emscripten-specific.** The function is
+`3590bb387cf` (Giovanni Cascione, 2023-05-10); the missing fields have been
+there since. This is their bug, not ours, which is what makes it worth sending.
+
+Eleven call sites classified: `RETRO_LOG_ERROR` for "Game not found" and
+"Failed to set up HW rendering", `RETRO_LOG_WARN` for the folder-missing and
+save-refusal messages, default `RETRO_LOG_INFO` for the rest.
+
+Keep it terse — #110, #113 and #114 all went in as a few lines of body, and
+`spleen1981` asked for a code comment to be removed on #110.
+
 ## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
 `5323840b21` on local branch `ejs-build-scummvm-arrays` (worktree in the session
 scratchpad), based on `origin/v1.22.2` · +3/−3 · `emulatorjs/build-emulatorjs.sh`
@@ -632,6 +691,11 @@ element gets the text (`EJS_emulator.msgElem.textContent`) and never appears.
 Suggested fix: make the base class visible and let ROMM's classes control
 colour only, or have the wrapper add a default class. Either way the default
 should not hide an element ROMM does not exclusively own.
+
+**FIXED UPSTREAM.** Filed as rommapp/romm#4504, fixed by rommapp/romm#4520
+(`8c7b2c64f`, `gantoine`) taking the first of those two options, and picked up
+in our 2026-09-15 rebase. Patch 04's `msg-error`/`mdi-alert` workaround existed
+only for this and has been removed — see PR 20.
 
 ## D2 — `EJS_Download` never assigns `this.debug`
 
