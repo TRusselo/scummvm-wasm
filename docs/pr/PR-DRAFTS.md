@@ -41,6 +41,7 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 | 20 | — | `data/emulator.css`, `data/src/{emulator,GameManager,netplay}.js` | every core, every embedder | **drafted 2026-09-15, not opened.** Branch `msg-severity` pushed nowhere yet; clean against #1267/#1268/#1269 |
 | 21 | — | `libretro-core.cpp`, `libretro-os-utils.cpp`, `include/libretro-core.h` | libretro core, all targets | **drafted 2026-09-15, not opened.** Upstream's own uninitialised `retro_message_ext`, unchanged since 2023 |
 | 22 | rommapp/romm#4539 | `docker/Dockerfile` | RomM image only | **CLOSED** 2026-09-16 by `zurdi15`: *"I'm not gonna merge a messy patch for something that emujs will release at some point. Lets wait for them to release 4.3.0"*. Correct call — the fix is in `v4.3.0-pre` — and it costs us nothing, our fork had already dropped this backport in `6bb3cdf6e`. See "RomM's EmulatorJS version" below |
+| 23 | — | `data/src/emulator.js` | every core, every embedder | **drafted 2026-09-16, not opened.** Split out of patch 02; the only piece of it that stands alone upstream. Branch `fix-decompress-progress` |
 | — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | **open, the release gate.** Reframed 2026-09-15: upstream FreeType already made this exact change, and the vendored copy here is 2.7.0 against upstream's 2.14.3. Our explanatory comment was removed so the files match upstream character for character |
 
 Two of the three closures disputed only the trailers; PR 1's also disputed the
@@ -480,6 +481,60 @@ Not verified in a browser yet — see the test list on issue #12 §3.
 ---
 
 # libretro/scummvm
+
+## PR 23 — `Show decompression progress instead of a frozen download percentage` — DRAFTED, NOT OPENED
+
+`EmulatorJS/EmulatorJS` branch `fix-decompress-progress` · +16/−7 ·
+`data/src/emulator.js`
+
+```
+cache.js reports "decompressing" ticks and the Decompress Game * strings are
+already translated, but the progress wrapper only passed "downloading"
+through, so the loading text held the last download value for the whole
+unpack. The decompressor sends percentage with no total or loaded, so
+percentage is now honoured on its own.
+```
+
+Reach: every core, every embedder, any archive big enough for the unpack to be
+visible. Split out of patch 02, which is otherwise ours to keep.
+
+**The evidence is in their own tree**, which is what makes this worth sending:
+
+- `cache.js:236` and `:242` already call `onProgress("decompressing", …)`
+- `cache.js:100`'s docstring says the callback "returns status(downloading or
+  decompressing)"
+- `Decompress Game Core` / `Data` / `BIOS` / `Parent` / `Patch` are translated in
+  **22 localization files**
+- and `emulator.js`'s wrapper drops every one of those ticks with
+  `if (status === "downloading")`
+
+So the feature was built end to end and the consumer throws it away. Five
+localized strings that nothing can ever display is the symptom.
+
+Two call sites are relabelled, Core and Data — the only two with both a
+`+ progress` readout and an existing translated string. `Download Game State`
+is left alone: a `.state` file is not an archive, and there is no
+`Decompress Game State` string. `Download Game BIOS` / `Parent` / `Patch` appear
+nowhere in `data/src/` at all, so those translations were already orphaned
+before this and are out of scope.
+
+The `percentage` handling is the non-obvious half: the wasm extractor reports
+percentage with `total` and `loaded` both zero, so the old `total ? … : …`
+ternary would have shown `0.00MB` for the whole decompression.
+
+Verified: `npx eslint data/src/emulator.js` output byte-identical before and
+after, trailing newline intact (their `newlines.yml` checks every non-binary
+file). No PR template, and their AI restriction is scoped to *bug reports*
+(`.github/ISSUE_TEMPLATE/bug.md`), not pull requests -- same basis as #1267,
+#1268 and #1269.
+
+### Not drafted: `ejsUserMessage`
+
+The other candidate from patch 02 was letting a download error carry its own
+user-facing reason instead of collapsing to "Network Error". **It is not
+submittable.** The only thing that ever sets `ejsUserMessage` is patch 01's
+streaming extractor (`01-cache-streaming.patch:89`). Upstream has no producer,
+so the change would add a mechanism nothing triggers. It stays coupled to 01.
 
 ## PR 21 — `LIBRETRO: Give OSD notifications a severity` — DRAFTED, NOT OPENED
 
