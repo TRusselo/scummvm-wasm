@@ -29,16 +29,16 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 |---|---|---|---|---|
 | 1 | scummvm/scummvm#7925 → #7944 | `video/avi_decoder.cpp` | all platforms, any AVI | #7925 **closed** — AI co-authorship, then `bluegr`: unnecessary, and `lephilousophe`: **superseded by #7935** (his general fix, all decoders). #7944 was resubmitted before those two comments were read and **withdrawn** 2026-09-12 citing #7935 |
 | 2 | scummvm/scummvm#7926 | `engines/tinsel/detection_tables.h` | detection only | **withdrawn** — booted, not played through |
-| 3 | scummvm/scummvm#7928 → #7946 | `engines/chamber/cga.cpp` | all platforms, chamber only | #7928 closed — AI co-authorship; **#7946 open**, no comment yet |
-| 5 | scummvm/scummvm#7927 → #7945 | `engines/scumm/scumm.h` | all platforms, SCUMM only | #7927 closed — no AI disclosure, and comment far too long; **#7945 open**, no comment yet |
-| 6 | — | `engines/engine.h`, `engines/scumm/scumm.h` | new base-class virtual | held until 9 is up |
+| 3 | scummvm/scummvm#7928 → #7946 | `engines/chamber/cga.cpp` | all platforms, chamber only | #7928 closed — AI co-authorship; **#7946 open**, quiet since 2026-09-13 |
+| 5 | scummvm/scummvm#7927 → #7945 | `engines/scumm/scumm.h` | all platforms, SCUMM only | #7927 closed — no AI disclosure, and comment far too long; **#7945 MERGED** 2026-09-14 into `master` |
+| 6 | — | `engines/engine.h`, `engines/scumm/scumm.h` | new base-class virtual | **on hold with 9** — see "Save states: asked before submitting" below |
 | 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | **merged** 2026-09-12 into `staging_master` (not `master` yet); `spleen1981` asked for the code comment to go, and it did |
 | 8 | libretro/scummvm#111 → scummvm/scummvm#7947 | `base/plugins.cpp` | EMSCRIPTEN builds only | **FIXED UPSTREAM, both closed.** #111: `spleen1981`, belongs upstream. #7947 approved by `chkuendig` 08:37:18Z, then `lephilousophe` committed the same fix to master as `de8c01b` 32 s later; closed as superseded 2026-09-13. **Fork's `f3c5255` must be dropped on the next sync — see PR 8 below** |
-| 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | blocked until 5 and 6 land |
-| 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | open; `spleen1981` questioned the premise (zips unsupported); reply posted explaining the EmulatorJS case, no answer yet |
-| 13 | libretro/scummvm#113 | `libretro-os-utils.cpp` | libretro core, all targets | **open** 2026-09-12, base `staging_master` |
-| 14 | libretro/scummvm#114 | `libretro-os.h`, `libretro-os-utils.cpp` | EMSCRIPTEN-guarded | **open** 2026-09-12, base `staging_master` |
-| — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | open since 2026-09-06, no comment |
+| 9 | — | `backends/platform/libretro/src/libretro-core.cpp` + header | libretro core | **on hold** — issue opened asking whether it is wanted at all, 2026-09-15 |
+| 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | **CLOSED** 2026-09-14 by `spleen1981`: "let's avoid platform specific workarounds to support an unsupported use case". Stays in our fork as permanent divergence |
+| 13 | libretro/scummvm#113 | `libretro-os-utils.cpp` | libretro core, all targets | **MERGED** into `staging_master`; patch-present in `libretro/master`, droppable on the next rebase |
+| 14 | libretro/scummvm#114 | `libretro-os.h`, `libretro-os-utils.cpp` | EMSCRIPTEN-guarded | **MERGED** 2026-09-15 by `spleen1981`. He asked about `LIBCO=0` and withdrew the question himself; a review comment asked `hasFeature()` to move to `libretro-os-base.cpp`, done — `openUrl()` stayed, that file defines `FORBIDDEN_SYMBOL_ALLOW_ALL` and without it `forbidden.h`'s `FILE` macro breaks `<emscripten.h>` |
+| — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | **open, the release gate.** Reframed 2026-09-15: upstream FreeType already made this exact change, and the vendored copy here is 2.7.0 against upstream's 2.14.3. Our explanatory comment was removed so the files match upstream character for character |
 
 Two of the three closures disputed only the trailers; PR 1's also disputed the
 approach, and that was missed for eight hours because the thread was not
@@ -54,6 +54,19 @@ on every platform, `backends/platform/libretro/` is this core only, and an
 submission -- PR 8's unstated scope, PR 2's overclaim, PR 3's missing
 before/after table -- was a reviewer's first question about reach, answerable
 from this column.
+
+**`libretro/scummvm` is not a downstream fork of the port.** The libretro
+backend lives in official ScummVM sources -- `backends/platform/libretro/` sits
+in `scummvm/scummvm` alongside `3ds`, `android`, `sdl` and the rest, and
+docs.libretro.com credits the core to the ScummVM Team. `libretro/scummvm` is
+the staging repo where backend work lands first and flows upstream in batches:
+as of 2026-09-15 it is **28 commits ahead of `scummvm/scummvm` and 0 behind**.
+
+Two consequences. ScummVM's `AI-GUIDELINES.md` governs every commit to the
+libretro backend, not just the ones sent to `scummvm/scummvm`. And a change
+spanning `engines/` and `backends/platform/libretro/` is one feature in one
+codebase, not two PRs gated on each other -- an earlier note in this file
+claiming the opposite was wrong.
 
 Branches: engine fixes are cut from `scummvm/scummvm` master and pushed to
 `TRusselo/scummvm-scummvm`; libretro fixes are cut from `libretro/scummvm`
@@ -305,9 +318,34 @@ What their CI and docs actually demand:
 
 **No comments in any of these diffs.** Checked line by line.
 
+**All four opened 2026-09-15.** Branches are cut from each repo's current
+`main`. The three code PRs sit at `mergeable_state: blocked` with no checks
+reported -- that is branch protection plus GitHub holding workflow runs for a
+first-time contributor, not a fault. emulatorjs.org#78's Netlify preview built
+clean.
+
+## Save states: asked before submitting
+
+PRs 6 and 9 are **on hold by choice**, not blocked. An issue was opened on
+`libretro/scummvm` 2026-09-15 asking whether save-state support is wanted at
+all, because the case against is real: ScummVM is not a machine emulator, its
+own save system already works on every platform including this core, and our
+`retro_serialize()` is a wrapper around `saveGameState()` rather than a new
+capability. A desktop RetroArch user gains nothing. The motivation is
+frontend-shaped -- ROMM's launcher and sync are built around save states -- and
+that is divergence, not a general fix.
+
+Upstream's `retro_serialize_size()` returns 0 today, so the core reports no
+save-state support at all.
+
+If the answer is yes, the general mechanism goes and one piece stays ours: the
+`/savestate_error.txt` channel, which exists only because RetroArch's OSD is
+invisible under EmulatorJS -- exactly the platform-specific kind of thing that
+closed PR 11.
+
 ---
 
-## PR 15 — `Restore mouse input on devices that report a touchscreen`
+## PR 15 — `Restore mouse input on devices that report a touchscreen` — OPEN as EmulatorJS/EmulatorJS#1268
 
 `build/emulatorjs/patches/03b-canvas-pointer-supports-mouse.patch` · +2 ·
 `data/src/emulator.js`
@@ -329,7 +367,7 @@ gets `pointerEvents: auto` and the mouse works; `fceumm` (`options: {}`) keeps
 keyboard-driven game (King's Quest 1, AGI parser) still takes typed input and
 arrow keys, so restoring pointer events costs nothing on that side.
 
-## PR 16 — `Decode the core report so its options are honoured`
+## PR 16 — `Decode the core report so its options are honoured` — OPEN as EmulatorJS/EmulatorJS#1269
 
 `build/emulatorjs/patches/06-parse-core-report.patch` · +18/-3 ·
 `data/src/emulator.js`
@@ -351,7 +389,7 @@ it is fetched as `scummvm-thread-legacy-wasm.data`, after it as
 still gets `-legacy` and still plays — only cores that declare the option
 change behaviour.
 
-## PR 17 — `Set this.debug in EJS_Download`
+## PR 17 — `Set this.debug in EJS_Download` — OPEN as EmulatorJS/EmulatorJS#1267
 
 Branch `TRusselo/EmulatorJS:fix-download-debug-logging`, **pushed 2026-09-13,
 never opened** · +1 · `data/src/cache.js`
@@ -365,7 +403,7 @@ indistinguishable from a miss without the Network panel.
 Verified in a browser: the line appears on a cache hit after the change and
 never before it.
 
-## PR 18 — `docs: build RetroArch from v1.22.2, not next`
+## PR 18 — `docs: build RetroArch from v1.22.2, not next` — OPEN as EmulatorJS/emulatorjs.org#78
 
 `EmulatorJS/emulatorjs.org` · `content/2.docs4devs/4.buildingRAW.md`
 
@@ -380,6 +418,31 @@ Different repo from the other three. Documentation only.
 ---
 
 # EmulatorJS/RetroArch
+
+## PR 19 — `scummvm in requiresThreads` — DRAFTED, NOT OPENED, same gate as PR 12
+
+`build/emulatorjs/patches/07-scummvm-requires-threads.patch` · +1 ·
+`EmulatorJS/EmulatorJS` `data/src/consts.js`
+
+`core.json`'s `requireThreads` is declarative only -- their own `cores.json`
+sets it for `ppsspp`, `dosbox_pure` and `azahar`, but the string appears nowhere
+in `data/src/` or the bundle. Enforcement is the hardcoded array:
+
+```js
+export const requiresThreads = ["ppsspp", "dosbox_pure", "azahar"];
+```
+
+Without an entry there, an embedder who forgets `EJS_threads` gets a generic
+"Error for site owner" instead of `This core requires threads, but EJS_threads
+is not set!` (`emulator.js:611`), and the user-facing Threads toggle stays
+visible (`emulator.js:5348`) for a core with no non-threaded build.
+
+Verified vanilla-plus-this-patch-only: omitting `EJS_threads` names the cause,
+and a normal load still fetches the core and its engine-data and runs.
+
+**Same gate as PR 12**: meaningless until `cores.json` has a `scummvm` entry,
+since it is an entry for a core they do not have. Keep `requireThreads: true`
+in our `core.json` regardless -- it matches what every threaded core declares.
 
 ## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
 `5323840b21` on local branch `ejs-build-scummvm-arrays` (worktree in the session
