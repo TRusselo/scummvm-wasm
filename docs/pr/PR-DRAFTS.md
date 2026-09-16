@@ -38,10 +38,10 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 | 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | **CLOSED** 2026-09-14 by `spleen1981`: "let's avoid platform specific workarounds to support an unsupported use case". Stays in our fork as permanent divergence |
 | 13 | libretro/scummvm#113 | `libretro-os-utils.cpp` | libretro core, all targets | **MERGED** into `staging_master`; patch-present in `libretro/master`; **dropped from the fork 2026-09-15** |
 | 14 | libretro/scummvm#114 | `libretro-os.h`, `libretro-os-utils.cpp` | EMSCRIPTEN-guarded | **MERGED** 2026-09-15 by `spleen1981`. He asked about `LIBCO=0` and withdrew the question himself; a review comment asked `hasFeature()` to move to `libretro-os-base.cpp`, done — `openUrl()` stayed, that file defines `FORBIDDEN_SYMBOL_ALLOW_ALL` and without it `forbidden.h`'s `FILE` macro breaks `<emscripten.h>`. **Both commits dropped from the fork 2026-09-15** |
-| 20 | — | `data/emulator.css`, `data/src/{emulator,GameManager,netplay}.js` | every core, every embedder | **drafted 2026-09-15, not opened.** Branch `msg-severity` pushed nowhere yet; clean against #1267/#1268/#1269 |
-| 21 | — | `libretro-core.cpp`, `libretro-os-utils.cpp`, `include/libretro-core.h` | libretro core, all targets | **drafted 2026-09-15, not opened.** Upstream's own uninitialised `retro_message_ext`, unchanged since 2023 |
+| 20 | EmulatorJS/EmulatorJS#1270 | `data/emulator.css`, `data/src/{emulator,GameManager,netplay}.js` | every core, every embedder | **OPEN**, submitted 2026-09-16 |
+| 21 | libretro/scummvm#116 | `libretro-core.cpp`, `libretro-os-utils.cpp`, `include/libretro-core.h` | libretro core, all targets | **OPEN**, submitted 2026-09-16. Rebuilt against `origin/master` by hand rather than cherry-picked — our version sits on the save-state bridge, which is not upstream, so two of our eleven call sites do not exist there |
 | 22 | rommapp/romm#4539 | `docker/Dockerfile` | RomM image only | **CLOSED** 2026-09-16 by `zurdi15`: *"I'm not gonna merge a messy patch for something that emujs will release at some point. Lets wait for them to release 4.3.0"*. Correct call — the fix is in `v4.3.0-pre` — and it costs us nothing, our fork had already dropped this backport in `6bb3cdf6e`. See "RomM's EmulatorJS version" below |
-| 23 | — | `data/src/emulator.js` | every core, every embedder | **drafted 2026-09-16, not opened.** Split out of patch 02; the only piece of it that stands alone upstream. Branch `fix-decompress-progress` |
+| 23 | EmulatorJS/EmulatorJS#1271 | `data/src/emulator.js` | every core, every embedder | **OPEN**, submitted 2026-09-16. Split out of patch 02; the only piece of it that stands alone upstream |
 | — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | **open, the release gate.** Reframed 2026-09-15: upstream FreeType already made this exact change, and the vendored copy here is 2.7.0 against upstream's 2.14.3. Our explanatory comment was removed so the files match upstream character for character |
 
 Two of the three closures disputed only the trailers; PR 1's also disputed the
@@ -454,7 +454,7 @@ and a normal load still fetches the core and its engine-data and runs.
 since it is an entry for a core they do not have. Keep `requireThreads: true`
 in our `core.json` regardless -- it matches what every threaded core declares.
 
-## PR 20 — `Show errors in red and stop styling every message as one` — DRAFTED, NOT OPENED
+## PR 20 — `Show errors in red and stop styling every message as one` — OPEN as EmulatorJS/EmulatorJS#1270
 
 `EmulatorJS/EmulatorJS` branch `msg-severity` · `data/emulator.css`,
 `data/src/emulator.js`, `data/src/GameManager.js`, `data/src/netplay.js`
@@ -482,7 +482,7 @@ Not verified in a browser yet — see the test list on issue #12 §3.
 
 # libretro/scummvm
 
-## PR 23 — `Show decompression progress instead of a frozen download percentage` — DRAFTED, NOT OPENED
+## PR 23 — `Show decompression progress instead of a frozen download percentage` — OPEN as EmulatorJS/EmulatorJS#1271
 
 `EmulatorJS/EmulatorJS` branch `fix-decompress-progress` · +16/−7 ·
 `data/src/emulator.js`
@@ -536,7 +536,7 @@ submittable.** The only thing that ever sets `ejsUserMessage` is patch 01's
 streaming extractor (`01-cache-streaming.patch:89`). Upstream has no producer,
 so the change would add a mechanism nothing triggers. It stays coupled to 01.
 
-## PR 21 — `LIBRETRO: Give OSD notifications a severity` — DRAFTED, NOT OPENED
+## PR 21 — `LIBRETRO: Initialize retro_message_ext and give notifications a severity` — OPEN as libretro/scummvm#116
 
 `260af0f0ad8` · +13/−10 · `backends/platform/libretro/src/libretro-core.cpp`,
 `libretro-os-utils.cpp`, `include/libretro-core.h`
