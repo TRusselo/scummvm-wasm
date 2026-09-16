@@ -1,4 +1,4 @@
-@@ -2225,12 +2225,69 @@
+@@ -2225,12 +2225,57 @@
  
          let stateUrl;
          const saveState = addButton(this.config.buttonOpts.saveState, async () => {
@@ -27,19 +27,7 @@
 +            // The core leaves the reason in the shared filesystem, because the
 +            // libretro OSD reaches neither the log nor the screen here. First
 +            // line is "permanent" or "temporary"; the rest is what to show.
-+            // displayMessage() alone is invisible in some hosts. ROMM styles
-+            // .ejs_message as visibility:hidden and reveals it only when one of
-+            // its own msg-info/msg-error/msg-success classes is present, which
-+            // it adds from its own wrapper -- so every message EmulatorJS
-+            // raises for itself is silently swallowed there. Adding the class
-+            // costs nothing anywhere else, since nothing styles it.
-+            const showFailure = (text) => {
-+                this.displayMessage(text, 6000);
-+                if (this.msgElem) {
-+                    this.msgElem.classList.add("msg-error", "mdi-alert");
-+                    setTimeout(() => this.msgElem && this.msgElem.classList.remove("msg-error", "mdi-alert"), 6000);
-+                }
-+            };
++            const showFailure = (text) => this.displayMessage(text, 6000, "error");
 +
 +            const savestateError = () => {
 +                try {

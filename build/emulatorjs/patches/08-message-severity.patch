@@ -1,0 +1,179 @@
+diff --git a/data/emulator.css b/data/emulator.css
+index 1c5b25f..c7c79f0 100644
+--- a/data/emulator.css
++++ b/data/emulator.css
+@@ -1722,13 +1722,25 @@
+     overflow: hidden;
+     position: absolute;
+     top: 0;
+-    color: red;
++    color: #fff;
+     font-size: 17px;
+     padding: 10px;
+     text-align: left;
+     text-shadow: rgb(0, 0, 0) 1px 1px 1px;
+ }
+ 
++.ejs_message:empty {
++    visibility: hidden;
++}
++
++.ejs_message_success {
++    color: #6fdc8c;
++}
++
++.ejs_message_error {
++    color: #ff6b6b;
++}
++
+ .ejs_virtualGamepad_open {
+     display: inline-block;
+     width: 24px;
+diff --git a/data/src/GameManager.js b/data/src/GameManager.js
+index 8b92dbc..9010d82 100644
+--- a/data/src/GameManager.js
++++ b/data/src/GameManager.js
+@@ -269,15 +269,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+             if (index === 24 && value === 1) {
+                 const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
+                 if (this.quickSave(slot)) {
+-                    this.EJS.displayMessage(this.EJS.localization("SAVED STATE TO SLOT") + " " + slot);
++                    this.EJS.displayMessage(this.EJS.localization("SAVED STATE TO SLOT") + " " + slot, null, "success");
+                 } else {
+-                    this.EJS.displayMessage(this.EJS.localization("FAILED TO SAVE STATE"));
++                    this.EJS.displayMessage(this.EJS.localization("FAILED TO SAVE STATE"), null, "error");
+                 }
+             }
+             if (index === 25 && value === 1) {
+                 const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
+                 this.quickLoad(slot);
+-                this.EJS.displayMessage(this.EJS.localization("LOADED STATE FROM SLOT") + " " + slot);
++                this.EJS.displayMessage(this.EJS.localization("LOADED STATE FROM SLOT") + " " + slot, null, "success");
+             }
+             if (index === 26 && value === 1) {
+                 let newSlot;
+diff --git a/data/src/emulator.js b/data/src/emulator.js
+index 7d1f74c..001ee33 100644
+--- a/data/src/emulator.js
++++ b/data/src/emulator.js
+@@ -774,16 +774,22 @@ class EmulatorJS {
+     saveInBrowserSupported() {
+         return !!window.indexedDB && (typeof this.config.gameName === "string" || !this.config.gameUrl.startsWith("blob:"));
+     }
+-    displayMessage(message, time) {
++    displayMessage(message, time, severity) {
+         if (!this.msgElem) {
+             this.msgElem = this.createElement("div");
+             this.msgElem.classList.add("ejs_message");
+             this.msgElem.style.zIndex = "6";
+             this.elements.parent.appendChild(this.msgElem);
+         }
++        const severityClasses = ["ejs_message_error", "ejs_message_success"];
++        this.msgElem.classList.remove(...severityClasses);
++        if (severity === "error" || severity === "success") {
++            this.msgElem.classList.add("ejs_message_" + severity);
++        }
+         clearTimeout(this.msgTimeout);
+         this.msgTimeout = setTimeout(() => {
+             this.msgElem.innerText = "";
++            this.msgElem.classList.remove(...severityClasses);
+         }, (typeof time === "number" && time > 0) ? time : 3000)
+         this.msgElem.innerText = message;
+     }
+@@ -1719,16 +1725,16 @@ class EmulatorJS {
+         const qSave = addButton("Quick Save", false, () => {
+             const slot = this.getSettingValue("save-state-slot") ? this.getSettingValue("save-state-slot") : "1";
+             if (this.gameManager.quickSave(slot)) {
+-                this.displayMessage(this.localization("SAVED STATE TO SLOT") + " " + slot);
++                this.displayMessage(this.localization("SAVED STATE TO SLOT") + " " + slot, null, "success");
+             } else {
+-                this.displayMessage(this.localization("FAILED TO SAVE STATE"));
++                this.displayMessage(this.localization("FAILED TO SAVE STATE"), null, "error");
+             }
+             hideMenu();
+         });
+         const qLoad = addButton("Quick Load", false, () => {
+             const slot = this.getSettingValue("save-state-slot") ? this.getSettingValue("save-state-slot") : "1";
+             this.gameManager.quickLoad(slot);
+-            this.displayMessage(this.localization("LOADED STATE FROM SLOT") + " " + slot);
++            this.displayMessage(this.localization("LOADED STATE FROM SLOT") + " " + slot, null, "success");
+             hideMenu();
+         });
+         this.elements.contextMenu = {
+@@ -2188,7 +2194,7 @@ class EmulatorJS {
+             if (stateUrl) URL.revokeObjectURL(stateUrl);
+             if (this.getSettingValue("save-state-location") === "browser" && this.saveInBrowserSupported()) {
+                 this.storage.states.put(this.getBaseFileName() + ".state", state);
+-                this.displayMessage(this.localization("SAVED STATE TO BROWSER"));
++                this.displayMessage(this.localization("SAVED STATE TO BROWSER"), null, "success");
+             } else {
+                 const blob = new Blob([state]);
+                 stateUrl = URL.createObjectURL(blob);
+@@ -2204,7 +2210,7 @@ class EmulatorJS {
+             if (this.getSettingValue("save-state-location") === "browser" && this.saveInBrowserSupported()) {
+                 this.storage.states.get(this.getBaseFileName() + ".state").then(e => {
+                     this.gameManager.loadState(e);
+-                    this.displayMessage(this.localization("LOADED STATE FROM BROWSER"));
++                    this.displayMessage(this.localization("LOADED STATE FROM BROWSER"), null, "success");
+                 })
+             } else {
+                 const file = await this.selectFile();
+diff --git a/data/src/netplay.js b/data/src/netplay.js
+index 8fd3a1a..23e0dff 100644
+--- a/data/src/netplay.js
++++ b/data/src/netplay.js
+@@ -378,7 +378,7 @@ export class Netplay {
+     defineNetplayFunctions() {
+         this.updateList = { start: () => this._updateListStart(), stop: () => this._updateListStop() };
+         if (!this.url) {
+-            this.emu.displayMessage("Netplay URL not configured", 5000);
++            this.emu.displayMessage("Netplay URL not configured", 5000, "error");
+             return;
+         }
+         const Module = (this.emu.gameManager && this.emu.gameManager.Module) ? this.emu.gameManager.Module : this.emu.Module;
+@@ -992,7 +992,7 @@ export class Netplay {
+             // Connection timeout fallback
+             this.connectionTimeout = setTimeout(() => {
+                 if (!this.webRtcReady && !this._gotVideoEver) {
+-                    this.emu.displayMessage("Connection failed", 5000);
++                    this.emu.displayMessage("Connection failed", 5000, "error");
+                     this.leaveRoom();
+                 }
+             }, 15000);
+@@ -1739,7 +1739,7 @@ export class Netplay {
+     /** Show error dialog when join fails */
+     showJoinErrorDialog(roomId, roomName, maxPlayers, errorMessage, hadPassword) {
+         if (!this.emu.createSubPopup) {
+-            this.emu.displayMessage(this.emu.localization("Join error") + ": " + errorMessage, 5000);
++            this.emu.displayMessage(this.emu.localization("Join error") + ": " + errorMessage, 5000, "error");
+             return;
+         }
+         const popups = this.emu.createSubPopup();
+@@ -1786,15 +1786,15 @@ export class Netplay {
+     /** Initialize Socket.IO connection and set up event handlers */
+     startSocketIO(cb) {
+         this._unlockMobileAudio();
+-        if (typeof io === "undefined") { this.emu.displayMessage("Socket.IO unavailable", 5000); return; }
++        if (typeof io === "undefined") { this.emu.displayMessage("Socket.IO unavailable", 5000, "error"); return; }
+         if (this.socket && this.socket.connected) { cb(); return; }
+-        if (!this.url) { this.emu.displayMessage("Network error", 5000); return; }
++        if (!this.url) { this.emu.displayMessage("Network error", 5000, "error"); return; }
+ 
+         this.previousPlayers = {};
+         this.socket = io(this.url);
+ 
+         this.socket.on("connect", () => { this.bindChatUI(); cb(); });
+-        this.socket.on("connect_error", (e) => { this.emu.displayMessage("Connect error: " + e.message, 5000); });
++        this.socket.on("connect_error", (e) => { this.emu.displayMessage("Connect error: " + e.message, 5000, "error"); });
+         this.socket.on("disconnect", () => { this.leaveRoom(); });
+ 
+         // Handle player list updates
+@@ -1953,7 +1953,7 @@ export class Netplay {
+ 
+         this.startSocketIO(() => {
+             this.socket.emit("open-room", { extra: this.extra, maxPlayers: mp, password: pw }, (e) => {
+-                if (e) { this.emu.displayMessage("Room error: " + e, 5000); return; }
++                if (e) { this.emu.displayMessage("Room error: " + e, 5000, "error"); return; }
+                 this.roomJoined(true, rn, pw, sid);
+             });
+         });

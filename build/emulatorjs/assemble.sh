@@ -131,6 +131,8 @@ patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/02-emulator-on
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/03-canvas-pointer-events.patch
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/04-savestate-retry.patch
 patch "$WORK/ejs/data/src/cache.js"    < build/emulatorjs/patches/05-download-debug-logging.patch
+# Touches four files, so it keeps its diff headers and is applied by path.
+patch -p1 -d "$WORK/ejs"               < build/emulatorjs/patches/08-message-severity.patch
 fi
 
 echo "==> npm ci"
@@ -195,6 +197,15 @@ done
 # stable to grep for in the bundle.
 grep -Eq "this\\.debug *= *EJS *\\? *EJS\\.debug" "$WORK/ejs/data/src/cache.js" \
   || { echo "ERROR: download-debug-logging patch missing from src/cache.js" >&2; exit 1; }
+
+# Message severity. Upstream styles every .ejs_message red, so a successful
+# save reads as a failure; the class is what carries the distinction. It is a
+# string literal in the source and in the bundle, and the stylesheet is copied
+# verbatim, so all three are checked.
+for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js" "$WORK/ejs/data/emulator.css"; do
+  grep -q "ejs_message_error" "$f" \
+    || { echo "ERROR: message-severity patch missing from $f" >&2; exit 1; }
+done
 
 echo "==> verified: both the source and the minified bundle carry all patches"
 fi
