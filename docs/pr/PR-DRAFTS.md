@@ -661,20 +661,21 @@ What is worth recording is the timeline, not a complaint about it:
 | last **stable** release | `v4.2.3`, 2025-07-05 |
 | 4.3.0 pre-release | `v4.3.0-pre`, 2026-05-17, still prerelease |
 | commits on `main`, last 90 days | 15, most recent 2026-08-07 |
+| our pinned `EJS_COMMIT` `0b1c5e9` | `v4.3.0-pre` + 20 commits |
 
 RomM's Dockerfile pins 4.2.3 today and moves when 4.3.0 goes stable, which is
 not imminent at that cadence.
 
 Two consequences:
 
-1. Anything offered to RomM has to work on the EmulatorJS RomM actually ships --
-   **4.2.3 now, 4.3.0 when it lands** -- not on the `main` commit we pin. Our
-   vanilla test (GOTCHAS, 2026-09-14) was against `main`, so it says nothing
-   about either. That gap is now the interesting one.
-2. It bounds `6bb3cdf6e`. Pinning `main` gets us fixes RomM will not carry as
-   one-off patches, but it is a bridge to 4.3.0, not a permanent divergence --
-   revisit the pin once 4.3.0 is stable, since much of what we pin `main` for
-   is already in the prerelease.
+1. The only untested target is **4.2.3**, which is what RomM ships today. Our
+   pinned `0b1c5e9` is `v4.3.0-pre` plus 20 commits, so the vanilla test
+   (GOTCHAS, 2026-09-14) already covers the prerelease. When 4.3.0 goes stable
+   RomM lands on a tree we have effectively validated against.
+2. It bounds `6bb3cdf6e`. Our pin is 20 commits past `v4.3.0-pre`, and the
+   reasons for it -- duplicate-mkdir, Core Options v2 -- are in the prerelease
+   or on main ahead of it. The pin is a bridge to 4.3.0, not a permanent
+   divergence; drop it once 4.3.0 is stable.
 
 Second downstream in a row to say the fix belongs upstream rather than in their
 tree -- `spleen1981` on libretro/scummvm#111, now `zurdi15` here. Offer the fix
