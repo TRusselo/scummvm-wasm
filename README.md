@@ -251,7 +251,8 @@ The packaging rule, in order of how often you'll need each part:
 
 2. **Sibling subdirectories are fine.** This rule used to say the
    opposite. A `DATA/` folder next to a `VIDEO/` folder was blamed for
-   an intermittent `Uncaught ErrnoError {errno: 20}` (`ENOTDIR`) in
+   an intermittent `Uncaught ErrnoError {errno: 20}` (EEXIST -- wasm uses
+   WASI errno numbers, so 20 is not ENOTDIR) in
    EmulatorJS's bundled decompression worker. Root-caused 2026-09-04:
    the trigger is a zip that stores *standalone directory entries*
    alongside its file paths, which makes EmulatorJS create the same

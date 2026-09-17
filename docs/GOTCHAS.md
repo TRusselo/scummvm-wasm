@@ -2589,8 +2589,16 @@ disappears is the standalone folder record.
 
 
 The intermittent `Uncaught ErrnoError {name: 'ErrnoError', errno: 20}`
-during EmulatorJS's ROM extraction is neither flaky nor random. errno 20
-is ENOTDIR, and the trigger is a property of the zip file alone.
+during EmulatorJS's ROM extraction is neither flaky nor random, and the
+trigger is a property of the zip file alone.
+
+**errno 20 is EEXIST, not ENOTDIR.** This build targets wasm, so the numbers
+are WASI's, not the C library's -- `__WASI_ERRNO_EXIST` is 20 and
+`__WASI_ERRNO_NOTDIR` is 54 (`emsdk/upstream/emscripten/cache/sysroot/include/wasi/api.h`).
+Every "ENOTDIR" in this file and the README was a misreading. EEXIST is also
+the *right* error for the cause below -- `FS.mkdir()` on a path that already
+exists -- so the diagnosis was correct and only the label was wrong. Other
+values seen in real logs: 28 EINVAL, 31 EISDIR, 44 ENOENT, 51 ENOSPC.
 
 **Mechanism.** EmulatorJS's `decompressFile` callback creates each parent
 directory while walking a file's path (`FS.analyzePath(i).exists ||
@@ -2619,9 +2627,10 @@ archive rather than of the game or the core. Nothing to fix on our side;
 it is EmulatorJS's extractor.
 
 **Detection gotcha that cost real time:** the console prints
-`ErrnoError {errno: 20}`, never the string "ENOTDIR". Grepping a saved log
-for "ENOTDIR" always returns zero and looks like a clean run. Grep for
-`ErrnoError` instead.
+`ErrnoError {errno: 20}`, never a symbolic name. Grepping a saved log for
+"ENOTDIR" always returns zero and looks like a clean run -- and would have
+kept returning zero even if the name had been right, because the number is
+EEXIST. Grep for `ErrnoError` and read the number.
 
 **Fixed upstream, and shipped here since 2026-09-11.** EmulatorJS `9a12941`
 guards the standalone-directory branch the same way the path-walk branch
