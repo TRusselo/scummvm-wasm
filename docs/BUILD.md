@@ -228,12 +228,18 @@ core to `-legacy` on a first visit, so a ROMM deployment missing either
 file 404s for some users.
 
 Run this any time you have a fresh local build to deploy, then build the image
-**on the box**, where the share is `/mnt/user/Code`:
+**on the box**, where the share is `/mnt/user/Code`. There is no `docker` on the
+workstation (`/usr/local/bin/docker` is a dangling symlink), so this goes over
+ssh:
 
 ```bash
-cd /mnt/user/Code/scummvm-wasm/romm-build
-docker build -f docker/Dockerfile --target full-image -t romm-scummvm:local .
+ssh root@big-z 'cd /mnt/user/Code/scummvm-wasm/romm-build && \
+  docker build -f docker/Dockerfile --target full-image -t romm-scummvm:local .'
 ```
+
+Building is the one Docker operation allowed on that box; removing images or
+pruning is not. Check the vdisk has headroom first -- it is a 200 GB loop
+device and filling it corrupts rather than merely failing.
 
 It doesn't touch anything in this repo (`scummvm-wasm`) besides reading the
 already-packaged `.data` files. Verify the md5 *inside the built image* before
