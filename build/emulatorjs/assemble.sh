@@ -136,6 +136,7 @@ patch "$WORK/ejs/data/src/cache.js"    < build/emulatorjs/patches/05-download-de
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/06-parse-core-report.patch
 # Touches four files, so it keeps its diff headers and is applied by path.
 patch -p1 -d "$WORK/ejs"               < build/emulatorjs/patches/08-message-severity.patch
+patch "$WORK/ejs/data/src/GameManager.js" < build/emulatorjs/patches/09-loadstate-retry.patch
 fi
 
 echo "==> npm ci"
@@ -219,6 +220,15 @@ for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js" "$WOR
   grep -q "ejs_message_error" "$f" \
     || { echo "ERROR: message-severity patch missing from $f" >&2; exit 1; }
 done
+
+# Load-state retry. A load is refused for as long as the engine says no, and
+# several engines stay shut for seconds. The core cannot wait -- it holds the
+# main thread -- so the retry lives here. Without it a load fired at launch
+# (emulator.js does it 10ms after "start") never succeeds.
+grep -q "savestate_error.txt" "$WORK/ejs/data/src/GameManager.js" \
+  || { echo "ERROR: load-state retry patch missing from the source" >&2; exit 1; }
+grep -q "savestate_error.txt" "$WORK/ejs/data/emulator.min.js" \
+  || { echo "ERROR: load-state retry patch missing from the bundle" >&2; exit 1; }
 
 echo "==> verified: both the source and the minified bundle carry all patches"
 fi

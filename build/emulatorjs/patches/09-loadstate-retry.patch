@@ -1,0 +1,55 @@
+@@ -210,13 +210,52 @@
+     getState() {
+         return this.Module.EmulatorJSGetState();
+     }
+-    loadState(state) {
++    async loadState(state) {
+         try {
+             this.FS.unlink("game.state");
+         } catch(e) {}
+         this.FS.writeFile("/game.state", state);
+         this.clearEJSResetTimer();
+-        this.functions.loadState("game.state", 0);
++
++        // An engine decides for itself whether a load is possible right now,
++        // and several stay shut for seconds: Blade Runner while a video plays,
++        // Sanitarium while a line of speech is spoken, Kyrandia outside its
++        // main loop. The core cannot wait for that -- it holds the main thread
++        // while it does, so the tab stops drawing. Retrying from here costs
++        // nothing, because the game keeps running between attempts.
++        //
++        // The core leaves its reason in the shared filesystem. First line is
++        // "permanent" or "temporary"; the rest is what to show.
++        const errorPath = "/savestate_error.txt";
++        const refusal = () => {
++            try {
++                const text = this.FS.readFile(errorPath, { encoding: "utf8" });
++                const nl = text.indexOf("\n");
++                if (nl < 0) return null;
++                return { permanent: text.slice(0, nl).trim() === "permanent", message: text.slice(nl + 1).trim() };
++            } catch(e) { return null; }
++        };
++        try {
++            this.FS.unlink(errorPath);
++        } catch(e) {}
++
++        const waitMs = (typeof window !== "undefined" && typeof window.EJS_saveStateWaitMs === "number")
++            ? window.EJS_saveStateWaitMs : 10000;
++        const retryUntil = Date.now() + waitMs;
++        for (;;) {
++            this.functions.loadState("game.state", 0);
++            // content_load_state() queues a task rather than running inline, so
++            // the reason is not there the instant this returns.
++            await new Promise((resolve) => setTimeout(resolve, 400));
++            const reason = refusal();
++            if (!reason) break;
++            if (reason.permanent || Date.now() >= retryUntil) {
++                this.EJS.displayMessage(reason.message, 6000, "error");
++                break;
++            }
++            this.EJS.displayMessage(this.EJS.localization("WAITING FOR THE SCENE TO END"), 1000);
++        }
++
+         setTimeout(() => {
+             try {
+                 this.FS.unlink("game.state");
