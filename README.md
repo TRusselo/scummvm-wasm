@@ -342,8 +342,9 @@ Two options:
   ships no copyrighted game data.
 - **A hosted ROMM instance** (the actual method used for the engine
   sweep, and the more realistic real-world deployment target): run
-  `build/deploy-to-romm.sh <path-to-romm-checkout>` to stage the built
-  core into a ROMM fork, then drop the packaged zip into that instance's
+  `build/deploy-to-romm.sh` (see docs/BUILD.md for the staging path and
+  the `--ejs` half) to stage the built core, then drop the packaged zip
+  into that instance's
   ScummVM platform ROM folder and let ROMM scan and serve it. See the
   "Known limitations" section below for what's confirmed working this
   way (including save states).

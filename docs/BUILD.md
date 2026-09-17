@@ -191,13 +191,31 @@ visitor actually gets served, per the above.
 ## `build/deploy-to-romm.sh`
 
 Not part of the core-build pipeline proper -- stages the already-built
-core into a separate ROMM fork checkout so that checkout's own
-`docker build` can bundle it into a ROMM image. Takes one required
-argument: the path to that ROMM fork checkout.
+core, and optionally the assembled EmulatorJS tree, into the ROMM checkout
+that `docker build` runs from.
 
 ```bash
-build/deploy-to-romm.sh /home/user/git/romm
+build/deploy-to-romm.sh                            # core only
+build/deploy-to-romm.sh --ejs=<assemble-out>/data  # core + EmulatorJS
 ```
+
+**Where it stages, and why there.** The default destination is
+`/mnt/unraid/Code/scummvm-wasm/romm-build`, which is the *same folder* as
+`/mnt/user/Code/scummvm-wasm/romm-build` on the Unraid box -- a cache-only
+share mounted both ways. So staging is a local copy, not an rsync over ssh,
+and there is no second copy to drift out of step. Pass a different path as the
+first argument to stage somewhere else.
+
+That checkout used to live in the box's `/tmp`, which is **RAM on Unraid**: 929
+MB held permanently and lost on every reboot, taking the branch, the staged
+core and the patched EmulatorJS tree with it. Moved 2026-09-16.
+
+**Stage the EmulatorJS half whenever a patch changed.** `assemble.sh` emits the
+JS only; the ~298 MB of `cores/*.data` and `cores/reports/*.json` in a
+deployment come from elsewhere, so `--ejs` excludes those two and replaces
+everything else, then prints how many of each survived. Skipping this half is
+how a core once shipped against a bundle missing three of its patches, with
+nothing in any log to show for it.
 
 It requires `build/package-core.sh` to have already been run (it errors
 out if either `test-page/ejs/data/cores/scummvm-thread-wasm.data` or
@@ -209,9 +227,17 @@ same reason `package-core.sh` produces both: EmulatorJS defaults every
 core to `-legacy` on a first visit, so a ROMM deployment missing either
 file 404s for some users.
 
-Run this any time you have a fresh local build to deploy, before running
-`docker build` in the ROMM checkout -- it doesn't touch anything in this
-repo (`scummvm-wasm`) besides reading the already-packaged `.data` files.
+Run this any time you have a fresh local build to deploy, then build the image
+**on the box**, where the share is `/mnt/user/Code`:
+
+```bash
+cd /mnt/user/Code/scummvm-wasm/romm-build
+docker build -f docker/Dockerfile --target full-image -t romm-scummvm:local .
+```
+
+It doesn't touch anything in this repo (`scummvm-wasm`) besides reading the
+already-packaged `.data` files. Verify the md5 *inside the built image* before
+asking anyone to test it -- "it built" has never been evidence.
 
 ### Assembling the EmulatorJS tree
 

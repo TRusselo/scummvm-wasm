@@ -2,10 +2,35 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [ -z "${1:-}" ]; then
-  echo "Usage: $0 <path-to-romm-fork-checkout>" >&2
-  echo "  e.g.: $0 /home/user/git/romm" >&2
+# Where the image is actually built. /mnt/user/Code on the Unraid box is the
+# same folder as /mnt/unraid/Code here -- a cache-only share mounted both ways --
+# so staging is a local copy rather than an rsync over ssh, and there is no
+# second copy to drift. The checkout used to live in the box's /tmp, which is
+# RAM there: 929 MB held permanently and lost on every reboot.
+STAGE_DEFAULT="/mnt/unraid/Code/scummvm-wasm/romm-build"
+
+usage() {
+  echo "Usage: $0 [path-to-romm-checkout] [--ejs=<assembled-data-dir>]" >&2
+  echo "  default destination: $STAGE_DEFAULT" >&2
+  echo "  --ejs stages an assemble.sh output tree as well; without it the" >&2
+  echo "        EmulatorJS half of the deploy is left untouched." >&2
   exit 1
+}
+
+DEST_ROOT=""
+EJS_SRC=""
+for arg in "$@"; do
+  case "$arg" in
+    --ejs=*) EJS_SRC="${arg#--ejs=}" ;;
+    -h|--help) usage ;;
+    -*) echo "error: unknown option $arg" >&2; usage ;;
+    *) DEST_ROOT="$arg" ;;
+  esac
+done
+DEST_ROOT="${DEST_ROOT:-$STAGE_DEFAULT}"
+if [ ! -d "$DEST_ROOT" ]; then
+  echo "error: no such checkout: $DEST_ROOT" >&2
+  usage
 fi
 
 # EmulatorJS's own downloadGameCore() (src/emulator.js) defaults EVERY core
@@ -25,7 +50,7 @@ if [ ! -f "$CORE_FILE_LEGACY" ]; then
   exit 1
 fi
 
-DEST_DIR="$1/docker/scummvm-core"
+DEST_DIR="$DEST_ROOT/docker/scummvm-core"
 mkdir -p "$DEST_DIR"
 cp "$CORE_FILE" "$DEST_DIR/scummvm-thread-wasm.data"
 cp "$CORE_FILE_LEGACY" "$DEST_DIR/scummvm-thread-legacy-wasm.data"
@@ -48,5 +73,28 @@ mkdir -p "$DEST_DIR/scummvm-engine-data"
 cp "$ENGINE_DATA_SRC"/* "$DEST_DIR/scummvm-engine-data/"
 
 echo "Staged core (both variants), report JSON, and $(ls "$DEST_DIR/scummvm-engine-data" | wc -l) engine-data files at $DEST_DIR/"
-echo "Next, from $1:"
-echo "  docker build -f docker/Dockerfile --target full-image -t romm-scummvm:local ."
+
+# The EmulatorJS half. assemble.sh emits the JS only -- the ~298 MB of
+# cores/*.data and cores/reports/*.json in a deployment come from elsewhere and
+# must survive, so those two are excluded and everything else is replaced.
+# Forgetting this half is how a core once shipped against a bundle missing its
+# patches, with nothing to show for it in the logs.
+if [ -n "$EJS_SRC" ]; then
+  if [ ! -f "$EJS_SRC/emulator.min.js" ]; then
+    echo "error: $EJS_SRC does not look like an assemble.sh output (no emulator.min.js)" >&2
+    exit 1
+  fi
+  EJS_DEST="$DEST_ROOT/docker/emulatorjs/data"
+  [ -d "$EJS_DEST" ] || { echo "error: no EmulatorJS tree at $EJS_DEST" >&2; exit 1; }
+  rsync -a --exclude 'cores/' --exclude 'reports/' "$EJS_SRC/" "$EJS_DEST/"
+  echo "Staged EmulatorJS JS from $EJS_SRC"
+  echo "  cores preserved:   $(ls "$EJS_DEST"/cores/*.data 2>/dev/null | wc -l)"
+  echo "  reports preserved: $(ls "$EJS_DEST"/cores/reports/*.json 2>/dev/null | wc -l)"
+else
+  echo "NOTE: EmulatorJS not staged. Pass --ejs=<assemble.sh output>/data if a"
+  echo "      patch changed, or the image keeps the bundle it already has."
+fi
+
+echo
+echo "Next, on the Unraid box (the share is /mnt/user/Code there):"
+echo "  cd /mnt/user/Code/scummvm-wasm/romm-build && docker build -f docker/Dockerfile --target full-image -t romm-scummvm:local ."
