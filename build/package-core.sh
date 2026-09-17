@@ -41,11 +41,14 @@ rm -f test-page/ejs/data/cores/scummvm-wasm.data \
 #                     per-deployment today; this makes it travel with the core).
 #   requireThreads -> the core is built USE_LIBCO=0 on real pthreads; there is
 #                     no non-threaded build to fall back to.
-#   retroarchOpts  -> load_dummy_on_core_shutdown=false. ScummVM can quit
-#                     itself (Orion Burger quits on ESC at its own menu), and
-#                     RetroArch's default is to start its dummy core and show
-#                     its Main Menu inside the embed. False makes it end the
-#                     runloop instead (runloop.c:5988).
+#   retroarchOpts  -> REVERTED 2026-09-17, do not re-add
+#                     load_dummy_on_core_shutdown=false. It does stop
+#                     RetroArch's Main Menu appearing in the embed, but on
+#                     Emscripten ending the runloop leaves the canvas frozen on
+#                     its last frame with nothing to replace it -- a hang, which
+#                     is worse than the menu. Reproduced on every exit path:
+#                     ScummVM's own Quit, "return to launcher" then exit, and
+#                     Orion Burger's ESC-at-menu. See issue #15.
 #   extensions     -> matches the core's own valid_extensions
 #                     (libretro-core.cpp: info->valid_extensions = "scummvm"),
 #                     the .scummvm hook-file mechanism in docs/GOTCHAS.md.
@@ -61,9 +64,6 @@ cat > build/pkg-staging/core.json <<'EOF_CORE'
     "useKeyboard": true,
     "defaultWebGL2": true
   },
-  "retroarchOpts": [
-    { "name": "load_dummy_on_core_shutdown", "default": "false", "isString": false }
-  ],
   "license": "COPYING",
   "repo": "https://github.com/libretro/scummvm"
 }
