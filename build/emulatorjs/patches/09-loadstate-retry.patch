@@ -1,4 +1,4 @@
-@@ -210,13 +210,64 @@
+@@ -210,13 +210,101 @@
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -12,21 +12,58 @@
 +    //
 +    // The core leaves its reason in the shared filesystem. First line is
 +    // "permanent" or "temporary"; the rest is what to show.
-+    async retryLoadState(name) {
-+        const errorPath = "/savestate_error.txt";
-+        const refusal = () => {
++    // The core leaves its reason in the shared filesystem, because the libretro
++    // OSD reaches neither the log nor the screen here. First line is
++    // "permanent" or "temporary"; the rest is what to show.
++    savestateRefusal() {
++        try {
++            const text = this.FS.readFile("/savestate_error.txt", { encoding: "utf8" });
++            const nl = text.indexOf("\n");
++            if (nl < 0) return null;
++            return { permanent: text.slice(0, nl).trim() === "permanent", message: text.slice(nl + 1).trim() };
++        } catch(e) { return null; }
++    }
++    clearSavestateRefusal() {
++        try {
++            this.FS.unlink("/savestate_error.txt");
++        } catch(e) {}
++    }
++    // An engine can refuse a save while a scene is still playing: Riven's
++    // canSaveGameStateCurrently() is false for as long as it has queued
++    // scripts, and one stays queued for the length of the animation it runs.
++    // The core cannot usefully wait for that itself -- it owns the main thread
++    // while it blocks, so nothing is drawn. Waiting here costs nothing: the
++    // game keeps running between attempts and the scene plays out on screen.
++    //
++    // Returns the state, or null having already said why.
++    async retryGetState() {
++        const waitMs = (typeof window !== "undefined" && typeof window.EJS_saveStateWaitMs === "number")
++            ? window.EJS_saveStateWaitMs : 10000;
++        const retryUntil = Date.now() + waitMs;
++        for (;;) {
++            this.clearSavestateRefusal();
 +            try {
-+                const text = this.FS.readFile(errorPath, { encoding: "utf8" });
-+                const nl = text.indexOf("\n");
-+                if (nl < 0) return null;
-+                return { permanent: text.slice(0, nl).trim() === "permanent", message: text.slice(nl + 1).trim() };
-+            } catch(e) { return null; }
-+        };
-+        const clearRefusal = () => {
-+            try {
-+                this.FS.unlink(errorPath);
++                return this.getState();
 +            } catch(e) {}
-+        };
++            const reason = this.savestateRefusal();
++            // A refusal the engine will never lift -- an SCI game with save
++            // states switched off -- must not be retried to arrive at the same
++            // answer.
++            if (reason && reason.permanent) {
++                this.EJS.displayMessage(reason.message, 6000, "error");
++                return null;
++            }
++            if (Date.now() >= retryUntil) {
++                this.EJS.displayMessage(reason ? reason.message : this.EJS.localization("FAILED TO SAVE STATE"), 6000, "error");
++                return null;
++            }
++            this.EJS.displayMessage(this.EJS.localization("WAITING FOR THE SCENE TO END"));
++            await new Promise((resolve) => setTimeout(resolve, 400));
++        }
++    }
++    async retryLoadState(name) {
++        const refusal = () => this.savestateRefusal();
++        const clearRefusal = () => this.clearSavestateRefusal();
 +
 +        // Long enough to outlast opening credits: an engine accepts a load only
 +        // once the game proper is running, and an intro runs well past ten
@@ -65,23 +102,81 @@
          setTimeout(() => {
              try {
                  this.FS.unlink("game.state");
-@@ -248,6 +299,8 @@
-             let data = this.getState();
-             this.FS.writeFile("/" + name, data);
-         } catch(e) {
-+            // Nobody checks the return, so say so rather than failing silently.
-+            this.EJS.displayMessage(this.EJS.localization("FAILED TO SAVE STATE"), 6000, "error");
-             return false;
-         }
+@@ -238,27 +326,41 @@
+             }
+         })
+     }
+-    quickSave(slot) {
++    async quickSave(slot) {
+         if (!slot) slot = 1;
+-        let name = slot + "-quick.state";
++        const name = slot + "-quick.state";
+         try {
+             this.FS.unlink(name);
+         } catch(e) {}
++        const data = await this.retryGetState();
++        // retryGetState() has already said why.
++        if (data === null) return false;
++        this.FS.writeFile("/" + name, data);
++        // Offer it to the host as an ordinary save state, so a quick save is
++        // kept wherever the Save State button's are and survives the tab. With
++        // no listener it stays in the in-memory filesystem, as it always did.
++        let screenshot, format;
+         try {
+-            let data = this.getState();
+-            this.FS.writeFile("/" + name, data);
+-        } catch(e) {
+-            return false;
+-        }
++            ({ screenshot, format } = await this.EJS.takeScreenshot(this.EJS.capture.photo.source,
++                this.EJS.capture.photo.format, this.EJS.capture.photo.upscale));
++        } catch(e) {}
++        this.EJS.callEvent("saveState", { screenshot: screenshot, format: format, state: data });
          return true;
-@@ -257,7 +310,9 @@
-         (async () => {
-             let name = slot + "-quick.state";
-             this.clearEJSResetTimer();
+     }
+-    quickLoad(slot) {
++    // Returns true when the local copy was used, so the caller knows whether to
++    // announce the slot: a host that takes this over reports for itself, and
++    // may have nothing to load.
++    async quickLoad(slot) {
+         if (!slot) slot = 1;
+-        (async () => {
+-            let name = slot + "-quick.state";
+-            this.clearEJSResetTimer();
 -            this.functions.loadState(name, 0);
-+            // Same refusal handling as loadState(): a core may decline for as
-+            // long as it likes, and calling the wrap once just loses the load.
-+            await this.retryLoadState(name);
-         })();
+-        })();
++        this.clearEJSResetTimer();
++        // Ask the host for its most recent state first, so a quick load reaches
++        // the ones a quick save sent it -- including from another machine.
++        // Nothing listening means there is only the local copy.
++        if (this.EJS.callEvent("quickLoadState", { slot: slot }) > 0) return false;
++        // Same refusal handling as loadState(): a core may decline for as long
++        // as it likes, and calling the wrap once just loses the load.
++        await this.retryLoadState(slot + "-quick.state");
++        return true;
      }
      simulateInput(player, index, value) {
+         if (this.EJS.isNetplay) {
+@@ -268,16 +370,15 @@
+         if ([24, 25, 26, 27, 28, 29].includes(index)) {
+             if (index === 24 && value === 1) {
+                 const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
+-                if (this.quickSave(slot)) {
+-                    this.EJS.displayMessage(this.EJS.localization("SAVED STATE TO SLOT") + " " + slot);
+-                } else {
+-                    this.EJS.displayMessage(this.EJS.localization("FAILED TO SAVE STATE"));
+-                }
++                this.quickSave(slot).then((ok) => {
++                    if (ok) this.EJS.displayMessage(this.EJS.localization("SAVED STATE TO SLOT") + " " + slot);
++                });
+             }
+             if (index === 25 && value === 1) {
+                 const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
+-                this.quickLoad(slot);
+-                this.EJS.displayMessage(this.EJS.localization("LOADED STATE FROM SLOT") + " " + slot);
++                this.quickLoad(slot).then((local) => {
++                    if (local) this.EJS.displayMessage(this.EJS.localization("LOADED STATE FROM SLOT") + " " + slot);
++                });
+             }
+             if (index === 26 && value === 1) {
+                 let newSlot;

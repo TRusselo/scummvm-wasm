@@ -1,70 +1,48 @@
-@@ -2171,12 +2171,64 @@
+@@ -1716,20 +1716,19 @@
+             hideMenu();
+         });
+ 
+-        const qSave = addButton("Quick Save", false, () => {
++        const qSave = addButton("Quick Save", false, async () => {
+             const slot = this.getSettingValue("save-state-slot") ? this.getSettingValue("save-state-slot") : "1";
+-            if (this.gameManager.quickSave(slot)) {
++            hideMenu();
++            if (await this.gameManager.quickSave(slot)) {
+                 this.displayMessage(this.localization("SAVED STATE TO SLOT") + " " + slot);
+-            } else {
+-                this.displayMessage(this.localization("FAILED TO SAVE STATE"));
+             }
+-            hideMenu();
+         });
+-        const qLoad = addButton("Quick Load", false, () => {
++        const qLoad = addButton("Quick Load", false, async () => {
+             const slot = this.getSettingValue("save-state-slot") ? this.getSettingValue("save-state-slot") : "1";
+-            this.gameManager.quickLoad(slot);
+-            this.displayMessage(this.localization("LOADED STATE FROM SLOT") + " " + slot);
+             hideMenu();
++            if (await this.gameManager.quickLoad(slot)) {
++                this.displayMessage(this.localization("LOADED STATE FROM SLOT") + " " + slot);
++            }
+         });
+         this.elements.contextMenu = {
+             screenshot: screenshot,
+@@ -2171,13 +2170,12 @@
  
          let stateUrl;
          const saveState = addButton(this.config.buttonOpts.saveState, async () => {
-+            // An engine can refuse a save while a scene is still playing:
-+            // Riven's canSaveGameStateCurrently() is false for as long as it
-+            // has queued scripts, and a queued script stays queued for the
-+            // whole length of the animation it is running.
-+            //
-+            // The core cannot usefully wait for that itself. It owns the main
-+            // thread while it blocks, so nothing is drawn and the tab freezes
-+            // for however long it waits. Waiting here costs nothing: the game
-+            // keeps running between attempts, the scene plays out on screen,
-+            // and the save lands the moment the engine will accept it.
-+            //
-+            // The state is therefore captured when the scene ends rather than
-+            // when the button was pressed -- a few seconds of game time later,
-+            // which is the same thing the engine's own save menu does.
-+            const retryUntil = Date.now() + ((typeof window !== "undefined"
-+                && typeof window.EJS_saveStateWaitMs === "number") ? window.EJS_saveStateWaitMs : 10000);
-             let state;
+-            let state;
 -            try {
 -                state = this.gameManager.getState();
 -            } catch(e) {
 -                this.displayMessage(this.localization("FAILED TO SAVE STATE"));
 -                return;
-+            // The core leaves the reason in the shared filesystem, because the
-+            // libretro OSD reaches neither the log nor the screen here. First
-+            // line is "permanent" or "temporary"; the rest is what to show.
-+            const showFailure = (text) => this.displayMessage(text, 6000, "error");
-+
-+            const savestateError = () => {
-+                try {
-+                    const text = this.gameManager.FS.readFile("/savestate_error.txt", { encoding: "utf8" });
-+                    const nl = text.indexOf("\n");
-+                    if (nl < 0) return null;
-+                    return { permanent: text.slice(0, nl).trim() === "permanent", message: text.slice(nl + 1).trim() };
-+                } catch(e) { return null; }
-+            };
-+
-+            for (;;) {
-+                try {
-+                    // Cleared first so the reason read back belongs to this
-+                    // attempt: a refusal left by an earlier one would otherwise
-+                    // be reported here, and a stale "permanent" ends the wait
-+                    // on the spot.
-+                    this.gameManager.FS.unlink("/savestate_error.txt");
-+                } catch(e) {}
-+                try {
-+                    state = this.gameManager.getState();
-+                    break;
-+                } catch(e) {
-+                    const reason = savestateError();
-+                    // A refusal the engine will never lift -- an SCI game with
-+                    // save states switched off -- must not be retried for ten
-+                    // seconds to arrive at the same answer.
-+                    if (reason && reason.permanent) {
-+                        showFailure(reason.message);
-+                        return;
-+                    }
-+                    if (Date.now() >= retryUntil) {
-+                        showFailure(reason ? reason.message : this.localization("FAILED TO SAVE STATE"));
-+                        return;
-+                    }
-+                    this.displayMessage(this.localization("WAITING FOR THE SCENE TO END"));
-+                    await new Promise((resolve) => setTimeout(resolve, 400));
-+                }
-             }
+-            }
++            // The state is captured when the engine will accept it rather than
++            // when the button was pressed -- a few seconds of game time later,
++            // which is what the engine's own save menu does. Shared with the
++            // quick save so both wait out the same scenes.
++            const state = await this.gameManager.retryGetState();
++            if (state === null) return;
              const { screenshot, format } = await this.takeScreenshot(this.capture.photo.source, this.capture.photo.format, this.capture.photo.upscale);
              const called = this.callEvent("saveState", {
+                 screenshot: screenshot,

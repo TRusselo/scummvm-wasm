@@ -134,9 +134,14 @@ patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/03b-canvas-poi
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/04-savestate-retry.patch
 patch "$WORK/ejs/data/src/cache.js"    < build/emulatorjs/patches/05-download-debug-logging.patch
 patch "$WORK/ejs/data/src/emulator.js" < build/emulatorjs/patches/06-parse-core-report.patch
+# 09 before 08: both rewrite the quick save/load block, and 08 adds the severity
+# argument to the messages 09 leaves behind. Swapping them rejects that hunk.
+patch "$WORK/ejs/data/src/GameManager.js" < build/emulatorjs/patches/09-loadstate-retry.patch
 # Touches four files, so it keeps its diff headers and is applied by path.
 patch -p1 -d "$WORK/ejs"               < build/emulatorjs/patches/08-message-severity.patch
-patch "$WORK/ejs/data/src/GameManager.js" < build/emulatorjs/patches/09-loadstate-retry.patch
+# loader.js, not src/: the EJS_on* globals are wired by an explicit list there,
+# so a new event that is not in it silently reaches nobody.
+patch "$WORK/ejs/data/loader.js"          < build/emulatorjs/patches/10-quickload-host-event.patch
 fi
 
 echo "==> npm ci"
@@ -186,10 +191,14 @@ done
 # it has queued scripts) is retried from here rather than waited out inside the
 # core, which would block the main thread and freeze the tab. The waiting
 # message appears in no unpatched source or bundle, so it is a clean marker.
-for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js"; do
+# The retry itself lives in GameManager.js, shared by the Save State button and
+# the quick save; emulator.js only calls it, so check the caller separately.
+for f in "$WORK/ejs/data/src/GameManager.js" "$WORK/ejs/data/emulator.min.js"; do
   grep -q "WAITING FOR THE SCENE TO END" "$f" \
     || { echo "ERROR: save-state-retry patch missing from $f" >&2; exit 1; }
 done
+grep -q "retryGetState" "$WORK/ejs/data/src/emulator.js" \
+  || { echo "ERROR: save button not wired to the shared retry" >&2; exit 1; }
 
 # Cache-hit logging. EJS_Download never assigned this.debug upstream, so its
 # three "Using cached version of" statements could never run -- there was no
@@ -229,6 +238,13 @@ grep -q "savestate_error.txt" "$WORK/ejs/data/src/GameManager.js" \
   || { echo "ERROR: load-state retry patch missing from the source" >&2; exit 1; }
 grep -q "savestate_error.txt" "$WORK/ejs/data/emulator.min.js" \
   || { echo "ERROR: load-state retry patch missing from the bundle" >&2; exit 1; }
+
+# loader.js is shipped as-is, not minified into the bundle, so it is checked
+# on its own.
+grep -q "quickLoadState" "$WORK/ejs/data/loader.js" \
+  || { echo "ERROR: quick-load host event missing from loader.js" >&2; exit 1; }
+grep -q "quickLoadState" "$WORK/ejs/data/emulator.min.js" \
+  || { echo "ERROR: quick-load host event missing from the bundle" >&2; exit 1; }
 
 echo "==> verified: both the source and the minified bundle carry all patches"
 fi
