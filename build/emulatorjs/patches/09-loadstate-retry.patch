@@ -1,25 +1,18 @@
-@@ -210,13 +210,57 @@
+@@ -210,13 +210,56 @@
      getState() {
          return this.Module.EmulatorJSGetState();
      }
 -    loadState(state) {
-+    async loadState(state) {
-         try {
-             this.FS.unlink("game.state");
-         } catch(e) {}
-         this.FS.writeFile("/game.state", state);
-         this.clearEJSResetTimer();
--        this.functions.loadState("game.state", 0);
-+
-+        // An engine decides for itself whether a load is possible right now,
-+        // and several stay shut for seconds: Blade Runner while a video plays,
-+        // Sanitarium while a line of speech is spoken, Kyrandia outside its
-+        // main loop. The core cannot wait for that -- it holds the main thread
-+        // while it does, so the tab stops drawing. Retrying from here costs
-+        // nothing, because the game keeps running between attempts.
-+        //
-+        // The core leaves its reason in the shared filesystem. First line is
-+        // "permanent" or "temporary"; the rest is what to show.
++    // Shared by loadState() and quickLoad(). An engine decides for itself
++    // whether a load is possible right now, and several stay shut for seconds:
++    // Blade Runner while a video plays, Sanitarium mid-speech, Kyrandia outside
++    // its own runLoop(). The core cannot wait for that -- it holds the main
++    // thread while it does, so nothing is drawn -- so the waiting lives here,
++    // where the game keeps running between attempts.
++    //
++    // The core leaves its reason in the shared filesystem. First line is
++    // "permanent" or "temporary"; the rest is what to show.
++    async retryLoadState(name) {
 +        const errorPath = "/savestate_error.txt";
 +        const refusal = () => {
 +            try {
@@ -33,28 +26,54 @@
 +            this.FS.unlink(errorPath);
 +        } catch(e) {}
 +
-+        // Long enough to outlast opening credits. An engine only accepts a
-+        // load once the game proper is running -- Kyrandia's gate is literally
-+        // `mainLoop`, true only inside its runLoop() -- and an intro runs well
-+        // past ten seconds. A refused attempt applies nothing, so waiting costs
-+        // only the polling.
++        // Long enough to outlast opening credits: an engine accepts a load only
++        // once the game proper is running, and an intro runs well past ten
++        // seconds. A refused attempt applies nothing, so waiting is cheap.
 +        const waitMs = (typeof window !== "undefined" && typeof window.EJS_loadStateWaitMs === "number")
 +            ? window.EJS_loadStateWaitMs : 90000;
 +        const retryUntil = Date.now() + waitMs;
 +        for (;;) {
-+            this.functions.loadState("game.state", 0);
++            this.functions.loadState(name, 0);
 +            // content_load_state() queues a task rather than running inline, so
 +            // the reason is not there the instant this returns.
 +            await new Promise((resolve) => setTimeout(resolve, 1000));
 +            const reason = refusal();
-+            if (!reason) break;
++            if (!reason) return true;
 +            if (reason.permanent || Date.now() >= retryUntil) {
 +                this.EJS.displayMessage(reason.message, 6000, "error");
-+                break;
++                return false;
 +            }
 +            this.EJS.displayMessage(this.EJS.localization("WAITING FOR THE SCENE TO END"), 1500);
 +        }
-+
++    }
++    async loadState(state) {
+         try {
+             this.FS.unlink("game.state");
+         } catch(e) {}
+         this.FS.writeFile("/game.state", state);
+         this.clearEJSResetTimer();
+-        this.functions.loadState("game.state", 0);
++        await this.retryLoadState("game.state");
          setTimeout(() => {
              try {
                  this.FS.unlink("game.state");
+@@ -248,6 +291,8 @@
+             let data = this.getState();
+             this.FS.writeFile("/" + name, data);
+         } catch(e) {
++            // Nobody checks the return, so say so rather than failing silently.
++            this.EJS.displayMessage(this.EJS.localization("FAILED TO SAVE STATE"), 6000, "error");
+             return false;
+         }
+         return true;
+@@ -257,7 +302,9 @@
+         (async () => {
+             let name = slot + "-quick.state";
+             this.clearEJSResetTimer();
+-            this.functions.loadState(name, 0);
++            // Same refusal handling as loadState(): a core may decline for as
++            // long as it likes, and calling the wrap once just loses the load.
++            await this.retryLoadState(name);
+         })();
+     }
+     simulateInput(player, index, value) {
