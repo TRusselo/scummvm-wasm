@@ -1,4 +1,4 @@
-@@ -210,13 +210,101 @@
+@@ -210,13 +210,114 @@
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -61,16 +61,25 @@
 +            await new Promise((resolve) => setTimeout(resolve, 400));
 +        }
 +    }
-+    async retryLoadState(name) {
++    async retryLoadState(name, options) {
++        const opts = options || {};
 +        const refusal = () => this.savestateRefusal();
 +        const clearRefusal = () => this.clearSavestateRefusal();
 +
-+        // Long enough to outlast opening credits: an engine accepts a load only
-+        // once the game proper is running, and an intro runs well past ten
-+        // seconds. A refused attempt applies nothing, so waiting is cheap.
++        // An attempt is not free: the wrap blocks the main thread for a second
++        // or more while the core switches threads to answer, so retrying is
++        // felt as a stuttering tab rather than a quiet wait.
++        //
++        // A load fired automatically at launch is therefore capped by count,
++        // not by a clock. It is racing the game's own opening, which can run
++        // for minutes -- Orion Burger plays a cutscene the moment the title
++        // screen appears -- and no budget that outlasts that is worth what it
++        // costs to sit through. Give up early and say what does work instead.
++        const maxAttempts = typeof opts.maxAttempts === "number" ? opts.maxAttempts : 0;
 +        const waitMs = (typeof window !== "undefined" && typeof window.EJS_loadStateWaitMs === "number")
-+            ? window.EJS_loadStateWaitMs : 90000;
++            ? window.EJS_loadStateWaitMs : 10000;
 +        const retryUntil = Date.now() + waitMs;
++        let attempts = 0;
 +        for (;;) {
 +            // Cleared before every attempt, not just the first: the file is the
 +            // only signal there is, so an attempt that leaves it absent is one
@@ -79,30 +88,34 @@
 +            // loop cannot end, and it keeps calling into an unloaded core.
 +            clearRefusal();
 +            this.functions.loadState(name, 0);
++            attempts++;
 +            // content_load_state() queues a task rather than running inline, so
 +            // the reason is not there the instant this returns.
 +            await new Promise((resolve) => setTimeout(resolve, 1000));
 +            const reason = refusal();
 +            if (!reason) return true;
-+            if (reason.permanent || Date.now() >= retryUntil) {
-+                this.EJS.displayMessage(reason.message, 6000, "error");
++            const spent = maxAttempts ? attempts >= maxAttempts : Date.now() >= retryUntil;
++            if (reason.permanent || spent) {
++                const message = (spent && !reason.permanent && opts.giveUpMessage)
++                    ? opts.giveUpMessage : reason.message;
++                this.EJS.displayMessage(message, 8000, "error");
 +                return false;
 +            }
 +            this.EJS.displayMessage(this.EJS.localization("WAITING FOR THE SCENE TO END"), 1500);
 +        }
 +    }
-+    async loadState(state) {
++    async loadState(state, options) {
          try {
              this.FS.unlink("game.state");
          } catch(e) {}
          this.FS.writeFile("/game.state", state);
          this.clearEJSResetTimer();
 -        this.functions.loadState("game.state", 0);
-+        await this.retryLoadState("game.state");
++        await this.retryLoadState("game.state", options);
          setTimeout(() => {
              try {
                  this.FS.unlink("game.state");
-@@ -238,27 +326,41 @@
+@@ -238,27 +339,41 @@
              }
          })
      }
@@ -157,7 +170,7 @@
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +370,15 @@
+@@ -268,16 +383,15 @@
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
