@@ -1,4 +1,4 @@
-@@ -210,13 +210,56 @@
+@@ -210,13 +210,64 @@
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -22,9 +22,11 @@
 +                return { permanent: text.slice(0, nl).trim() === "permanent", message: text.slice(nl + 1).trim() };
 +            } catch(e) { return null; }
 +        };
-+        try {
-+            this.FS.unlink(errorPath);
-+        } catch(e) {}
++        const clearRefusal = () => {
++            try {
++                this.FS.unlink(errorPath);
++            } catch(e) {}
++        };
 +
 +        // Long enough to outlast opening credits: an engine accepts a load only
 +        // once the game proper is running, and an intro runs well past ten
@@ -33,6 +35,12 @@
 +            ? window.EJS_loadStateWaitMs : 90000;
 +        const retryUntil = Date.now() + waitMs;
 +        for (;;) {
++            // Cleared before every attempt, not just the first: the file is the
++            // only signal there is, so an attempt that leaves it absent is one
++            // the core accepted -- or never saw, because the game has since
++            // exited. Reading the previous attempt's refusal instead means the
++            // loop cannot end, and it keeps calling into an unloaded core.
++            clearRefusal();
 +            this.functions.loadState(name, 0);
 +            // content_load_state() queues a task rather than running inline, so
 +            // the reason is not there the instant this returns.
@@ -57,7 +65,7 @@
          setTimeout(() => {
              try {
                  this.FS.unlink("game.state");
-@@ -248,6 +291,8 @@
+@@ -248,6 +299,8 @@
              let data = this.getState();
              this.FS.writeFile("/" + name, data);
          } catch(e) {
@@ -66,7 +74,7 @@
              return false;
          }
          return true;
-@@ -257,7 +302,9 @@
+@@ -257,7 +310,9 @@
          (async () => {
              let name = slot + "-quick.state";
              this.clearEJSResetTimer();

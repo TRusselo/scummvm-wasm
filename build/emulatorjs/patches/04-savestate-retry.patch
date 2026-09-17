@@ -1,4 +1,4 @@
-@@ -2225,12 +2225,57 @@
+@@ -2171,12 +2171,64 @@
  
          let stateUrl;
          const saveState = addButton(this.config.buttonOpts.saveState, async () => {
@@ -39,6 +39,13 @@
 +            };
 +
 +            for (;;) {
++                try {
++                    // Cleared first so the reason read back belongs to this
++                    // attempt: a refusal left by an earlier one would otherwise
++                    // be reported here, and a stale "permanent" ends the wait
++                    // on the spot.
++                    this.gameManager.FS.unlink("/savestate_error.txt");
++                } catch(e) {}
 +                try {
 +                    state = this.gameManager.getState();
 +                    break;
