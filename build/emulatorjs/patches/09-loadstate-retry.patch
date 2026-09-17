@@ -1,4 +1,4 @@
-@@ -210,13 +210,52 @@
+@@ -210,13 +210,57 @@
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -33,21 +33,26 @@
 +            this.FS.unlink(errorPath);
 +        } catch(e) {}
 +
-+        const waitMs = (typeof window !== "undefined" && typeof window.EJS_saveStateWaitMs === "number")
-+            ? window.EJS_saveStateWaitMs : 10000;
++        // Long enough to outlast opening credits. An engine only accepts a
++        // load once the game proper is running -- Kyrandia's gate is literally
++        // `mainLoop`, true only inside its runLoop() -- and an intro runs well
++        // past ten seconds. A refused attempt applies nothing, so waiting costs
++        // only the polling.
++        const waitMs = (typeof window !== "undefined" && typeof window.EJS_loadStateWaitMs === "number")
++            ? window.EJS_loadStateWaitMs : 90000;
 +        const retryUntil = Date.now() + waitMs;
 +        for (;;) {
 +            this.functions.loadState("game.state", 0);
 +            // content_load_state() queues a task rather than running inline, so
 +            // the reason is not there the instant this returns.
-+            await new Promise((resolve) => setTimeout(resolve, 400));
++            await new Promise((resolve) => setTimeout(resolve, 1000));
 +            const reason = refusal();
 +            if (!reason) break;
 +            if (reason.permanent || Date.now() >= retryUntil) {
 +                this.EJS.displayMessage(reason.message, 6000, "error");
 +                break;
 +            }
-+            this.EJS.displayMessage(this.EJS.localization("WAITING FOR THE SCENE TO END"), 1000);
++            this.EJS.displayMessage(this.EJS.localization("WAITING FOR THE SCENE TO END"), 1500);
 +        }
 +
          setTimeout(() => {
