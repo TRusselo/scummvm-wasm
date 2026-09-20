@@ -34,6 +34,46 @@ emulatorjs.org#78 (PR 18), scummvm/scummvm#7946 (PR 3).
 to whatever #1271 did not cover. Separate change, separate test pass — three of
 those merges land in `emulator.js`, where 02, 04 and 08 also live.
 
+## Is it upstream-worthy, or is it ours?
+
+Asked of every unsubmitted item 2026-09-20. The test is not "does it work" but
+"does anyone who is not us benefit". Getting this wrong wastes a maintainer's
+time, and `spleen1981` has already closed one of ours for exactly that
+(PR 11: *"let's avoid platform specific workarounds to support an unsupported
+use case"*).
+
+### Genuinely useful upstream — submit
+
+| item | why it is not just ours |
+|---|---|
+| **PR 26** TeenAgent load gate | `canLoadGameStateCurrently()` returns `true` before the engine has a scene. Any frontend that can trigger an early load hits it, including ScummVM's own `--save-slot`. Nothing WASM about it. |
+| **PR 27** AGI refusal messages | ScummVM's own save dialog displays the `msg` out-param. Every AGI player currently gets silence where other engines explain themselves. |
+| **Patch 01** cache streaming | V8 caps one ArrayBuffer at ~2 GiB, so EmulatorJS cannot open archives past it at all. Affects any large-ROM platform, not just us — see issue #5. |
+| **Griffon half of `474782187ad`** | A dropped quit event hangs the engine. Engine bug, frontend-agnostic. |
+| **Patch 08** (#1270, open) | Every message styled as an error is wrong for all cores, not only ours. |
+
+### Legitimate divergence — do not submit
+
+| item | why it stays ours |
+|---|---|
+| **PR 11** scan the virtual-FS root | Already rejected on exactly these grounds. Permanent fork divergence. |
+| **`420fdd238bd`** drop the arm64 CI job | Their CI, inherited verbatim from `scummvm/scummvm` where arm64 is a real target. Editing it buys a merge conflict on every sync to silence a job that is red on their base branch anyway. |
+| **The save-state bridge** — reserved slot, pack/unpack, refusal file | This *is* the project. A libretro core that carries a ScummVM save set inside its state blob is not a shape upstream wants; it exists because EmulatorJS has no other way to reach the saves. |
+| **`retroarchOpts` / core.json packaging** | Deployment shape, not core behaviour. |
+
+### Borderline — submittable, but low value to them
+
+| item | the honest read |
+|---|---|
+| **Patches 04 / 09** save/load retry | A real bug for anyone: EmulatorJS drops a refused save silently. But ScummVM is unusual in refusing at all — most cores always serialize — so the payoff for them is small and the code is visibly scaffolding for us. Worth offering framed as "do not lose a refused save", not as "retry for our engine". |
+| **Patch 10** `quickLoadState` event | Defensible as an embedder hook, but it exists because RomM keeps states server-side. Offer only alongside 04/09, or not at all. |
+
+### Gated, not divergent
+
+**PR 12**, **PR 19** (patch 07): correct upstream changes that are meaningless
+until EmulatorJS has a `scummvm` entry in `cores.json`. Not a judgement call —
+a sequencing one.
+
 ## Read this before submitting anything else upstream
 
 Maintainer `mduggan` closed PRs 1, 3 and 5 within 106 seconds of each other,
