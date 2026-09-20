@@ -54,6 +54,29 @@ use case"*).
 | **Griffon half of `474782187ad`** | A dropped quit event hangs the engine. Engine bug, frontend-agnostic. |
 | **Patch 08** (#1270, open) | Every message styled as an error is wrong for all cores, not only ours. |
 
+### Gated on translation — anything RomM-bound that adds a user-visible string
+
+RomM's `frontend-i18n` skill is a CI gate: 18 locales, `en_US` is the source,
+and **every key added to `en_US` must be added to all other locales in the same
+change, actually translated** — pasting English into a non-English locale is
+called out as last-resort-only. `check_i18n_locales.py` fails on any missing
+key.
+
+`frontend/src/views/Player/EmulatorJS/Player.vue` currently uses `t()` **zero**
+times and upstream already hardcodes nine `displayMessage` strings there, so our
+additions match the file. But CI only runs on changes under
+`frontend/src/locales/**`, which is why that debt survives — it enforces locale
+consistency, not string extraction. A PR touching these would be expected to
+extract properly.
+
+| RomM-bound change | new strings | cost to upstream |
+|---|---|---|
+| Clear cache fix (issue #21) | none — `console.warn` only | **none; send as-is** |
+| `EJS_onQuickLoadState` + bottom-bar quick load | 2 | 2 keys x 18 locales |
+| Launch-time give-up message | 1 | 1 key x 18 locales |
+
+So #21 goes first and alone; the quick-load work carries ~54 translations.
+
 ### Gated, not divergent
 
 **PR 12**, **PR 19** (patch 07): correct upstream changes that are meaningless
