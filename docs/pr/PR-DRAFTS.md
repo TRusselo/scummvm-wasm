@@ -1,9 +1,38 @@
 # Upstream PRs
 
 First batch submitted 2026-09-12 03:50; the three scummvm/scummvm PRs were
-closed within the hour and resubmitted clean the same evening. Status as of
-2026-09-12 evening is in the table below. Bodies further down are the PR text
-itself — nothing else.
+closed within the hour and resubmitted clean the same evening. The table below
+is as of 2026-09-12 evening; per-PR headings carry the current status. Bodies
+further down are the PR text itself — nothing else.
+
+## Status, 2026-09-20
+
+**Merged since:** libretro/scummvm#116 (PR 21), and four on EmulatorJS in nine
+minutes on 09-20 — #1267 (PR 17), #1268 (PR 15), #1269 (PR 16), #1271 (PR 23).
+libretro/libretro-deps#15 (PR 24) merged 09-19.
+
+**Open:** libretro/scummvm#117 (PR 25), EmulatorJS#1270 (PR 20),
+emulatorjs.org#78 (PR 18), scummvm/scummvm#7946 (PR 3).
+
+**What gates the rest.** Two separate chains, neither lifted by the four merges:
+
+1. **EmulatorJS#1270 (PR 20) gates three unsubmitted patches.** Patches 04 and
+   09 call `displayMessage(msg, time, "error")`; that third argument exists only
+   because patch 08 — which *is* #1270 — adds it. Patch 10 (`quickLoadState`
+   host event) is only useful alongside 09. So #1270 -> 04/09 -> 10.
+2. **A `scummvm` entry in EmulatorJS's `cores.json` gates PR 12 and PR 19.**
+   Both are entries for a core they do not have. PR 24 merging removed the
+   reason they could not have it (dependencies came from a personal fork), so
+   this is now a submission question, not a code one — see
+   `reference_ejs_core_submission`.
+
+**Not gated, just undrafted:** PR 26 and PR 27, both stuck behind splitting
+`7d10f467e22` into its three destinations.
+
+**Dropping merged code:** our EJS pin `0b1c5e9` is 13 commits behind. Patches
+03b, 05 and 06 are byte-identical to what merged and can be deleted; 02 shrinks
+to whatever #1271 did not cover. Separate change, separate test pass — three of
+those merges land in `emulator.js`, where 02, 04 and 08 also live.
 
 ## Read this before submitting anything else upstream
 
@@ -355,7 +384,7 @@ closed PR 11.
 
 ---
 
-## PR 15 — `Restore mouse input on devices that report a touchscreen` — OPEN as EmulatorJS/EmulatorJS#1268
+## PR 15 — `Restore mouse input on devices that report a touchscreen` — **MERGED** as EmulatorJS/EmulatorJS#1268
 
 `build/emulatorjs/patches/03b-canvas-pointer-supports-mouse.patch` · +2 ·
 `data/src/emulator.js`
@@ -377,7 +406,7 @@ gets `pointerEvents: auto` and the mouse works; `fceumm` (`options: {}`) keeps
 keyboard-driven game (King's Quest 1, AGI parser) still takes typed input and
 arrow keys, so restoring pointer events costs nothing on that side.
 
-## PR 16 — `Decode the core report so its options are honoured` — OPEN as EmulatorJS/EmulatorJS#1269
+## PR 16 — `Decode the core report so its options are honoured` — **MERGED** as EmulatorJS/EmulatorJS#1269
 
 `build/emulatorjs/patches/06-parse-core-report.patch` · +18/-3 ·
 `data/src/emulator.js`
@@ -399,7 +428,7 @@ it is fetched as `scummvm-thread-legacy-wasm.data`, after it as
 still gets `-legacy` and still plays — only cores that declare the option
 change behaviour.
 
-## PR 17 — `Set this.debug in EJS_Download` — OPEN as EmulatorJS/EmulatorJS#1267
+## PR 17 — `Set this.debug in EJS_Download` — **MERGED** as EmulatorJS/EmulatorJS#1267
 
 Branch `TRusselo/EmulatorJS:fix-download-debug-logging`, **pushed 2026-09-13,
 never opened** · +1 · `data/src/cache.js`
@@ -482,7 +511,7 @@ Not verified in a browser yet — see the test list on issue #12 §3.
 
 # libretro/scummvm
 
-## PR 23 — `Show decompression progress instead of a frozen download percentage` — OPEN as EmulatorJS/EmulatorJS#1271
+## PR 23 — `Show decompression progress instead of a frozen download percentage` — **MERGED** as EmulatorJS/EmulatorJS#1271
 
 `EmulatorJS/EmulatorJS` branch `fix-decompress-progress` · +16/−7 ·
 `data/src/emulator.js`
@@ -536,7 +565,7 @@ submittable.** The only thing that ever sets `ejsUserMessage` is patch 01's
 streaming extractor (`01-cache-streaming.patch:89`). Upstream has no producer,
 so the change would add a mechanism nothing triggers. It stays coupled to 01.
 
-## PR 21 — `LIBRETRO: Initialize retro_message_ext and give notifications a severity` — OPEN as libretro/scummvm#116
+## PR 21 — `LIBRETRO: Initialize retro_message_ext and give notifications a severity` — **MERGED** as libretro/scummvm#116
 
 `260af0f0ad8` · +13/−10 · `backends/platform/libretro/src/libretro-core.cpp`,
 `libretro-os-utils.cpp`, `include/libretro-core.h`
@@ -558,6 +587,65 @@ save-refusal messages, default `RETRO_LOG_INFO` for the rest.
 
 Keep it terse — #110, #113 and #114 all went in as a few lines of body, and
 `spleen1981` asked for a code comment to be removed on #110.
+
+## PR 24 — `freetype: fix two autofit function-pointer signature mismatches` — **MERGED** as libretro/libretro-deps#15
+
+`libretro/libretro-deps` · +5/-3 · merged 2026-09-19, squashed as `e639e0c2`
+
+The one that mattered. `AF_WritingSystem_ApplyHintsFunc` was declared
+`typedef void` but defined returning `FT_Error`, and `af_dummy_hints_apply` was
+missing its `AF_StyleMetrics metrics` parameter. Native ABIs tolerate both;
+WebAssembly's `call_indirect` traps. Both already matched upstream FreeType --
+the vendored copy had drifted.
+
+**What it unblocked:** `dependencies.mk` pinned `TRusselo/libretro-deps` as a
+stopgap. EmulatorJS builds cores from source, so a core whose dependencies come
+from a personal fork is not shippable. The chain is now
+our fork -> upstream libretro -> EmulatorJS, with no personal forks in it.
+
+## PR 25 — `LIBRETRO: Bump libretro-deps for the FreeType autofit signature fix` — OPEN as libretro/scummvm#117
+
+`backends/platform/libretro/dependencies.mk` · +1/-1 · on `staging_master`
+
+Moves the pin from `bab7d258` to `e639e0c2`. Nothing else rides along: the only
+commit between them is PR 24 itself.
+
+Built against the new pin before opening: Emscripten, 130 engines, links clean.
+
+## PR 26 — `TEENAGENT: Refuse a load before the main loop starts` — NOT DRAFTED
+
+`engines/teenagent/teenagent.{cpp,h}` · destination `scummvm/scummvm`
+
+`canLoadGameStateCurrently()` returns `true` unconditionally
+(`teenagent.h:103`), while `canSaveGameStateCurrently()` checks `!_sceneBusy`.
+The logo screens -- `showCDLogo()`, `showLogo()`, `showMetropolis()` -- run
+before the main loop and poll events via `skipEvents()` and `delayMillis()`, so
+a queued load is applied with no scene loaded. That is the title-screen
+corruption in our issue #14.
+
+`_sceneBusy` alone is not enough: it is still `false` during those logo screens.
+Our fix adds a `_gameRunning` flag set when the main loop actually starts, and
+gates both entry points on it.
+
+**Blocked on splitting.** Currently bundled in `7d10f467e22` with the AGI change
+below and a `libretro-core.cpp` change, i.e. one commit spanning two
+destinations. Needs splitting three ways before any of it can be submitted.
+
+## PR 27 — `AGI: Report why a save or load was refused` — NOT DRAFTED
+
+`engines/agi/metaengine.cpp` · destination `scummvm/scummvm`
+
+Both gates returned `false` without setting the `msg` out-param every other
+engine fills in, so a frontend could only say "the game is busy". That is wrong
+for AGI, which refuses whenever flag 14 is unset or its command prompt is
+disabled -- neither is a scene ending. Names the blocking condition instead;
+the nested conditions become early returns and the result is unchanged.
+
+This is what identified our issue #25: KQ1 reported *"Saving is not allowed at
+this point in the game"*, i.e. `VM_FLAG_MENUS_ACCESSIBLE` unset, which is
+script-set and never set at all by the KQ1 Amiga release.
+
+**Blocked on the same split as PR 26.**
 
 ## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
 `5323840b21` on local branch `ejs-build-scummvm-arrays` (worktree in the session
