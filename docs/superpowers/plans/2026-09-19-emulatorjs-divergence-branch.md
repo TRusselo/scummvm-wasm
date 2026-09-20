@@ -161,8 +161,17 @@ git commit -q -m "Show errors in red and stop styling every message as one" \
 
 - [ ] **Step 5: Commit the two loader.js patches**
 
+`commit_one` was defined in Step 3's shell and does not survive into a new
+one, so it is redefined here rather than assumed.
+
 ```bash
 cd /tmp/ejs-branch
+P=/home/user/git/scummvm-wasm/build/emulatorjs/patches
+commit_one() {
+  patch "$1" < "$P/$2.patch" || return 1
+  git add -A
+  git commit -q -m "$3" -m "Patch-File: $2.patch" -m "$4"
+}
 commit_one data/loader.js 10-quickload-host-event         "Wire quickLoadState to the host"                "Divergence: build-time only"
 commit_one data/loader.js 11-english-variant-no-langjson  "Stop reporting missing translations for English locales" "Upstream-PR: draft"
 ```
@@ -546,12 +555,25 @@ git rm -q build/emulatorjs/patches/03-canvas-pointer-events.patch
 
 ```bash
 cd /home/user/git/scummvm-wasm
-sed -i 's/EJS_COMMIT="0b1c5e9"/EJS_COMMIT="13ce942"/' build/emulatorjs/assemble.sh
-sed -i '/03b-canvas-pointer-supports-mouse \\/d; s/ *05-download-debug-logging 06-parse-core-report \\//' build/emulatorjs/assemble.sh
-grep -n "EJS_COMMIT=\|for pf in" -A4 build/emulatorjs/assemble.sh | head -20
+python3 - <<'PYEOF'
+import re
+p = 'build/emulatorjs/assemble.sh'
+s = open(p, encoding='utf8').read()
+s = s.replace('EJS_COMMIT="0b1c5e9"', 'EJS_COMMIT="13ce942"', 1)
+old = re.search(r'for pf in .*?; do\n', s, re.S).group(0)
+new = ("for pf in 01-cache-streaming 02-emulator-onfile 04-savestate-retry \\\n"
+       "          09-loadstate-retry 08-message-severity \\\n"
+       "          10-quickload-host-event 11-english-variant-no-langjson; do\n")
+s = s.replace(old, new, 1)
+open(p, 'w', encoding='utf8').write(s)
+print(new)
+PYEOF
+bash -n build/emulatorjs/assemble.sh && echo "parses"
 ```
 
-Verify by eye that the loop now lists exactly: 01, 02, 04, 09, 08, 10, 11.
+Expected: the printed loop lists exactly 01, 02, 04, 09, 08, 10, 11.
+Rewriting the list beats deleting from it: the names span continuation
+lines, so a line-oriented delete depends on where the wrapping falls.
 
 - [ ] **Step 4: Remove the three verification-marker blocks**
 
@@ -563,7 +585,26 @@ assert nothing.
 ```bash
 cd /home/user/git/scummvm-wasm
 grep -n "supportsMouse\|download-debug-logging patch\|decodeReport\|files\[0\]:null" build/emulatorjs/assemble.sh
-$EDITOR build/emulatorjs/assemble.sh
+python3 - <<'PYEOF'
+p = 'build/emulatorjs/assemble.sh'
+s = open(p, encoding='utf8').read()
+blocks = [
+    ("# Canvas pointer-events.", 'canvas pointer-events patch missing from the bundle'),
+    ("# Cache-hit logging.", 'download-debug-logging patch missing from src/cache.js'),
+    ("# Core report decoding.", 'core-report patch missing from the bundle'),
+]
+for first, last in blocks:
+    i = s.find(first)
+    if i == -1:
+        raise SystemExit("anchor not found, delete by hand: " + first)
+    j = s.index("}", s.index(last, i)) + 1
+    while j < len(s) and s[j] == "\n":
+        j += 1
+    s = s[:i] + s[j:]
+open(p, 'w', encoding='utf8').write(s)
+print("removed 3 marker blocks")
+PYEOF
+grep -c "supportsMouse\|decodeReport" build/emulatorjs/assemble.sh
 bash -n build/emulatorjs/assemble.sh && echo "parses"
 ```
 
