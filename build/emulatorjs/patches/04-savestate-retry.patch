@@ -1,50 +1,53 @@
-diff --git a/data/src/emulator.js b/data/src/emulator.js
-index 7b6bae3..a2ded8a 100644
---- a/data/src/emulator.js
-+++ b/data/src/emulator.js
-@@ -1757,20 +1757,19 @@ class EmulatorJS {
+diff --git a/data/src/frontend.js b/data/src/frontend.js
+index 18f553a..e0ae0ea 100644
+--- a/data/src/frontend.js
++++ b/data/src/frontend.js
+@@ -547,20 +547,21 @@ class EJS_Frontend {
              hideMenu();
          });
  
 -        const qSave = addButton("Quick Save", false, () => {
 +        const qSave = addButton("Quick Save", false, async () => {
-             const slot = this.getSettingValue("save-state-slot") ? this.getSettingValue("save-state-slot") : "1";
--            if (this.gameManager.quickSave(slot)) {
+             const slot = this.ejs.getSettingValue("save-state-slot") ? this.ejs.getSettingValue("save-state-slot") : "1";
+-            if (this.ejs.gameManager.quickSave(slot)) {
 +            hideMenu();
-+            if (await this.gameManager.quickSave(slot)) {
-                 this.displayMessage(this.localization("SAVED STATE TO SLOT") + " " + slot);
++            // No failure branch: retryGetState() has already said why, with the
++            // engine's own reason rather than a generic one.
++            if (await this.ejs.gameManager.quickSave(slot)) {
+                 this.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
 -            } else {
--                this.displayMessage(this.localization("FAILED TO SAVE STATE"));
+-                this.displayMessage("FAILED TO SAVE STATE");
              }
 -            hideMenu();
          });
 -        const qLoad = addButton("Quick Load", false, () => {
 +        const qLoad = addButton("Quick Load", false, async () => {
-             const slot = this.getSettingValue("save-state-slot") ? this.getSettingValue("save-state-slot") : "1";
--            this.gameManager.quickLoad(slot);
--            this.displayMessage(this.localization("LOADED STATE FROM SLOT") + " " + slot);
+             const slot = this.ejs.getSettingValue("save-state-slot") ? this.ejs.getSettingValue("save-state-slot") : "1";
+-            this.ejs.gameManager.quickLoad(slot);
+-            this.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot);
              hideMenu();
-+            if (await this.gameManager.quickLoad(slot)) {
-+                this.displayMessage(this.localization("LOADED STATE FROM SLOT") + " " + slot);
++            if (await this.ejs.gameManager.quickLoad(slot)) {
++                this.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot);
 +            }
          });
          this.elements.contextMenu = {
              screenshot: screenshot,
-@@ -2212,13 +2211,10 @@ class EmulatorJS {
+@@ -974,13 +975,11 @@ class EJS_Frontend {
  
          let stateUrl;
-         const saveState = addButton(this.config.buttonOpts.saveState, async () => {
+         const saveState = addButton(this.ejs.config.buttonOpts.saveState, async () => {
 -            let state;
 -            try {
--                state = this.gameManager.getState();
+-                state = this.ejs.gameManager.getState();
 -            } catch(e) {
--                this.displayMessage(this.localization("FAILED TO SAVE STATE"));
+-                this.displayMessage("FAILED TO SAVE STATE");
 -                return;
 -            }
-+            // Captured when the engine will accept it, not when the
-+            // button was pressed. Shared with the quick save.
-+            const state = await this.gameManager.retryGetState();
++            // Captured when the engine will accept it rather than when the
++            // button was pressed, which is what the engine's own save menu
++            // does. Shared with the quick save so both wait out the same scenes.
++            const state = await this.ejs.gameManager.retryGetState();
 +            if (state === null) return;
-             const { screenshot, format } = await this.takeScreenshot(this.capture.photo.source, this.capture.photo.format, this.capture.photo.upscale);
-             const called = this.callEvent("saveState", {
+             const { screenshot, format } = await this.ejs.takeScreenshot(this.ejs.capture.photo.source, this.ejs.capture.photo.format, this.ejs.capture.photo.upscale);
+             const called = this.ejs.callEvent("saveState", {
                  screenshot: screenshot,

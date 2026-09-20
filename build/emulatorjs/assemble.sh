@@ -30,7 +30,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-EJS_COMMIT="13ce942"          # must match ARG EMULATORJS_COMMIT in romm's Dockerfile
+EJS_COMMIT="f4f0f1c"          # must match ARG EMULATORJS_COMMIT in romm's Dockerfile
 
 usage() { echo "usage: assemble.sh <output-dir> [--force] [--vanilla] [--patch=<file>]..." >&2; }
 

@@ -1,5 +1,5 @@
 diff --git a/data/src/cache.js b/data/src/cache.js
-index fdf2488..489a8a6 100644
+index fdf2488..ce13756 100644
 --- a/data/src/cache.js
 +++ b/data/src/cache.js
 @@ -1,6 +1,7 @@
@@ -19,21 +19,25 @@ index fdf2488..489a8a6 100644
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -218,6 +219,72 @@ class EJS_Download {
+@@ -218,6 +219,91 @@ class EJS_Download {
                          }
                          
                          const blob = new Blob(chunks);
 +
-+                        // V8 caps one ArrayBuffer at ~2 GiB, so larger archives are
-+                        // read from the Blob an entry at a time. Smaller ones
-+                        // keep the original path.
++                        // Archives beyond this size cannot be flattened into a
++                        // single ArrayBuffer (V8 caps one at ~2 GiB), and the
++                        // wasm extractor could not hold them either. Read them
++                        // straight out of the Blob one entry at a time instead.
++                        // Everything smaller keeps the original path exactly.
 +                        const streamThreshold = (typeof window !== "undefined" && typeof window.EJS_streamZipThreshold === "number")
 +                            ? window.EJS_streamZipThreshold
 +                            : 1610612736;
 +                        const isZip = (filename.toLowerCase().split(".").pop() === "zip");
-+                        // dontExtract asks for the archive itself, forceExtract
-+                        // overrides it. Checked before the size gate so the
-+                        // ordinary rule still wins.
++                        // dontExtract is how a core asks for the archive itself
++                        // rather than its contents -- the arcade/MAME family
++                        // reads a romset zip directly -- and forceExtract
++                        // overrides that. Mirror the ordinary path's rule below
++                        // instead of letting the size gate outrank it.
 +                        const extractionWanted = (forceExtract === true || dontExtract === false);
 +                        if (blob.size > streamThreshold && isZip && extractionWanted && typeof onFile === "function" && streamingSupported()) {
 +                            console.log(`[EJS Download] Streaming ${filename} (${(blob.size / 1048576).toFixed(0)} MB) directly to the filesystem`);
@@ -42,29 +46,42 @@ index fdf2488..489a8a6 100644
 +                            let lastWritten = 0, lastTotal = 0;
 +                            try {
 +                                await readZipEntries(blob, (entryName, entryBytes) => {
-+                                    // Nothing else aliases these bytes, so MEMFS can take
-+                                    // them without a copy.
++                                    // readZipEntries allocates a fresh array per
++                                    // entry and never reuses it, and a streamed
++                                    // item keeps files empty, so nothing else
++                                    // aliases these bytes: MEMFS can take them.
 +                                    onFile(entryName, entryBytes, true);
 +                                    entryNames.push(entryName);
 +                                }, (written, total) => {
-+                                    // Not gated on free memory: no browser reports it.
-+                                    // State the requirement so the failure below
-+                                    // is interpretable.
++                                    // Nothing gates this on memory: a browser will
++                                    // not report what is free, and navigator.deviceMemory
++                                    // gives total RAM rounded and capped, which says
++                                    // nothing about what is available. State the
++                                    // requirement instead, so the out-of-memory failure
++                                    // below is immediately interpretable.
 +                                    if (!reportedTotal && total) {
 +                                        reportedTotal = true;
 +                                        console.log(`[EJS Download] ${filename} unpacks to ${(total / 1073741824).toFixed(2)} GB, all of which must be resident`);
 +                                    }
 +                                    lastWritten = written; lastTotal = total;
-+                                    // The central directory gives a real total, so this is
-+                                    // a true percentage.
++                                    // The zip's central directory gives a real
++                                    // total, so this reports a true percentage
++                                    // rather than a byte count with no end.
 +                                    if (onProgress) onProgress("decompressing", total ? written / total * 100 : 0, written, total);
 +                                });
 +                            } catch (e) {
-+                                // download() reports every failure as "Network Error",
-+                                // which is wrong here: the download finished and
-+                                // the unpack failed.
-+                                // How far it got separates "died immediately" from
-+                                // "nearly made it".
++                                // download() flattens every failure to
++                                // "Network Error". That is actively misleading
++                                // here: the download already finished, and what
++                                // failed was the unpack. Out of memory is the
++                                // likely cause, and nothing upstream of here
++                                // could have predicted it: no browser reports
++                                // free memory.
++                                // How far it got is the one number worth having:
++                                // it separates "died immediately" from "nearly
++                                // made it", and it is the only way to compare
++                                // two builds' peak usage without guessing from
++                                // a system memory graph.
 +                                const text = String((e && e.message) || e);
 +                                const mb = (n) => (n / 1048576).toFixed(0);
 +                                const progress = lastTotal
@@ -81,9 +98,11 @@ index fdf2488..489a8a6 100644
 +                                "streamed-" + Date.now(), [], now, type, responseType, filename, url, null
 +                            );
 +                            streamedItem.streamed = true;
-+                            // Already on the filesystem, so files stays empty or
-+                            // emulator.js would rewrite each one. The names still
-+                            // have to reach selectRomFile().
++                            // The entries are already on the filesystem, so files
++                            // stays empty -- emulator.js's extraction loop would
++                            // otherwise rewrite each one with the bytes held here.
++                            // The names still have to reach selectRomFile(), so
++                            // they travel separately.
 +                            streamedItem.fileNames = entryNames;
 +                            resolve(streamedItem);
 +                            return;
