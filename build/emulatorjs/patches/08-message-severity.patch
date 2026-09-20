@@ -30,10 +30,10 @@ index 1c5b25f..c7c79f0 100644
      display: inline-block;
      width: 24px;
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index a334af2..ae2e45f 100644
+index 14efb4f..2f9b826 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -401,13 +401,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -407,13 +407,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
                  this.quickSave(slot).then((ok) => {

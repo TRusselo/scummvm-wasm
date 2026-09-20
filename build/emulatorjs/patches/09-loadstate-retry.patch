@@ -1,8 +1,8 @@
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index 8b92dbc..a334af2 100644
+index 8b92dbc..14efb4f 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -210,18 +210,136 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -210,18 +210,142 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -30,10 +30,15 @@ index 8b92dbc..a334af2 100644
 +            ? window.EJS_saveStateWaitMs : 10000;
 +        const retryUntil = Date.now() + waitMs;
 +        let lastSaid = null;
++        let attempts = 0;
++        if (this.EJS.debug) console.log(`[save] budget: waitMs=${waitMs}`);
 +        for (;;) {
 +            this.clearSavestateRefusal();
++            attempts++;
 +            try {
-+                return this.getState();
++                const state = this.getState();
++                if (this.EJS.debug) console.log(`[save] accepted on attempt ${attempts}`);
++                return state;
 +            } catch(e) {}
 +            const reason = this.savestateRefusal();
 +            // A refusal the engine will never lift -- an SCI game with save
@@ -50,6 +55,7 @@ index 8b92dbc..a334af2 100644
 +            // As above: prefer the engine's reason over a generic one. Shown
 +            // only when it changes: the host may stack notices rather than
 +            // replace them, and one refusal repeated is one thing to say.
++            if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (${reason && reason.permanent ? "permanent" : "temporary"}), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
 +            const waiting = (reason && reason.message) || this.EJS.localization("WAITING FOR THE SCENE TO END");
 +            if (waiting !== lastSaid) {
 +                lastSaid = waiting;
@@ -141,7 +147,7 @@ index 8b92dbc..a334af2 100644
      }
      screenshot() {
          try {
-@@ -238,27 +356,41 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -238,27 +362,41 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              }
          })
      }
@@ -196,7 +202,7 @@ index 8b92dbc..a334af2 100644
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +400,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -268,16 +406,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
