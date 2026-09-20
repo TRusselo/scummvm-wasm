@@ -186,19 +186,20 @@ done
 # core, which would block the main thread and freeze the tab. The waiting
 # message appears in no unpatched source or bundle, so it is a clean marker.
 # The retry itself lives in GameManager.js, shared by the Save State button and
-# the quick save; emulator.js only calls it, so check the caller separately.
+# the quick save; the button only calls it, so check the caller separately. That
+# caller is in frontend.js as of the split.
 for f in "$WORK/ejs/data/src/GameManager.js" "$WORK/ejs/data/emulator.min.js"; do
   grep -q "WAITING FOR THE SCENE TO END" "$f" \
     || { echo "ERROR: save-state-retry patch missing from $f" >&2; exit 1; }
 done
-grep -q "retryGetState" "$WORK/ejs/data/src/emulator.js" \
+grep -q "retryGetState" "$WORK/ejs/data/src/frontend.js" \
   || { echo "ERROR: save button not wired to the shared retry" >&2; exit 1; }
 
 # Message severity. Upstream styles every .ejs_message red, so a successful
 # save reads as a failure; the class is what carries the distinction. It is a
 # string literal in the source and in the bundle, and the stylesheet is copied
 # verbatim, so all three are checked.
-for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js" "$WORK/ejs/data/emulator.css"; do
+for f in "$WORK/ejs/data/src/frontend.js" "$WORK/ejs/data/emulator.min.js" "$WORK/ejs/data/emulator.css"; do
   grep -q "ejs_message_error" "$f" \
     || { echo "ERROR: message-severity patch missing from $f" >&2; exit 1; }
 done
