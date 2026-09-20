@@ -3,6 +3,22 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p test-page/ejs/data/cores
 
+# The core reaches this script through three stages, and only the last two are
+# visible here: build-core.sh compiles the bitcode, build-retroarch-core.sh
+# links it into retroarch/scummvm_libretro.wasm, and this script archives that
+# wasm. Skipping the link step is silent and survives every check downstream --
+# the .data still changes, because core.json is regenerated and re-added, so
+# even its md5 moves. An hour was spent on a core option that was never in the
+# shipped binary for exactly this reason.
+BC="scummvm-core/backends/platform/libretro/scummvm_libretro_emscripten.bc"
+WASM="retroarch/scummvm_libretro.wasm"
+if [ -f "$BC" ] && [ -f "$WASM" ] && [ "$BC" -nt "$WASM" ]; then
+  echo "error: $WASM is older than $BC." >&2
+  echo "       The bitcode was rebuilt but never linked, so packaging now would" >&2
+  echo "       ship the previous core. Run build/build-retroarch-core.sh first." >&2
+  exit 1
+fi
+
 # Naming follows EmulatorJS's own convention (see
 # retroarch/emulatorjs/build-emulatorjs.sh's `out_name` logic): "-thread" is
 # appended when the core is built with pthread support (HAVE_THREADS=1,
