@@ -142,6 +142,10 @@ patch -p1 -d "$WORK/ejs"               < build/emulatorjs/patches/08-message-sev
 # loader.js, not src/: the EJS_on* globals are wired by an explicit list there,
 # so a new event that is not in it silently reaches nobody.
 patch "$WORK/ejs/data/loader.js"          < build/emulatorjs/patches/10-quickload-host-event.patch
+# en.json is an identity map, so an en-* locale with no file of its own gets a
+# langJson that translates nothing -- and then every string absent from that
+# template is reported as a missing translation. Skip it for English variants.
+patch "$WORK/ejs/data/loader.js"          < build/emulatorjs/patches/11-english-variant-no-langjson.patch
 fi
 
 echo "==> npm ci"
@@ -245,6 +249,12 @@ grep -q "quickLoadState" "$WORK/ejs/data/loader.js" \
   || { echo "ERROR: quick-load host event missing from loader.js" >&2; exit 1; }
 grep -q "quickLoadState" "$WORK/ejs/data/emulator.min.js" \
   || { echo "ERROR: quick-load host event missing from the bundle" >&2; exit 1; }
+
+# English-variant localization. Unpatched loader.js already carries the plain
+# `defaultLangs.includes(config.language)` test, so the marker has to be the
+# .split form the patch adds.
+grep -qF "defaultLangs.includes(config.language.split" "$WORK/ejs/data/loader.js" \
+  || { echo "ERROR: english-variant langJson patch missing from loader.js" >&2; exit 1; }
 
 echo "==> verified: both the source and the minified bundle carry all patches"
 fi
