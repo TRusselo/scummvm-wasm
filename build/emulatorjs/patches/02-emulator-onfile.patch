@@ -1,5 +1,5 @@
 diff --git a/data/src/emulator.js b/data/src/emulator.js
-index 63f17cd..0fb18f2 100644
+index 63f17cd..7b6bae3 100644
 --- a/data/src/emulator.js
 +++ b/data/src/emulator.js
 @@ -78,7 +78,7 @@ class EmulatorJS {
@@ -31,28 +31,24 @@ index 63f17cd..0fb18f2 100644
                      if (cacheItem.files && cacheItem.files.length > 0) {
                          return {
                              data: cacheItem,
-@@ -158,6 +163,13 @@ class EmulatorJS {
+@@ -158,6 +163,11 @@ class EmulatorJS {
                      return -1;
                  } catch(error) {
                      console.error("Download error:", error);
-+                    // Every failure here collapses to -1, so the caller can
-+                    // only ever say "Network Error". A refusal that already
-+                    // knows why -- the memory preflight in cache.js -- marks
-+                    // itself with ejsUserMessage so its reason survives.
++                    // Every failure collapses to -1 here, so a refusal that
++                    // knows why marks itself with ejsUserMessage.
 +                    if (error && error.ejsUserMessage) {
 +                        this.downloadUserMessage = error.ejsUserMessage;
 +                    }
                      return -1;
                  }
              };
-@@ -861,6 +873,32 @@ class EmulatorJS {
+@@ -861,6 +871,30 @@ class EmulatorJS {
          return new Promise(async (resolve, reject) => {
              let returnData;
  
-+            // canOwn lets MEMFS adopt the buffer instead of copying it:
-+            // its write() does node.contents = buffer.subarray(...) rather
-+            // than buffer.slice(...), halving the peak for the entry. Only
-+            // the streaming path asks for it -- see the call site.
++            // canOwn lets MEMFS adopt the buffer rather than copy it,
++            // halving the peak. Only the streaming path may ask.
 +            const writeFilesToFS = (fileName, fileData, canOwn = false) => {
 +                if (fileName.includes("/")) {
 +                    const paths = fileName.split("/");
@@ -78,7 +74,7 @@ index 63f17cd..0fb18f2 100644
              // check if url is a file object, and if so convert it to an EJS_CacheItem
              if (typeof url === "object" && url instanceof File) {
                  if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Requested download for File object " + url.name);
-@@ -939,11 +977,16 @@ class EmulatorJS {
+@@ -939,11 +973,16 @@ class EmulatorJS {
                      { responseType: "arraybuffer", method: "GET" },
                      false,
                      type.dontCache,
@@ -97,7 +93,7 @@ index 63f17cd..0fb18f2 100644
                      return;
                  }
                  // check for content type
-@@ -958,28 +1001,6 @@ class EmulatorJS {
+@@ -958,28 +997,6 @@ class EmulatorJS {
  
              if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Downloaded content:", returnData);
  
@@ -126,7 +122,7 @@ index 63f17cd..0fb18f2 100644
              // extract to the file system
              if (returnData && returnData.files) {
                  for (let i = 0; i < returnData.files.length; i++) {
-@@ -1102,13 +1123,15 @@ class EmulatorJS {
+@@ -1102,13 +1119,13 @@ class EmulatorJS {
       * Extract file names from downloaded ROM data and start game
       */
      startGameFromDownload(romData) {
@@ -137,11 +133,9 @@ index 63f17cd..0fb18f2 100644
 -            }
 -            fileNames.push(file.filename);
 -        }
-+        // A streamed archive was written to the filesystem entry by entry, so
-+        // its files array is deliberately empty and the entry names arrive on
-+        // fileNames instead. Without this the list is empty and selectRomFile()
-+        // leaves this.fileName undefined, which reaches the core as the content
-+        // path "/undefined" and names every save file after it.
++        // A streamed archive leaves files empty and its names on
++        // fileNames. Without this selectRomFile() leaves fileName
++        // undefined, which reaches the core as "/undefined".
 +        const names = Array.isArray(romData.fileNames)
 +            ? romData.fileNames
 +            : romData.files.map((file) => file.filename);

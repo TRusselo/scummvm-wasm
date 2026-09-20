@@ -30,10 +30,10 @@ index 1c5b25f..c7c79f0 100644
      display: inline-block;
      width: 24px;
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index ce2b1ce..26fd1f0 100644
+index a334af2..ae2e45f 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -428,13 +428,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -401,13 +401,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
                  this.quickSave(slot).then((ok) => {
@@ -50,10 +50,10 @@ index ce2b1ce..26fd1f0 100644
              }
              if (index === 26 && value === 1) {
 diff --git a/data/src/emulator.js b/data/src/emulator.js
-index a206c91..5c9a0a8 100644
+index a2ded8a..be35152 100644
 --- a/data/src/emulator.js
 +++ b/data/src/emulator.js
-@@ -806,16 +806,22 @@ class EmulatorJS {
+@@ -804,16 +804,22 @@ class EmulatorJS {
      saveInBrowserSupported() {
          return !!window.indexedDB && (typeof this.config.gameName === "string" || !this.config.gameUrl.startsWith("blob:"));
      }
@@ -77,7 +77,7 @@ index a206c91..5c9a0a8 100644
          }, (typeof time === "number" && time > 0) ? time : 3000)
          this.msgElem.innerText = message;
      }
-@@ -1767,14 +1773,14 @@ class EmulatorJS {
+@@ -1761,14 +1767,14 @@ class EmulatorJS {
              const slot = this.getSettingValue("save-state-slot") ? this.getSettingValue("save-state-slot") : "1";
              hideMenu();
              if (await this.gameManager.quickSave(slot)) {
@@ -94,7 +94,7 @@ index a206c91..5c9a0a8 100644
              }
          });
          this.elements.contextMenu = {
-@@ -2233,7 +2239,7 @@ class EmulatorJS {
+@@ -2225,7 +2231,7 @@ class EmulatorJS {
              if (stateUrl) URL.revokeObjectURL(stateUrl);
              if (this.getSettingValue("save-state-location") === "browser" && this.saveInBrowserSupported()) {
                  this.storage.states.put(this.getBaseFileName() + ".state", state);
@@ -103,7 +103,7 @@ index a206c91..5c9a0a8 100644
              } else {
                  const blob = new Blob([state]);
                  stateUrl = URL.createObjectURL(blob);
-@@ -2249,7 +2255,7 @@ class EmulatorJS {
+@@ -2241,7 +2247,7 @@ class EmulatorJS {
              if (this.getSettingValue("save-state-location") === "browser" && this.saveInBrowserSupported()) {
                  this.storage.states.get(this.getBaseFileName() + ".state").then(e => {
                      this.gameManager.loadState(e);

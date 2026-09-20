@@ -1,24 +1,14 @@
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index 8b92dbc..ce2b1ce 100644
+index 8b92dbc..a334af2 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -210,18 +210,163 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -210,18 +210,136 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
      getState() {
          return this.Module.EmulatorJSGetState();
      }
 -    loadState(state) {
-+    // Shared by loadState() and quickLoad(). An engine decides for itself
-+    // whether a load is possible right now, and several stay shut for seconds:
-+    // Blade Runner while a video plays, Sanitarium mid-speech, Kyrandia outside
-+    // its own runLoop(). The core cannot wait for that -- it holds the main
-+    // thread while it does, so nothing is drawn -- so the waiting lives here,
-+    // where the game keeps running between attempts.
-+    //
-+    // The core leaves its reason in the shared filesystem. First line is
-+    // "permanent" or "temporary"; the rest is what to show.
-+    // The core leaves its reason in the shared filesystem, because the libretro
-+    // OSD reaches neither the log nor the screen here. First line is
-+    // "permanent" or "temporary"; the rest is what to show.
++    // The core leaves its reason here: first line "permanent" or "temporary",
++    // the rest is what to show.
 +    savestateRefusal() {
 +        try {
 +            const text = this.FS.readFile("/savestate_error.txt", { encoding: "utf8" });
@@ -32,14 +22,9 @@ index 8b92dbc..ce2b1ce 100644
 +            this.FS.unlink("/savestate_error.txt");
 +        } catch(e) {}
 +    }
-+    // An engine can refuse a save while a scene is still playing: Riven's
-+    // canSaveGameStateCurrently() is false for as long as it has queued
-+    // scripts, and one stays queued for the length of the animation it runs.
-+    // The core cannot usefully wait for that itself -- it owns the main thread
-+    // while it blocks, so nothing is drawn. Waiting here costs nothing: the
-+    // game keeps running between attempts and the scene plays out on screen.
-+    //
-+    // Returns the state, or null having already said why.
++    // Waiting lives here, not in the core: the core owns the main thread while
++    // it blocks, so nothing would be drawn. Returns null having already said
++    // why.
 +    async retryGetState() {
 +        const waitMs = (typeof window !== "undefined" && typeof window.EJS_saveStateWaitMs === "number")
 +            ? window.EJS_saveStateWaitMs : 10000;
@@ -78,15 +63,9 @@ index 8b92dbc..ce2b1ce 100644
 +        const refusal = () => this.savestateRefusal();
 +        const clearRefusal = () => this.clearSavestateRefusal();
 +
-+        // An attempt is not free: the wrap blocks the main thread for a second
-+        // or more while the core switches threads to answer, so retrying is
-+        // felt as a stuttering tab rather than a quiet wait.
-+        //
-+        // A load fired automatically at launch is therefore capped by count,
-+        // not by a clock. It is racing the game's own opening, which can run
-+        // for minutes -- Orion Burger plays a cutscene the moment the title
-+        // screen appears -- and no budget that outlasts that is worth what it
-+        // costs to sit through. Give up early and say what does work instead.
++        // A launch load is capped by count, not by the clock: it races the
++        // game's own opening, which can outlast any budget worth sitting
++        // through. Each attempt stutters the tab, so they are not free.
 +        const maxAttempts = typeof opts.maxAttempts === "number" ? opts.maxAttempts : 0;
 +        const waitMs = (typeof window !== "undefined" && typeof window.EJS_loadStateWaitMs === "number")
 +            ? window.EJS_loadStateWaitMs : 10000;
@@ -98,17 +77,11 @@ index 8b92dbc..ce2b1ce 100644
 +        // actually resolved to, so the next log says which of the two is wrong.
 +        if (this.EJS.debug) console.log(`[load] budget: maxAttempts=${maxAttempts || "none"}, waitMs=${waitMs}`);
 +        for (;;) {
-+            // Cleared before every attempt, not just the first: the file is the
-+            // only signal there is, so an attempt that leaves it absent is one
-+            // the core accepted -- or never saw, because the game has since
-+            // exited. Reading the previous attempt's refusal instead means the
-+            // loop cannot end, and it keeps calling into an unloaded core.
++            // Cleared before every attempt: the file is the only signal, so a
++            // stale one from the previous attempt would stop the loop ending.
 +            clearRefusal();
-+            // The core writes a refusal only if it sees the request at all, so
-+            // an absent refusal cannot be read as success without knowing the
-+            // payload survived. An earlier load's deferred cleanup used to
-+            // remove it mid-retry, and the core then loaded zero bytes and
-+            // wrote nothing, which read back as "accepted".
++            // An absent refusal only means success if the payload survived: a
++            // zero-byte load writes nothing and reads back as accepted.
 +            let stateSize = 0;
 +            try {
 +                stateSize = this.FS.stat("/" + name).size;
@@ -168,7 +141,7 @@ index 8b92dbc..ce2b1ce 100644
      }
      screenshot() {
          try {
-@@ -238,27 +383,41 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -238,27 +356,41 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              }
          })
      }
@@ -223,7 +196,7 @@ index 8b92dbc..ce2b1ce 100644
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +427,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -268,16 +400,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";

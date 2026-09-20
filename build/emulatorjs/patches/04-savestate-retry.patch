@@ -1,8 +1,8 @@
 diff --git a/data/src/emulator.js b/data/src/emulator.js
-index 0fb18f2..a206c91 100644
+index 7b6bae3..a2ded8a 100644
 --- a/data/src/emulator.js
 +++ b/data/src/emulator.js
-@@ -1763,20 +1763,19 @@ class EmulatorJS {
+@@ -1757,20 +1757,19 @@ class EmulatorJS {
              hideMenu();
          });
  
@@ -30,7 +30,7 @@ index 0fb18f2..a206c91 100644
          });
          this.elements.contextMenu = {
              screenshot: screenshot,
-@@ -2218,13 +2217,12 @@ class EmulatorJS {
+@@ -2212,13 +2211,10 @@ class EmulatorJS {
  
          let stateUrl;
          const saveState = addButton(this.config.buttonOpts.saveState, async () => {
@@ -41,10 +41,8 @@ index 0fb18f2..a206c91 100644
 -                this.displayMessage(this.localization("FAILED TO SAVE STATE"));
 -                return;
 -            }
-+            // The state is captured when the engine will accept it rather than
-+            // when the button was pressed -- a few seconds of game time later,
-+            // which is what the engine's own save menu does. Shared with the
-+            // quick save so both wait out the same scenes.
++            // Captured when the engine will accept it, not when the
++            // button was pressed. Shared with the quick save.
 +            const state = await this.gameManager.retryGetState();
 +            if (state === null) return;
              const { screenshot, format } = await this.takeScreenshot(this.capture.photo.source, this.capture.photo.format, this.capture.photo.upscale);
