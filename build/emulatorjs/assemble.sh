@@ -30,7 +30,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-EJS_COMMIT="0b1c5e9"          # must match ARG EMULATORJS_COMMIT in romm's Dockerfile
+EJS_COMMIT="13ce942"          # must match ARG EMULATORJS_COMMIT in romm's Dockerfile
 
 usage() { echo "usage: assemble.sh <output-dir> [--force] [--vanilla] [--patch=<file>]..." >&2; }
 
@@ -132,8 +132,7 @@ echo "==> applying patches"
 # Order matters. 09 before 08: both rewrite the quick save/load block, and 08
 # adds the severity argument to the messages 09 leaves behind. Swapping them
 # rejects that hunk.
-for pf in 01-cache-streaming 02-emulator-onfile 03b-canvas-pointer-supports-mouse \
-          04-savestate-retry 05-download-debug-logging 06-parse-core-report \
+for pf in 01-cache-streaming 02-emulator-onfile 04-savestate-retry \
           09-loadstate-retry 08-message-severity \
           10-quickload-host-event 11-english-variant-no-langjson; do
   patch -p1 -d "$WORK/ejs" < "build/emulatorjs/patches/${pf}.patch"
@@ -165,22 +164,20 @@ grep -q "romData.fileNames" "$WORK/ejs/data/src/emulator.js" \
   || { echo "ERROR: emulator.js patch missing from the source" >&2; exit 1; }
 grep -q "fileNames" "$WORK/ejs/data/emulator.min.js" \
   || { echo "ERROR: emulator.js patch missing from the minified bundle" >&2; exit 1; }
-# Without this the canvas keeps pointer-events:none on any device reporting a
-# touchscreen, and the mouse does nothing. "ejs-canvas-no-pointer" is present
-# unpatched too, so the supportsMouse test is the discriminator -- it is the
-# narrow form (patch 03b), and the unscoped 03 would pass a bare class check.
-grep -q "defaultCoreOpts && this.defaultCoreOpts.supportsMouse" "$WORK/ejs/data/src/emulator.js" \
-  || { echo "ERROR: canvas pointer-events patch missing from the source" >&2; exit 1; }
-grep -q "defaultCoreOpts.supportsMouse" "$WORK/ejs/data/emulator.min.js" \
-  || { echo "ERROR: canvas pointer-events patch missing from the bundle" >&2; exit 1; }
-# The decompression readout is a third, independently droppable piece: it is
-# what stops the loading text freezing on "Download Game Data 100%" for the
-# whole unpack. "Decompress Game Data" is already translated in every
-# localization/*.json but appears in no unpatched source or bundle, so it is
-# a clean marker in both.
+
+# Four of our patches are upstream as of this pin (#1267, #1268, #1269, #1271)
+# and are no longer carried here. These checks are not "did our patch apply" --
+# there is no patch. They verify the PIN still carries the merged work, which
+# is the thing that can silently regress when EJS_COMMIT moves.
+grep -q "defaultCoreOpts.supportsMouse" "$WORK/ejs/data/src/emulator.js" \
+  || { echo "ERROR: pin is missing the merged mouse-input fix (#1268)" >&2; exit 1; }
+grep -Eq "this\.debug *= *EJS" "$WORK/ejs/data/src/cache.js" \
+  || { echo "ERROR: pin is missing the merged cache-hit logging (#1267)" >&2; exit 1; }
+grep -q "decodeReport\|reports/" "$WORK/ejs/data/src/emulator.js" \
+  || { echo "ERROR: pin is missing the merged core-report decode (#1269)" >&2; exit 1; }
 for f in "$WORK/ejs/data/src/emulator.js" "$WORK/ejs/data/emulator.min.js"; do
   grep -q "Decompress Game Data" "$f" \
-    || { echo "ERROR: decompression-progress patch missing from $f" >&2; exit 1; }
+    || { echo "ERROR: pin is missing the merged decompression readout (#1271) in $f" >&2; exit 1; }
 done
 
 # Save-state retry. An engine that refuses to save mid-animation (Riven, while
@@ -195,27 +192,6 @@ for f in "$WORK/ejs/data/src/GameManager.js" "$WORK/ejs/data/emulator.min.js"; d
 done
 grep -q "retryGetState" "$WORK/ejs/data/src/emulator.js" \
   || { echo "ERROR: save button not wired to the shared retry" >&2; exit 1; }
-
-# Cache-hit logging. EJS_Download never assigned this.debug upstream, so its
-# three "Using cached version of" statements could never run -- there was no
-# way to tell a cache hit from a miss without the Network panel. Submitted
-# upstream as EmulatorJS/EmulatorJS (fix-download-debug-logging); drop this
-# patch once that lands.
-# Source only, unlike the checks above. Every other marker is a string literal
-# and survives minification verbatim; this patch adds no literal, and the
-# minifier renames the identifiers it does add (EJS -> i), so there is nothing
-# stable to grep for in the bundle.
-grep -Eq "this\\.debug *= *EJS *\\? *EJS\\.debug" "$WORK/ejs/data/src/cache.js" \
-  || { echo "ERROR: download-debug-logging patch missing from src/cache.js" >&2; exit 1; }
-
-# Core report decoding. The report resolves to a cache item whose bytes are
-# never decoded, so buildStart is missing, core caching is disabled and every
-# core is fetched under its "-legacy" name. decodeReport is a local const and
-# is mangled in the bundle, so the ternary it builds is the marker there.
-grep -q "decodeReport" "$WORK/ejs/data/src/emulator.js" \
-  || { echo "ERROR: core-report patch missing from the source" >&2; exit 1; }
-grep -q ".files\[0\]:null" "$WORK/ejs/data/emulator.min.js" \
-  || { echo "ERROR: core-report patch missing from the bundle" >&2; exit 1; }
 
 # Message severity. Upstream styles every .ejs_message red, so a successful
 # save reads as a failure; the class is what carries the distinction. It is a

@@ -1,5 +1,5 @@
 diff --git a/data/src/cache.js b/data/src/cache.js
-index a70efe3..041b212 100644
+index fdf2488..ce13756 100644
 --- a/data/src/cache.js
 +++ b/data/src/cache.js
 @@ -1,6 +1,7 @@
@@ -10,7 +10,7 @@ index a70efe3..041b212 100644
  
  const CACHE_BLOB_CHUNK_SIZE = 50 * 1024 * 1024;
  
-@@ -106,7 +107,7 @@ class EJS_Download {
+@@ -107,7 +108,7 @@ class EJS_Download {
       * @param {boolean} dontExtract - If true, the downloaded file will not be extracted, but will still be cached (default is false, overridden by forceExtract).
       * @returns {Promise<EJS_CacheItem>} - The downloaded file as an EJS_CacheItem.
       */
@@ -19,7 +19,7 @@ index a70efe3..041b212 100644
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,91 @@ class EJS_Download {
+@@ -218,6 +219,91 @@ class EJS_Download {
                          }
                          
                          const blob = new Blob(chunks);

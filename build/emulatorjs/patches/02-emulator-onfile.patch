@@ -1,5 +1,5 @@
 diff --git a/data/src/emulator.js b/data/src/emulator.js
-index 7d1f74c..a117c86 100644
+index 63f17cd..0fb18f2 100644
 --- a/data/src/emulator.js
 +++ b/data/src/emulator.js
 @@ -78,7 +78,7 @@ class EmulatorJS {
@@ -11,37 +11,7 @@ index 7d1f74c..a117c86 100644
          if (this.debug) console.log("[EJS " + type + "] Downloading " + path);
          return new Promise(async (resolve) => {
              // Handle direct data objects (ArrayBuffer, Uint8Array, Blob)
-@@ -104,9 +104,26 @@ class EmulatorJS {
-             const attempt = async (targetUrl) => {
-                 try {
-                     const onProgress = progress instanceof Function ? (status, percentage, loaded, total) => {
--                        if (status === "downloading") {
--                            const progressText = total ? " " + Math.floor(percentage).toString() + "%" : " " + (loaded / 1048576).toFixed(2) + "MB";
--                            progress(progressText);
-+                        // Decompression used to be dropped here, so the loading
-+                        // text kept whatever the last download tick wrote --
-+                        // "100%" for the whole unpack. The phase is passed on so
-+                        // the caller can label it; the "Decompress Game ..."
-+                        // strings are already translated in localization/*.json.
-+                        if (status === "downloading" || status === "decompressing") {
-+                            // Three shapes reach here. A download with a
-+                            // content-length has total set; one without has
-+                            // only loaded, and is shown in MB. The wasm
-+                            // extractor reports neither -- it puts its value
-+                            // in percentage alone -- so percentage has to be
-+                            // honoured on its own, or that readout sticks at
-+                            // "0.00MB" for the whole decompression.
-+                            let progressText = "";
-+                            if (total || percentage) {
-+                                progressText = " " + Math.floor(percentage).toString() + "%";
-+                            } else if (loaded) {
-+                                progressText = " " + (loaded / 1048576).toFixed(2) + "MB";
-+                            }
-+                            progress(progressText, status);
-                         }
-                     } : null;
- 
-@@ -133,13 +150,18 @@ class EmulatorJS {
+@@ -138,13 +138,18 @@ class EmulatorJS {
                          responseType,
                          forceExtract,
                          dontCache,
@@ -61,7 +31,7 @@ index 7d1f74c..a117c86 100644
                      if (cacheItem.files && cacheItem.files.length > 0) {
                          return {
                              data: cacheItem,
-@@ -153,6 +175,13 @@ class EmulatorJS {
+@@ -158,6 +163,13 @@ class EmulatorJS {
                      return -1;
                  } catch(error) {
                      console.error("Download error:", error);
@@ -75,20 +45,7 @@ index 7d1f74c..a117c86 100644
                      return -1;
                  }
              };
-@@ -728,8 +757,10 @@ class EmulatorJS {
-             // Download the core
-             console.log("[EJS Core] Downloading core:", filename);
-             const corePath = "cores/" + filename;
--            const res = await this.downloadFile(corePath, this.downloadType.core.name, (progress) => {
--                this.textElem.innerText = this.localization("Download Game Core") + progress;
-+            const res = await this.downloadFile(corePath, this.downloadType.core.name, (progress, status) => {
-+                this.textElem.innerText = this.localization(
-+                    status === "decompressing" ? "Decompress Game Core" : "Download Game Core"
-+                ) + progress;
-             }, false, { responseType: "arraybuffer", method: "GET" }, true, this.downloadType.core.dontCache);
-             if (res === -1) {
-                 if (!this.supportsWebgl2) {
-@@ -841,6 +872,32 @@ class EmulatorJS {
+@@ -861,6 +873,32 @@ class EmulatorJS {
          return new Promise(async (resolve, reject) => {
              let returnData;
  
@@ -121,18 +78,7 @@ index 7d1f74c..a117c86 100644
              // check if url is a file object, and if so convert it to an EJS_CacheItem
              if (typeof url === "object" && url instanceof File) {
                  if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Requested download for File object " + url.name);
-@@ -910,18 +967,25 @@ class EmulatorJS {
-                 const data = await this.downloadFile(
-                     url,
-                     type.name,
--                    (progress) => {
--                        this.textElem.innerText = this.localization("Download Game Data") + progress;
-+                    (progress, status) => {
-+                        this.textElem.innerText = this.localization(
-+                            status === "decompressing" ? "Decompress Game Data" : "Download Game Data"
-+                        ) + progress;
-                     },
-                     true,
+@@ -939,11 +977,16 @@ class EmulatorJS {
                      { responseType: "arraybuffer", method: "GET" },
                      false,
                      type.dontCache,
@@ -151,7 +97,7 @@ index 7d1f74c..a117c86 100644
                      return;
                  }
                  // check for content type
-@@ -936,28 +1000,6 @@ class EmulatorJS {
+@@ -958,28 +1001,6 @@ class EmulatorJS {
  
              if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Downloaded content:", returnData);
  
@@ -180,7 +126,7 @@ index 7d1f74c..a117c86 100644
              // extract to the file system
              if (returnData && returnData.files) {
                  for (let i = 0; i < returnData.files.length; i++) {
-@@ -1080,13 +1122,15 @@ class EmulatorJS {
+@@ -1102,13 +1123,15 @@ class EmulatorJS {
       * Extract file names from downloaded ROM data and start game
       */
      startGameFromDownload(romData) {

@@ -1,8 +1,8 @@
 diff --git a/data/src/emulator.js b/data/src/emulator.js
-index 60f10f7..1110f87 100644
+index 0fb18f2..a206c91 100644
 --- a/data/src/emulator.js
 +++ b/data/src/emulator.js
-@@ -1762,20 +1762,19 @@ class EmulatorJS {
+@@ -1763,20 +1763,19 @@ class EmulatorJS {
              hideMenu();
          });
  
@@ -30,7 +30,7 @@ index 60f10f7..1110f87 100644
          });
          this.elements.contextMenu = {
              screenshot: screenshot,
-@@ -2217,13 +2216,12 @@ class EmulatorJS {
+@@ -2218,13 +2217,12 @@ class EmulatorJS {
  
          let stateUrl;
          const saveState = addButton(this.config.buttonOpts.saveState, async () => {
