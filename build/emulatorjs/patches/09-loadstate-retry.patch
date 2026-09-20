@@ -1,8 +1,8 @@
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index 4053138..dda45bc 100644
+index 4053138..c2d8b68 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -210,14 +210,144 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -210,18 +210,168 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -44,10 +44,16 @@ index 4053138..dda45bc 100644
 +        const waitMs = (typeof window !== "undefined" && typeof window.EJS_saveStateWaitMs === "number")
 +            ? window.EJS_saveStateWaitMs : 10000;
 +        const retryUntil = Date.now() + waitMs;
++        let lastSaid = null;
++        let attempts = 0;
++        if (this.EJS.debug) console.log(`[save] budget: waitMs=${waitMs}`);
 +        for (;;) {
 +            this.clearSavestateRefusal();
++            attempts++;
 +            try {
-+                return this.getState();
++                const state = this.getState();
++                if (this.EJS.debug) console.log(`[save] accepted on attempt ${attempts}`);
++                return state;
 +            } catch(e) {}
 +            const reason = this.savestateRefusal();
 +            // A refusal the engine will never lift -- an SCI game with save
@@ -61,8 +67,15 @@ index 4053138..dda45bc 100644
 +                this.EJS.frontend.displayMessage(reason ? reason.message : "FAILED TO SAVE STATE", 6000, "error");
 +                return null;
 +            }
-+            // As above: prefer the engine's reason over a generic one.
-+            this.EJS.frontend.displayMessage((reason && reason.message) || "WAITING FOR THE SCENE TO END");
++            if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (${reason && reason.permanent ? "permanent" : "temporary"}), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
++            // As above: prefer the engine's reason over a generic one. Shown
++            // only when it changes: the host may stack notices rather than
++            // replace them, and one refusal repeated is one thing to say.
++            const waiting = (reason && reason.message) || "WAITING FOR THE SCENE TO END";
++            if (waiting !== lastSaid) {
++                lastSaid = waiting;
++                this.EJS.frontend.displayMessage(waiting);
++            }
 +            await new Promise((resolve) => setTimeout(resolve, 400));
 +        }
 +    }
@@ -85,9 +98,9 @@ index 4053138..dda45bc 100644
 +            ? window.EJS_loadStateWaitMs : 10000;
 +        const retryUntil = Date.now() + waitMs;
 +        let attempts = 0;
-+        // The budget has never been observed enforced: a launch load ran 35
-+        // attempts against a 5-attempt cap and a 10s clock. Log what the call
-+        // actually resolved to, so the next log says which of the two is wrong.
++        let lastSaid = null;
++        // Logged per attempt so a run that looks wrong can be read rather than
++        // guessed at.
 +        if (this.EJS.debug) console.log(`[load] budget: maxAttempts=${maxAttempts || "none"}, waitMs=${waitMs}`);
 +        for (;;) {
 +            // Cleared before every attempt, not just the first: the file is the
@@ -129,7 +142,12 @@ index 4053138..dda45bc 100644
 +            }
 +            // The engine's wording when it gave one: "waiting for the scene to
 +            // end" is wrong for a refusal that is not about a scene at all.
-+            this.EJS.frontend.displayMessage(reason.message || "WAITING FOR THE SCENE TO END", 1500);
++            // Shown only when it changes, as in retryGetState().
++            const waiting = reason.message || "WAITING FOR THE SCENE TO END";
++            if (waiting !== lastSaid) {
++                lastSaid = waiting;
++                this.EJS.frontend.displayMessage(waiting, 1500);
++            }
 +        }
 +    }
 +    async loadState(state, options) {
@@ -143,13 +161,19 @@ index 4053138..dda45bc 100644
          this.FS.writeFile("/game.state", state);
          this.clearEJSResetTimer();
 -        this.functions.loadState("game.state", 0);
-+        await this.retryLoadState("game.state", options);
++        const loaded = await this.retryLoadState("game.state", options);
          setTimeout(() => {
 +            if (this.loadStateGeneration !== generation) return;
              try {
                  this.FS.unlink("game.state");
              } catch(e) {}
-@@ -238,27 +368,41 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+         }, 5000)
++        // Returned, so a caller does not announce a load the engine refused.
++        return loaded;
+     }
+     screenshot() {
+         try {
+@@ -238,27 +388,43 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              }
          })
      }
@@ -175,13 +199,17 @@ index 4053138..dda45bc 100644
 -        } catch(e) {
 -            return false;
 -        }
+-        return true;
+-    }
+-    quickLoad(slot) {
 +            ({ screenshot, format } = await this.EJS.takeScreenshot(this.EJS.capture.photo.source,
 +                this.EJS.capture.photo.format, this.EJS.capture.photo.upscale));
 +        } catch(e) {}
-+        this.EJS.callEvent("saveState", { screenshot: screenshot, format: format, state: data });
-         return true;
-     }
--    quickLoad(slot) {
++        const called = this.EJS.callEvent("saveState", { screenshot: screenshot, format: format, state: data });
++        // The Save State button returns early on a handled event rather than
++        // speaking over the host. Report that here so this route can match it.
++        return called > 0 ? "handled" : true;
++    }
 +    // Returns true when the local copy was used, so the caller knows whether to
 +    // announce the slot: a host that takes this over reports for itself, and
 +    // may have nothing to load.
@@ -204,7 +232,7 @@ index 4053138..dda45bc 100644
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +412,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -268,16 +434,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.frontend.settings["save-state-slot"] ? this.EJS.frontend.settings["save-state-slot"] : "1";
@@ -214,7 +242,7 @@ index 4053138..dda45bc 100644
 -                    this.EJS.frontend.displayMessage("FAILED TO SAVE STATE");
 -                }
 +                this.quickSave(slot).then((ok) => {
-+                    if (ok) this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
++                    if (ok === true) this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
 +                });
              }
              if (index === 25 && value === 1) {
@@ -227,3 +255,16 @@ index 4053138..dda45bc 100644
              }
              if (index === 26 && value === 1) {
                  let newSlot;
+diff --git a/data/src/frontend.js b/data/src/frontend.js
+index e0ae0ea..5256157 100644
+--- a/data/src/frontend.js
++++ b/data/src/frontend.js
+@@ -552,7 +552,7 @@ class EJS_Frontend {
+             hideMenu();
+             // No failure branch: retryGetState() has already said why, with the
+             // engine's own reason rather than a generic one.
+-            if (await this.ejs.gameManager.quickSave(slot)) {
++            if (await this.ejs.gameManager.quickSave(slot) === true) {
+                 this.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
+             }
+         });

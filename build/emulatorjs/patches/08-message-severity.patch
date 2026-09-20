@@ -30,10 +30,10 @@ index 1c5b25f..c7c79f0 100644
      display: inline-block;
      width: 24px;
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index dda45bc..ca67f3e 100644
+index c2d8b68..3e96940 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -257,11 +257,11 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -263,11 +263,11 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              // states switched off -- must not be retried to arrive at the same
              // answer.
              if (reason && reason.permanent) {
@@ -46,8 +46,8 @@ index dda45bc..ca67f3e 100644
 +                this.EJS.frontend.displayMessage(reason ? reason.message : "FAILED TO SAVE STATE", 6000, undefined, "error");
                  return null;
              }
-             // As above: prefer the engine's reason over a generic one.
-@@ -309,7 +309,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+             if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (${reason && reason.permanent ? "permanent" : "temporary"}), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
+@@ -322,7 +322,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
                  stateSize = this.FS.stat("/" + name).size;
              } catch(e) {}
              if (!stateSize) {
@@ -56,7 +56,7 @@ index dda45bc..ca67f3e 100644
                  return false;
              }
              this.functions.loadState(name, 0);
-@@ -327,7 +327,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -340,7 +340,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              if (reason.permanent || spent) {
                  const message = (spent && !reason.permanent && opts.giveUpMessage)
                      ? opts.giveUpMessage : reason.message;
@@ -65,12 +65,12 @@ index dda45bc..ca67f3e 100644
                  return false;
              }
              // The engine's wording when it gave one: "waiting for the scene to
-@@ -413,13 +413,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -435,13 +435,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              if (index === 24 && value === 1) {
                  const slot = this.EJS.frontend.settings["save-state-slot"] ? this.EJS.frontend.settings["save-state-slot"] : "1";
                  this.quickSave(slot).then((ok) => {
--                    if (ok) this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
-+                    if (ok) this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot, "success");
+-                    if (ok === true) this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
++                    if (ok === true) this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot, "success");
                  });
              }
              if (index === 25 && value === 1) {
@@ -82,7 +82,7 @@ index dda45bc..ca67f3e 100644
              }
              if (index === 26 && value === 1) {
 diff --git a/data/src/frontend.js b/data/src/frontend.js
-index e0ae0ea..7146132 100644
+index 5256157..cc50152 100644
 --- a/data/src/frontend.js
 +++ b/data/src/frontend.js
 @@ -393,16 +393,25 @@ class EJS_Frontend {
@@ -115,7 +115,7 @@ index e0ae0ea..7146132 100644
 @@ -553,14 +562,14 @@ class EJS_Frontend {
              // No failure branch: retryGetState() has already said why, with the
              // engine's own reason rather than a generic one.
-             if (await this.ejs.gameManager.quickSave(slot)) {
+             if (await this.ejs.gameManager.quickSave(slot) === true) {
 -                this.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
 +                this.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot, "success");
              }
