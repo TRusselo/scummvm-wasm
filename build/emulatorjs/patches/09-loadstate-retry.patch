@@ -1,4 +1,4 @@
-@@ -210,14 +210,136 @@
+@@ -210,14 +210,144 @@
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -81,6 +81,10 @@
 +            ? window.EJS_loadStateWaitMs : 10000;
 +        const retryUntil = Date.now() + waitMs;
 +        let attempts = 0;
++        // The budget has never been observed enforced: a launch load ran 35
++        // attempts against a 5-attempt cap and a 10s clock. Log what the call
++        // actually resolved to, so the next log says which of the two is wrong.
++        if (this.EJS.debug) console.log(`[load] budget: maxAttempts=${maxAttempts || "none"}, waitMs=${waitMs}`);
 +        for (;;) {
 +            // Cleared before every attempt, not just the first: the file is the
 +            // only signal there is, so an attempt that leaves it absent is one
@@ -107,8 +111,12 @@
 +            // the reason is not there the instant this returns.
 +            await new Promise((resolve) => setTimeout(resolve, 1000));
 +            const reason = refusal();
-+            if (!reason) return true;
++            if (!reason) {
++                if (this.EJS.debug) console.log(`[load] accepted on attempt ${attempts}`);
++                return true;
++            }
 +            const spent = maxAttempts ? attempts >= maxAttempts : Date.now() >= retryUntil;
++            if (this.EJS.debug) console.log(`[load] attempt ${attempts} refused (${reason.permanent ? "permanent" : "temporary"}), maxAttempts=${maxAttempts || "none"}, ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left, spent=${spent}`);
 +            if (reason.permanent || spent) {
 +                const message = (spent && !reason.permanent && opts.giveUpMessage)
 +                    ? opts.giveUpMessage : reason.message;
@@ -137,7 +145,7 @@
              try {
                  this.FS.unlink("game.state");
              } catch(e) {}
-@@ -238,27 +360,41 @@
+@@ -238,27 +368,41 @@
              }
          })
      }
@@ -192,7 +200,7 @@
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +404,15 @@
+@@ -268,16 +412,15 @@
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
