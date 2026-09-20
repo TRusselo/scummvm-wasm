@@ -1,4 +1,4 @@
-@@ -210,13 +210,114 @@
+@@ -210,14 +210,136 @@
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -57,7 +57,8 @@
 +                this.EJS.displayMessage(reason ? reason.message : this.EJS.localization("FAILED TO SAVE STATE"), 6000, "error");
 +                return null;
 +            }
-+            this.EJS.displayMessage(this.EJS.localization("WAITING FOR THE SCENE TO END"));
++            // As above: prefer the engine's reason over a generic one.
++            this.EJS.displayMessage((reason && reason.message) || this.EJS.localization("WAITING FOR THE SCENE TO END"));
 +            await new Promise((resolve) => setTimeout(resolve, 400));
 +        }
 +    }
@@ -87,6 +88,19 @@
 +            // exited. Reading the previous attempt's refusal instead means the
 +            // loop cannot end, and it keeps calling into an unloaded core.
 +            clearRefusal();
++            // The core writes a refusal only if it sees the request at all, so
++            // an absent refusal cannot be read as success without knowing the
++            // payload survived. An earlier load's deferred cleanup used to
++            // remove it mid-retry, and the core then loaded zero bytes and
++            // wrote nothing, which read back as "accepted".
++            let stateSize = 0;
++            try {
++                stateSize = this.FS.stat("/" + name).size;
++            } catch(e) {}
++            if (!stateSize) {
++                this.EJS.displayMessage(this.EJS.localization("FAILED TO LOAD STATE"), 6000, "error");
++                return false;
++            }
 +            this.functions.loadState(name, 0);
 +            attempts++;
 +            // content_load_state() queues a task rather than running inline, so
@@ -101,10 +115,16 @@
 +                this.EJS.displayMessage(message, 8000, "error");
 +                return false;
 +            }
-+            this.EJS.displayMessage(this.EJS.localization("WAITING FOR THE SCENE TO END"), 1500);
++            // The engine's wording when it gave one: "waiting for the scene to
++            // end" is wrong for a refusal that is not about a scene at all.
++            this.EJS.displayMessage(reason.message || this.EJS.localization("WAITING FOR THE SCENE TO END"), 1500);
 +        }
 +    }
 +    async loadState(state, options) {
++        // Loads share one path, so an earlier call's cleanup timer could remove
++        // the file a later call is still retrying against. Only the newest load
++        // is allowed to clear it.
++        const generation = (this.loadStateGeneration = (this.loadStateGeneration || 0) + 1);
          try {
              this.FS.unlink("game.state");
          } catch(e) {}
@@ -113,9 +133,11 @@
 -        this.functions.loadState("game.state", 0);
 +        await this.retryLoadState("game.state", options);
          setTimeout(() => {
++            if (this.loadStateGeneration !== generation) return;
              try {
                  this.FS.unlink("game.state");
-@@ -238,27 +339,41 @@
+             } catch(e) {}
+@@ -238,27 +360,41 @@
              }
          })
      }
@@ -170,7 +192,7 @@
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +383,15 @@
+@@ -268,16 +404,15 @@
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
