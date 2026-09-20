@@ -1,8 +1,8 @@
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index 8b92dbc..52e28f5 100644
+index 8b92dbc..ce2b1ce 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -210,14 +210,144 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -210,18 +210,163 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -44,6 +44,7 @@ index 8b92dbc..52e28f5 100644
 +        const waitMs = (typeof window !== "undefined" && typeof window.EJS_saveStateWaitMs === "number")
 +            ? window.EJS_saveStateWaitMs : 10000;
 +        const retryUntil = Date.now() + waitMs;
++        let lastSaid = null;
 +        for (;;) {
 +            this.clearSavestateRefusal();
 +            try {
@@ -61,8 +62,14 @@ index 8b92dbc..52e28f5 100644
 +                this.EJS.displayMessage(reason ? reason.message : this.EJS.localization("FAILED TO SAVE STATE"), 6000, "error");
 +                return null;
 +            }
-+            // As above: prefer the engine's reason over a generic one.
-+            this.EJS.displayMessage((reason && reason.message) || this.EJS.localization("WAITING FOR THE SCENE TO END"));
++            // As above: prefer the engine's reason over a generic one. Shown
++            // only when it changes: the host may stack notices rather than
++            // replace them, and one refusal repeated is one thing to say.
++            const waiting = (reason && reason.message) || this.EJS.localization("WAITING FOR THE SCENE TO END");
++            if (waiting !== lastSaid) {
++                lastSaid = waiting;
++                this.EJS.displayMessage(waiting);
++            }
 +            await new Promise((resolve) => setTimeout(resolve, 400));
 +        }
 +    }
@@ -85,6 +92,7 @@ index 8b92dbc..52e28f5 100644
 +            ? window.EJS_loadStateWaitMs : 10000;
 +        const retryUntil = Date.now() + waitMs;
 +        let attempts = 0;
++        let lastSaid = null;
 +        // The budget has never been observed enforced: a launch load ran 35
 +        // attempts against a 5-attempt cap and a 10s clock. Log what the call
 +        // actually resolved to, so the next log says which of the two is wrong.
@@ -129,7 +137,12 @@ index 8b92dbc..52e28f5 100644
 +            }
 +            // The engine's wording when it gave one: "waiting for the scene to
 +            // end" is wrong for a refusal that is not about a scene at all.
-+            this.EJS.displayMessage(reason.message || this.EJS.localization("WAITING FOR THE SCENE TO END"), 1500);
++            // Shown only when it changes, as above.
++            const waiting = reason.message || this.EJS.localization("WAITING FOR THE SCENE TO END");
++            if (waiting !== lastSaid) {
++                lastSaid = waiting;
++                this.EJS.displayMessage(waiting, 1500);
++            }
 +        }
 +    }
 +    async loadState(state, options) {
@@ -143,13 +156,19 @@ index 8b92dbc..52e28f5 100644
          this.FS.writeFile("/game.state", state);
          this.clearEJSResetTimer();
 -        this.functions.loadState("game.state", 0);
-+        await this.retryLoadState("game.state", options);
++        // Returned, so a caller does not announce a load the engine refused.
++        const loaded = await this.retryLoadState("game.state", options);
          setTimeout(() => {
 +            if (this.loadStateGeneration !== generation) return;
              try {
                  this.FS.unlink("game.state");
              } catch(e) {}
-@@ -238,27 +368,41 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+         }, 5000)
++        return loaded;
+     }
+     screenshot() {
+         try {
+@@ -238,27 +383,41 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              }
          })
      }
@@ -204,7 +223,7 @@ index 8b92dbc..52e28f5 100644
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +412,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -268,16 +427,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";
