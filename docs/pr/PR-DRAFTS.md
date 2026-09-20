@@ -661,6 +661,96 @@ commit between them is PR 24 itself.
 
 Built against the new pin before opening: Emscripten, 130 engines, links clean.
 
+## PR 26 — `fix(player): clear the EmulatorJS core cache when clearing cache` — DRAFTED, NOT OPENED
+
+`rommapp/romm` · branch off `d76660435` · +75/-14 across 4 files ·
+local commit `7699a04f0` · fixes our issue #21
+
+**Rebased onto current upstream.** Our romm fork's `master` is **1096 commits
+behind** `rommapp/romm`; the branch is cut from upstream `master` directly, not
+from the fork. The bug is still present upstream unchanged at all three call
+sites.
+
+**Scoped tighter than our fork's version.** Ours also refetches EmulatorJS's
+code past the HTTP cache; that solves a problem of our deployment (a stale core
+under a stable URL) and would widen the PR, so it stays in the fork. This PR is
+the cache-clearing bug only.
+
+**No user-visible strings**, so no locale work. The only added text is a
+`console.warn`. That is why this one goes first, ahead of the quick-load work.
+
+### Their rules, checked
+
+- `CONTRIBUTING.md` requires AI assistance disclosed **in the PR** with extent.
+  Unlike ScummVM, RomM does not ban co-authorship, but Tristyn's standing
+  `Assisted-by:` trailer applies regardless.
+- `CLAUDE.md`: no em-dashes; comments one or two lines, "why" not "what"; never
+  explain a change or record what the code used to do (that belongs in the
+  commit and PR body); `Fixes #XXXX` refers to a **RomM** issue, so our #21 must
+  not be written that way; Trunk lint, never `--no-verify`.
+- Comments in the draft were rewritten to that standard: longest block is two
+  lines, none narrate the previous behaviour.
+- PR template has a checklist and a screenshots section. This is a behaviour fix
+  behind an existing dialog, so a before/after of the IndexedDB list in devtools
+  is the honest equivalent of a screenshot.
+
+### Body
+
+```
+**Description**
+
+RomM's Clear cache dialog does not clear the EmulatorJS core cache.
+
+It deletes four databases, two of which EmulatorJS never creates:
+
+    window.indexedDB.deleteDatabase("/data/saves");
+    window.indexedDB.deleteDatabase("EmulatorJS-roms");   // does not exist
+    window.indexedDB.deleteDatabase("EmulatorJS-core");   // does not exist
+    window.indexedDB.deleteDatabase("EmulatorJS-states");
+
+EmulatorJS uses three names: `EmulatorJS-Cache` for the download cache
+(cores and ROMs), `EmulatorJS-states` for save states, and `/data/saves`
+for the IDBFS mount. `deleteDatabase` resolves successfully on a name that
+does not exist, so the dialog reports success while the core cache is
+untouched.
+
+Renaming it is not sufficient on its own. EmulatorJS's storage layer opens
+an IndexedDB connection per operation and never closes one, so a delete
+issued while a game is running fires `onblocked` and stays pending with no
+error. That applies to the two correctly named databases as well.
+
+This change:
+
+- clears the download cache through EmulatorJS's own `storageCache.clear()`,
+  which empties the store over a connection it already holds
+- resolves `deleteDatabase` on `onblocked` and logs which databases could
+  not be cleared, rather than discarding the result
+- drops the two names that match nothing
+- shares one helper between the v1 dialog, the v2 dialog, and the
+  rename-invalidation path in the EmulatorJS player utils, which aimed at
+  the same non-existent database
+
+The rename path clears only the download cache, never save data.
+
+**Checklist**
+
+- [x] I've tested the changes locally
+- [x] I've updated relevant comments
+- [ ] I've assigned reviewers for this PR
+- [ ] I've added unit tests that cover the changes
+
+**AI assistance**
+
+This PR was written primarily by Claude Code: the investigation, the patch
+and this description. Reviewed by me before opening.
+```
+
+### Before opening
+
+- `trunk fmt && trunk check` must pass (needs `npm ci` in the worktree).
+- Capture the devtools before/after of the IndexedDB list.
+- Decide whether to open a RomM issue first so the PR can carry `Fixes #`.
+
 ## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
 `5323840b21` on local branch `ejs-build-scummvm-arrays` (worktree in the session
 scratchpad), based on `origin/v1.22.2` · +3/−3 · `emulatorjs/build-emulatorjs.sh`
