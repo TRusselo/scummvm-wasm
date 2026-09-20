@@ -1,6 +1,8 @@
---- emulator.js.orig	2026-09-14 19:43:45.562143208 -0600
-+++ emulator.js	2026-09-14 19:46:34.929182953 -0600
-@@ -697,11 +697,24 @@
+diff --git a/data/src/emulator.js b/data/src/emulator.js
+index 1110f87..5c02d73 100644
+--- a/data/src/emulator.js
++++ b/data/src/emulator.js
+@@ -726,11 +726,24 @@ class EmulatorJS {
          const reportUrl = `${report}?v=${cacheBustParam}`;
  
          this.downloadFile(reportUrl, this.downloadType.reports.name, null, false, { responseType: "text", method: "GET" }, false, this.downloadType.reports.dontCache).then(async rep => {

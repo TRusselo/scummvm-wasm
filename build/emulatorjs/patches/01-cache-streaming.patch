@@ -1,5 +1,7 @@
---- cache.js.orig	2026-09-13 02:33:22.614140784 -0600
-+++ cache.js	2026-09-13 02:33:22.645924249 -0600
+diff --git a/data/src/cache.js b/data/src/cache.js
+index a70efe3..041b212 100644
+--- a/data/src/cache.js
++++ b/data/src/cache.js
 @@ -1,6 +1,7 @@
  import { simpleHash } from "./utils.js";
  import { EJS_STORAGE } from "./storage.js";
@@ -8,7 +10,7 @@
  
  const CACHE_BLOB_CHUNK_SIZE = 50 * 1024 * 1024;
  
-@@ -106,7 +107,7 @@
+@@ -106,7 +107,7 @@ class EJS_Download {
       * @param {boolean} dontExtract - If true, the downloaded file will not be extracted, but will still be cached (default is false, overridden by forceExtract).
       * @returns {Promise<EJS_CacheItem>} - The downloaded file as an EJS_CacheItem.
       */
@@ -17,7 +19,7 @@
          let cacheActiveText = " (cache usage requested)"
          if (dontCache) {
              cacheActiveText = "";
-@@ -217,6 +218,91 @@
+@@ -217,6 +218,91 @@ class EJS_Download {
                          }
                          
                          const blob = new Blob(chunks);

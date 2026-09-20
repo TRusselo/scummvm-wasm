@@ -1,6 +1,8 @@
---- emulator.js.orig	2026-09-13 11:07:10.260138112 -0600
-+++ emulator.js	2026-09-13 11:07:16.994297049 -0600
-@@ -78,7 +78,7 @@
+diff --git a/data/src/emulator.js b/data/src/emulator.js
+index 7d1f74c..a117c86 100644
+--- a/data/src/emulator.js
++++ b/data/src/emulator.js
+@@ -78,7 +78,7 @@ class EmulatorJS {
       * @param {boolean} dontExtract If true, the downloaded file will not be extracted, but will still be cached (default is false, overridden by forceExtract).
       * @returns A promise that resolves with the downloaded file data.
       */
@@ -9,7 +11,7 @@
          if (this.debug) console.log("[EJS " + type + "] Downloading " + path);
          return new Promise(async (resolve) => {
              // Handle direct data objects (ArrayBuffer, Uint8Array, Blob)
-@@ -104,9 +104,26 @@
+@@ -104,9 +104,26 @@ class EmulatorJS {
              const attempt = async (targetUrl) => {
                  try {
                      const onProgress = progress instanceof Function ? (status, percentage, loaded, total) => {
@@ -39,7 +41,7 @@
                          }
                      } : null;
  
-@@ -133,13 +150,18 @@
+@@ -133,13 +150,18 @@ class EmulatorJS {
                          responseType,
                          forceExtract,
                          dontCache,
@@ -59,7 +61,7 @@
                      if (cacheItem.files && cacheItem.files.length > 0) {
                          return {
                              data: cacheItem,
-@@ -153,6 +175,13 @@
+@@ -153,6 +175,13 @@ class EmulatorJS {
                      return -1;
                  } catch(error) {
                      console.error("Download error:", error);
@@ -73,7 +75,7 @@
                      return -1;
                  }
              };
-@@ -728,8 +757,10 @@
+@@ -728,8 +757,10 @@ class EmulatorJS {
              // Download the core
              console.log("[EJS Core] Downloading core:", filename);
              const corePath = "cores/" + filename;
@@ -86,7 +88,7 @@
              }, false, { responseType: "arraybuffer", method: "GET" }, true, this.downloadType.core.dontCache);
              if (res === -1) {
                  if (!this.supportsWebgl2) {
-@@ -841,6 +872,32 @@
+@@ -841,6 +872,32 @@ class EmulatorJS {
          return new Promise(async (resolve, reject) => {
              let returnData;
  
@@ -119,7 +121,7 @@
              // check if url is a file object, and if so convert it to an EJS_CacheItem
              if (typeof url === "object" && url instanceof File) {
                  if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Requested download for File object " + url.name);
-@@ -910,18 +963,25 @@
+@@ -910,18 +967,25 @@ class EmulatorJS {
                  const data = await this.downloadFile(
                      url,
                      type.name,
@@ -149,7 +151,7 @@
                      return;
                  }
                  // check for content type
-@@ -936,28 +996,6 @@
+@@ -936,28 +1000,6 @@ class EmulatorJS {
  
              if (this.debug) console.log("[EJS " + type.name.toUpperCase() + "] Downloaded content:", returnData);
  
@@ -178,7 +180,7 @@
              // extract to the file system
              if (returnData && returnData.files) {
                  for (let i = 0; i < returnData.files.length; i++) {
-@@ -1080,13 +1118,15 @@
+@@ -1080,13 +1122,15 @@ class EmulatorJS {
       * Extract file names from downloaded ROM data and start game
       */
      startGameFromDownload(romData) {

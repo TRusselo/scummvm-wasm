@@ -1,4 +1,8 @@
-@@ -25,6 +25,7 @@
+diff --git a/data/src/cache.js b/data/src/cache.js
+index 041b212..ce13756 100644
+--- a/data/src/cache.js
++++ b/data/src/cache.js
+@@ -25,6 +25,7 @@ class EJS_Download {
      constructor(storageCache = null, EJS = null) {
          this.storageCache = storageCache;
          this.EJS = EJS;

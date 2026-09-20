@@ -1,4 +1,8 @@
-@@ -112,7 +112,9 @@
+diff --git a/data/loader.js b/data/loader.js
+index cdf2012..73a36ed 100644
+--- a/data/loader.js
++++ b/data/loader.js
+@@ -112,7 +112,9 @@ async function loadLanguage(config) {
  
      try {
          const specificJson = await fetchJson(paths.path);

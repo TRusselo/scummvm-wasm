@@ -1,4 +1,8 @@
-@@ -210,14 +210,144 @@
+diff --git a/data/src/GameManager.js b/data/src/GameManager.js
+index 8b92dbc..52e28f5 100644
+--- a/data/src/GameManager.js
++++ b/data/src/GameManager.js
+@@ -210,14 +210,144 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -145,7 +149,7 @@
              try {
                  this.FS.unlink("game.state");
              } catch(e) {}
-@@ -238,27 +368,41 @@
+@@ -238,27 +368,41 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              }
          })
      }
@@ -200,7 +204,7 @@
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +412,15 @@
+@@ -268,16 +412,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.settings["save-state-slot"] ? this.EJS.settings["save-state-slot"] : "1";

@@ -1,4 +1,8 @@
-@@ -243,6 +243,7 @@
+diff --git a/data/loader.js b/data/loader.js
+index 43e6c40..cdf2012 100644
+--- a/data/loader.js
++++ b/data/loader.js
+@@ -243,6 +243,7 @@ async function prepareLanguage() {
          ["ready", window.EJS_ready],
          ["start", window.EJS_onGameStart],
          ["loadState", window.EJS_onLoadState],

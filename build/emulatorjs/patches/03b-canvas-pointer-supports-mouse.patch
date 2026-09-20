@@ -1,6 +1,8 @@
---- emulator.js.orig	2026-09-14 17:56:11.528869975 -0600
-+++ emulator.js	2026-09-14 17:56:11.547272492 -0600
-@@ -1194,6 +1194,8 @@
+diff --git a/data/src/emulator.js b/data/src/emulator.js
+index a117c86..60f10f7 100644
+--- a/data/src/emulator.js
++++ b/data/src/emulator.js
+@@ -1238,6 +1238,8 @@ class EmulatorJS {
              this.paused = false;
              if (this.touch) {
                  this.virtualGamepad.style.display = "";
