@@ -30,24 +30,32 @@ index 1c5b25f..c7c79f0 100644
      display: inline-block;
      width: 24px;
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index c2d8b68..3e96940 100644
+index 0717b78..c3a1a31 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -263,11 +263,11 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -268,18 +268,18 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+             // otherwise lost.
+             if (!reason) {
+                 if (this.EJS.debug) console.log(`[save] giving up on attempt ${attempts}, no reason reported:`, failure);
+-                this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", 6000, "error");
++                this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", 6000, undefined, "error");
+                 return null;
+             }
+             // A refusal the engine will never lift -- an SCI game with save
              // states switched off -- must not be retried to arrive at the same
              // answer.
-             if (reason && reason.permanent) {
+             if (reason.permanent) {
 -                this.EJS.frontend.displayMessage(reason.message, 6000, "error");
 +                this.EJS.frontend.displayMessage(reason.message, 6000, undefined, "error");
                  return null;
              }
              if (Date.now() >= retryUntil) {
--                this.EJS.frontend.displayMessage(reason ? reason.message : "FAILED TO SAVE STATE", 6000, "error");
-+                this.EJS.frontend.displayMessage(reason ? reason.message : "FAILED TO SAVE STATE", 6000, undefined, "error");
+-                this.EJS.frontend.displayMessage(reason.message, 6000, "error");
++                this.EJS.frontend.displayMessage(reason.message, 6000, undefined, "error");
                  return null;
              }
-             if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (${reason && reason.permanent ? "permanent" : "temporary"}), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
-@@ -322,7 +322,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+             if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (temporary), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
+@@ -334,7 +334,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
                  stateSize = this.FS.stat("/" + name).size;
              } catch(e) {}
              if (!stateSize) {
@@ -56,7 +64,7 @@ index c2d8b68..3e96940 100644
                  return false;
              }
              this.functions.loadState(name, 0);
-@@ -340,7 +340,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -352,7 +352,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              if (reason.permanent || spent) {
                  const message = (spent && !reason.permanent && opts.giveUpMessage)
                      ? opts.giveUpMessage : reason.message;
@@ -65,7 +73,7 @@ index c2d8b68..3e96940 100644
                  return false;
              }
              // The engine's wording when it gave one: "waiting for the scene to
-@@ -435,13 +435,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -447,13 +447,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              if (index === 24 && value === 1) {
                  const slot = this.EJS.frontend.settings["save-state-slot"] ? this.EJS.frontend.settings["save-state-slot"] : "1";
                  this.quickSave(slot).then((ok) => {

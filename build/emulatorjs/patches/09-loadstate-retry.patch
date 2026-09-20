@@ -1,8 +1,8 @@
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index 4053138..c2d8b68 100644
+index 4053138..0717b78 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -210,18 +210,168 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -210,18 +210,180 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -50,28 +50,40 @@ index 4053138..c2d8b68 100644
 +        for (;;) {
 +            this.clearSavestateRefusal();
 +            attempts++;
++            let failure;
 +            try {
 +                const state = this.getState();
 +                if (this.EJS.debug) console.log(`[save] accepted on attempt ${attempts}`);
 +                return state;
-+            } catch(e) {}
++            } catch(e) { failure = e; }
 +            const reason = this.savestateRefusal();
++            // Only a core that says why it refused can be waited out. A core
++            // that throws without one has failed outright, so retrying spends
++            // the whole budget to reach the same answer -- and says "waiting
++            // for the scene to end" to a console that has no scenes. Fail as
++            // the unpatched build does, and show what was thrown, which is
++            // otherwise lost.
++            if (!reason) {
++                if (this.EJS.debug) console.log(`[save] giving up on attempt ${attempts}, no reason reported:`, failure);
++                this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", 6000, "error");
++                return null;
++            }
 +            // A refusal the engine will never lift -- an SCI game with save
 +            // states switched off -- must not be retried to arrive at the same
 +            // answer.
-+            if (reason && reason.permanent) {
++            if (reason.permanent) {
 +                this.EJS.frontend.displayMessage(reason.message, 6000, "error");
 +                return null;
 +            }
 +            if (Date.now() >= retryUntil) {
-+                this.EJS.frontend.displayMessage(reason ? reason.message : "FAILED TO SAVE STATE", 6000, "error");
++                this.EJS.frontend.displayMessage(reason.message, 6000, "error");
 +                return null;
 +            }
-+            if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (${reason && reason.permanent ? "permanent" : "temporary"}), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
++            if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (temporary), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
 +            // As above: prefer the engine's reason over a generic one. Shown
 +            // only when it changes: the host may stack notices rather than
 +            // replace them, and one refusal repeated is one thing to say.
-+            const waiting = (reason && reason.message) || "WAITING FOR THE SCENE TO END";
++            const waiting = reason.message || "WAITING FOR THE SCENE TO END";
 +            if (waiting !== lastSaid) {
 +                lastSaid = waiting;
 +                this.EJS.frontend.displayMessage(waiting);
@@ -173,7 +185,7 @@ index 4053138..c2d8b68 100644
      }
      screenshot() {
          try {
-@@ -238,27 +388,43 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -238,27 +400,43 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              }
          })
      }
@@ -232,7 +244,7 @@ index 4053138..c2d8b68 100644
      }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +434,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -268,16 +446,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.frontend.settings["save-state-slot"] ? this.EJS.frontend.settings["save-state-slot"] : "1";
