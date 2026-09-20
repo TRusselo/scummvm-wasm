@@ -133,9 +133,18 @@ Base is the upstream pin; one commit per logical change. Pushed to
 `TRusselo/EmulatorJS` as a long-lived branch, so PR branches cut straight off
 it and it survives this machine.
 
-At Build B it carries seven commits: cache streaming, onFile plumbing,
-savestate retry, message severity, loadstate retry, quickload host event, and
-the English-locale langJson fix.
+The commit count changes between steps, which is the point:
+
+- **At step 1** it carries ten, one per patch we have today, including the
+  three that upstream has since merged. It has to, or the byte-identical
+  comparison against today's tree is not a comparison of the same thing.
+- **At step 2** it carries seven: cache streaming, onFile plumbing, savestate
+  retry, message severity, loadstate retry, quickload host event, and the
+  English-locale langJson fix. The other three are dropped by `git cherry`.
+
+Patch file numbers keep their gaps after the drops -- 01, 02, 04, 08, 09, 10,
+11. Renumbering would break every reference in `assemble.sh`, in
+`docs/pr/PR-DRAFTS.md` and in the test logs, to gain nothing.
 
 `zipstream.js` stays a file copy in `assemble.sh`. It is a new file we add,
 never a modification of theirs, so nothing about it benefits from the branch.
