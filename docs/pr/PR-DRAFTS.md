@@ -37,7 +37,14 @@ those merges land in `emulator.js`, where 02, 04 and 08 also live.
 ## Is it upstream-worthy, or is it ours?
 
 Asked of every unsubmitted item 2026-09-20. The test is not "does it work" but
-"does anyone who is not us benefit". Getting this wrong wastes a maintainer's
+"does anyone who is not us benefit".
+
+**The trap to avoid:** almost everything we have built around save states looks
+like an upstream bug and is not one. ScummVM's own save system works. Our
+bridge asks engines to serialize at moments no ScummVM frontend ever asks, so
+the gates we keep finding wrong are only wrong for us. Before proposing any
+save/load change upstream, name the native ScummVM path that reaches it. If
+there is none, it is ours. Getting this wrong wastes a maintainer's
 time, and `spleen1981` has already closed one of ours for exactly that
 (PR 11: *"let's avoid platform specific workarounds to support an unsupported
 use case"*).
@@ -46,8 +53,6 @@ use case"*).
 
 | item | why it is not just ours |
 |---|---|
-| **PR 26** TeenAgent load gate | `canLoadGameStateCurrently()` returns `true` before the engine has a scene. Any frontend that can trigger an early load hits it, including ScummVM's own `--save-slot`. Nothing WASM about it. |
-| **PR 27** AGI refusal messages | ScummVM's own save dialog displays the `msg` out-param. Every AGI player currently gets silence where other engines explain themselves. |
 | **Patch 01** cache streaming | V8 caps one ArrayBuffer at ~2 GiB, so EmulatorJS cannot open archives past it at all. Affects any large-ROM platform, not just us — see issue #5. |
 | **Griffon half of `474782187ad`** | A dropped quit event hangs the engine. Engine bug, frontend-agnostic. |
 | **Patch 08** (#1270, open) | Every message styled as an error is wrong for all cores, not only ours. |
@@ -60,13 +65,8 @@ use case"*).
 | **`420fdd238bd`** drop the arm64 CI job | Their CI, inherited verbatim from `scummvm/scummvm` where arm64 is a real target. Editing it buys a merge conflict on every sync to silence a job that is red on their base branch anyway. |
 | **The save-state bridge** — reserved slot, pack/unpack, refusal file | This *is* the project. A libretro core that carries a ScummVM save set inside its state blob is not a shape upstream wants; it exists because EmulatorJS has no other way to reach the saves. |
 | **`retroarchOpts` / core.json packaging** | Deployment shape, not core behaviour. |
-
-### Borderline — submittable, but low value to them
-
-| item | the honest read |
-|---|---|
-| **Patches 04 / 09** save/load retry | A real bug for anyone: EmulatorJS drops a refused save silently. But ScummVM is unusual in refusing at all — most cores always serialize — so the payoff for them is small and the code is visibly scaffolding for us. Worth offering framed as "do not lose a refused save", not as "retry for our engine". |
-| **Patch 10** `quickLoadState` event | Defensible as an embedder hook, but it exists because RomM keeps states server-side. Offer only alongside 04/09, or not at all. |
+| **PR 26** TeenAgent load gate, **PR 27** AGI refusal messages | **ScummVM's own save system works.** Native ScummVM never reaches these gates the way we do: the TeenAgent logo screens pump events through `skipEvents()`, which cannot open the GMM, and AGI players save by typing `save game`, which bypasses `canSaveGameStateCurrently()` outright. Only our bridge consults them, because `retro_process_pending_savestate_op()` runs from `pollEvent()`. There is no upstream bug here to fix. |
+| **Patches 04 / 09** save/load retry, **patch 10** `quickLoadState` | Same reason. Retrying a refused save only matters to a frontend that asks at moments the engine was never designed to be asked. Scaffolding for our bridge, not a general fix. |
 
 ### Gated, not divergent
 
