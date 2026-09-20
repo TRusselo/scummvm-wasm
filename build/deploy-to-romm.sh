@@ -86,7 +86,12 @@ if [ -n "$EJS_SRC" ]; then
   fi
   EJS_DEST="$DEST_ROOT/docker/emulatorjs/data"
   [ -d "$EJS_DEST" ] || { echo "error: no EmulatorJS tree at $EJS_DEST" >&2; exit 1; }
-  rsync -a --exclude 'cores/' --exclude 'reports/' "$EJS_SRC/" "$EJS_DEST/"
+  # --delete, or anything we stop producing lives on in the deploy forever.
+  # GNU patch used to leave .orig backups next to every file it shifted, and
+  # those kept shipping for a week after the patches stopped creating them.
+  # The two excludes protect cores/ and reports/ from the delete as well as
+  # from the copy, which is what keeps the 187 staged cores out of harm.
+  rsync -a --delete --exclude 'cores/' --exclude 'reports/' "$EJS_SRC/" "$EJS_DEST/"
   echo "Staged EmulatorJS JS from $EJS_SRC"
   echo "  cores preserved:   $(ls "$EJS_DEST"/cores/*.data 2>/dev/null | wc -l)"
   echo "  reports preserved: $(ls "$EJS_DEST"/cores/reports/*.json 2>/dev/null | wc -l)"
