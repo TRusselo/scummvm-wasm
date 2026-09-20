@@ -30,10 +30,10 @@ index 1c5b25f..c7c79f0 100644
      display: inline-block;
      width: 24px;
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index 0717b78..c3a1a31 100644
+index 233570d..2ba32e1 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -268,18 +268,18 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -289,18 +289,18 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              // otherwise lost.
              if (!reason) {
                  if (this.EJS.debug) console.log(`[save] giving up on attempt ${attempts}, no reason reported:`, failure);
@@ -55,7 +55,7 @@ index 0717b78..c3a1a31 100644
                  return null;
              }
              if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (temporary), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
-@@ -334,7 +334,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -355,7 +355,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
                  stateSize = this.FS.stat("/" + name).size;
              } catch(e) {}
              if (!stateSize) {
@@ -64,7 +64,7 @@ index 0717b78..c3a1a31 100644
                  return false;
              }
              this.functions.loadState(name, 0);
-@@ -352,7 +352,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -373,7 +373,7 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              if (reason.permanent || spent) {
                  const message = (spent && !reason.permanent && opts.giveUpMessage)
                      ? opts.giveUpMessage : reason.message;
@@ -73,7 +73,7 @@ index 0717b78..c3a1a31 100644
                  return false;
              }
              // The engine's wording when it gave one: "waiting for the scene to
-@@ -447,13 +447,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -481,13 +481,13 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              if (index === 24 && value === 1) {
                  const slot = this.EJS.frontend.settings["save-state-slot"] ? this.EJS.frontend.settings["save-state-slot"] : "1";
                  this.quickSave(slot).then((ok) => {

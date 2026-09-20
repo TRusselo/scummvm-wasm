@@ -1,8 +1,8 @@
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index 4053138..0717b78 100644
+index 4053138..233570d 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
-@@ -210,18 +210,180 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -210,18 +210,210 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
      getState() {
          return this.Module.EmulatorJSGetState();
      }
@@ -14,8 +14,21 @@ index 4053138..0717b78 100644
 +    // thread while it does, so nothing is drawn -- so the waiting lives here,
 +    // where the game keeps running between attempts.
 +    //
-+    // The core leaves its reason in the shared filesystem. First line is
-+    // "permanent" or "temporary"; the rest is what to show.
++    // Every retry here exists for one protocol: a core that declines a save or a
++    // load writes its reason to /savestate_error.txt, and the frontend waits the
++    // refusal out rather than failing. EmulatorJS drives 187 cores and only
++    // ScummVM implements it, so for the rest that wait is spent on a file that
++    // will never appear. They take the unpatched path untouched.
++    //
++    // Named rather than probed: a core that simply had nothing to refuse looks
++    // identical to one that cannot refuse, so absence proves nothing. A
++    // capability flag in core.json would be the cleaner signal if the protocol
++    // is ever adopted more widely.
++    savestateRetrySupported() {
++        try {
++            return this.EJS.getCore() === "scummvm";
++        } catch(e) { return false; }
++    }
 +    // The core leaves its reason in the shared filesystem, because the libretro
 +    // OSD reaches neither the log nor the screen here. First line is
 +    // "permanent" or "temporary"; the rest is what to show.
@@ -41,6 +54,14 @@ index 4053138..0717b78 100644
 +    //
 +    // Returns the state, or null having already said why.
 +    async retryGetState() {
++        if (!this.savestateRetrySupported()) {
++            try {
++                return this.getState();
++            } catch(e) {
++                this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", 6000, "error");
++                return null;
++            }
++        }
 +        const waitMs = (typeof window !== "undefined" && typeof window.EJS_saveStateWaitMs === "number")
 +            ? window.EJS_saveStateWaitMs : 10000;
 +        const retryUntil = Date.now() + waitMs;
@@ -173,7 +194,16 @@ index 4053138..0717b78 100644
          this.FS.writeFile("/game.state", state);
          this.clearEJSResetTimer();
 -        this.functions.loadState("game.state", 0);
-+        const loaded = await this.retryLoadState("game.state", options);
++        let loaded;
++        if (this.savestateRetrySupported()) {
++            loaded = await this.retryLoadState("game.state", options);
++        } else {
++            // Exactly the unpatched call: no wait, no refusal check, and no
++            // claim beyond "nothing reported an error", which is all the
++            // unpatched build ever offered.
++            this.functions.loadState("game.state", 0);
++            loaded = true;
++        }
          setTimeout(() => {
 +            if (this.loadStateGeneration !== generation) return;
              try {
@@ -185,7 +215,7 @@ index 4053138..0717b78 100644
      }
      screenshot() {
          try {
-@@ -238,27 +400,43 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+@@ -238,28 +430,48 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
              }
          })
      }
@@ -210,10 +240,6 @@ index 4053138..0717b78 100644
 -            this.FS.writeFile("/" + name, data);
 -        } catch(e) {
 -            return false;
--        }
--        return true;
--    }
--    quickLoad(slot) {
 +            ({ screenshot, format } = await this.EJS.takeScreenshot(this.EJS.capture.photo.source,
 +                this.EJS.capture.photo.format, this.EJS.capture.photo.upscale));
 +        } catch(e) {}
@@ -226,25 +252,33 @@ index 4053138..0717b78 100644
 +    // announce the slot: a host that takes this over reports for itself, and
 +    // may have nothing to load.
 +    async quickLoad(slot) {
-         if (!slot) slot = 1;
--        (async () => {
--            let name = slot + "-quick.state";
--            this.clearEJSResetTimer();
--            this.functions.loadState(name, 0);
--        })();
++        if (!slot) slot = 1;
 +        this.clearEJSResetTimer();
 +        // Ask the host for its most recent state first, so a quick load reaches
 +        // the ones a quick save sent it -- including from another machine.
 +        // Nothing listening means there is only the local copy.
 +        if (this.EJS.callEvent("quickLoadState", { slot: slot }) > 0) return false;
-+        // Same refusal handling as loadState(): a core may decline for as long
-+        // as it likes, and calling the wrap once just loses the load.
-+        await this.retryLoadState(slot + "-quick.state");
-+        return true;
++        // Same refusal handling as loadState(), and gated the same way: a core
++        // that cannot refuse is called once, as the unpatched build does.
++        if (this.savestateRetrySupported()) {
++            await this.retryLoadState(slot + "-quick.state");
++        } else {
++            this.functions.loadState(slot + "-quick.state", 0);
+         }
+         return true;
      }
+-    quickLoad(slot) {
+-        if (!slot) slot = 1;
+-        (async () => {
+-            let name = slot + "-quick.state";
+-            this.clearEJSResetTimer();
+-            this.functions.loadState(name, 0);
+-        })();
+-    }
      simulateInput(player, index, value) {
          if (this.EJS.isNetplay) {
-@@ -268,16 +446,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
+             this.EJS.netplay.simulateInput(player, index, value);
+@@ -268,16 +480,15 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
          if ([24, 25, 26, 27, 28, 29].includes(index)) {
              if (index === 24 && value === 1) {
                  const slot = this.EJS.frontend.settings["save-state-slot"] ? this.EJS.frontend.settings["save-state-slot"] : "1";
