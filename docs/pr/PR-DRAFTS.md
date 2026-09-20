@@ -751,6 +751,43 @@ and this description. Reviewed by me before opening.
 - Capture the devtools before/after of the IndexedDB list.
 - Decide whether to open a RomM issue first so the PR can carry `Fixes #`.
 
+## PR 27 — `Stop reporting missing translations for English locales` — CANDIDATE, HELD
+
+`EmulatorJS/EmulatorJS` · `data/loader.js`, one line in `loadLanguage()` ·
+applied to our build as patch `11-english-variant-no-langjson.patch`
+
+`loadLanguage()` returns early only for the exact strings `en` and `en-US`.
+Every other English locale falls through to the fallback fetch, finds no
+`en-GB.json`, and settles on `en.json`, which is a 338-key identity map. That
+makes `config.langJson` truthy, so `localization()` takes the lookup branch and
+reports every string the template does not list as a missing translation.
+
+The fix skips installing a `langJson` when the specific file is absent and the
+base language is already a default:
+
+```js
+if (!specificJson && defaultLangs.includes(config.language.split(/[-_]/)[0])) return config;
+```
+
+Verified against a harness driving the real `loadLanguage()`: `en-GB`, `en-CA`
+and `en_AU` go silent, `fr-CA`, `fr`, `de-AT` and `xx-YY` keep reporting, and a
+future `en-GB.json` is still honoured if one is ever added.
+
+**Held, not opened.** Tristyn's call: PR after testing and after the rebase.
+The rebase matters here because `f4f0f1c` ("Split backend and frontend", #1247)
+moved `localization()` out of `emulator.js` into the new `data/src/frontend.js`.
+It did not touch `loadLanguage()`, so this one-liner applies unchanged at head,
+but the branch should be cut from head rather than our pin.
+
+**No locale work.** The change adds no user-visible string, and touches no
+`localization/*.json`. RomM's 18-locale gate is not in play either; nothing
+here is RomM code.
+
+**Scope note.** `en.json` is also missing 81 strings that `data/src` passes to
+`localization()`, and dynamic labels (`LEFT_BOTTOM_SHOULDER`, `+1`, `-1`) can
+never be in it. Completing the template is a separate, larger change and would
+not fix the dynamic cases, so it is not bundled here.
+
 ## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
 `5323840b21` on local branch `ejs-build-scummvm-arrays` (worktree in the session
 scratchpad), based on `origin/v1.22.2` · +3/−3 · `emulatorjs/build-emulatorjs.sh`
