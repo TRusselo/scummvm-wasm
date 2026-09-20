@@ -1,0 +1,15 @@
+diff --git a/data/src/emulator.js b/data/src/emulator.js
+index be35152..bc711ea 100644
+--- a/data/src/emulator.js
++++ b/data/src/emulator.js
+@@ -755,7 +755,9 @@ class EmulatorJS {
+ 
+             // Download the core
+             console.log("[EJS Core] Downloading core:", filename);
+-            const corePath = "cores/" + filename;
++            // Versioned by the same buildStart the cache is keyed on, so a
++            // rebuilt core is a new URL rather than a stale hit on a stable one.
++            const corePath = "cores/" + filename + "?v=" + encodeURIComponent(rep.buildStart);
+             const res = await this.downloadFile(corePath, this.downloadType.core.name, (progress, status) => {
+                 this.textElem.innerText = this.localization(
+                     status === "decompressing" ? "Decompress Game Core" : "Download Game Core"

@@ -134,7 +134,8 @@ echo "==> applying patches"
 # rejects that hunk.
 for pf in 01-cache-streaming 02-emulator-onfile 04-savestate-retry \
           09-loadstate-retry 08-message-severity \
-          10-quickload-host-event 11-english-variant-no-langjson; do
+          10-quickload-host-event 11-english-variant-no-langjson \
+          12-core-url-versioning; do
   patch -p1 -d "$WORK/ejs" < "build/emulatorjs/patches/${pf}.patch"
 done
 fi
@@ -223,6 +224,11 @@ grep -q "quickLoadState" "$WORK/ejs/data/emulator.min.js" \
 # .split form the patch adds.
 grep -qF "defaultLangs.includes(config.language.split" "$WORK/ejs/data/loader.js" \
   || { echo "ERROR: english-variant langJson patch missing from loader.js" >&2; exit 1; }
+
+# Core URL versioning. The cache looks up by URL, so a stale core survives a
+# rebuild without this.
+grep -qF 'encodeURIComponent(rep.buildStart)' "$WORK/ejs/data/src/emulator.js" \
+  || { echo "ERROR: core-url-versioning patch missing from the source" >&2; exit 1; }
 
 echo "==> verified: both the source and the minified bundle carry all patches"
 fi
