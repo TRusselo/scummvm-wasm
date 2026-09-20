@@ -26,9 +26,6 @@ emulatorjs.org#78 (PR 18), scummvm/scummvm#7946 (PR 3).
    this is now a submission question, not a code one — see
    `reference_ejs_core_submission`.
 
-**Not gated, just undrafted:** PR 26 and PR 27, both stuck behind splitting
-`7d10f467e22` into its three destinations.
-
 **Dropping merged code:** our EJS pin `0b1c5e9` is 13 commits behind. Patches
 03b, 05 and 06 are byte-identical to what merged and can be deleted; 02 shrinks
 to whatever #1271 did not cover. Separate change, separate test pass — three of
@@ -56,17 +53,6 @@ use case"*).
 | **Patch 01** cache streaming | V8 caps one ArrayBuffer at ~2 GiB, so EmulatorJS cannot open archives past it at all. Affects any large-ROM platform, not just us — see issue #5. |
 | **Griffon half of `474782187ad`** | A dropped quit event hangs the engine. Engine bug, frontend-agnostic. |
 | **Patch 08** (#1270, open) | Every message styled as an error is wrong for all cores, not only ours. |
-
-### Legitimate divergence — do not submit
-
-| item | why it stays ours |
-|---|---|
-| **PR 11** scan the virtual-FS root | Already rejected on exactly these grounds. Permanent fork divergence. |
-| **`420fdd238bd`** drop the arm64 CI job | Their CI, inherited verbatim from `scummvm/scummvm` where arm64 is a real target. Editing it buys a merge conflict on every sync to silence a job that is red on their base branch anyway. |
-| **The save-state bridge** — reserved slot, pack/unpack, refusal file | This *is* the project. A libretro core that carries a ScummVM save set inside its state blob is not a shape upstream wants; it exists because EmulatorJS has no other way to reach the saves. |
-| **`retroarchOpts` / core.json packaging** | Deployment shape, not core behaviour. |
-| **PR 26** TeenAgent load gate, **PR 27** AGI refusal messages | **ScummVM's own save system works.** Native ScummVM never reaches these gates the way we do: the TeenAgent logo screens pump events through `skipEvents()`, which cannot open the GMM, and AGI players save by typing `save game`, which bypasses `canSaveGameStateCurrently()` outright. Only our bridge consults them, because `retro_process_pending_savestate_op()` runs from `pollEvent()`. There is no upstream bug here to fix. |
-| **Patches 04 / 09** save/load retry, **patch 10** `quickLoadState` | Same reason. Retrying a refused save only matters to a frontend that asks at moments the engine was never designed to be asked. Scaffolding for our bridge, not a general fix. |
 
 ### Gated, not divergent
 
@@ -651,41 +637,6 @@ Moves the pin from `bab7d258` to `e639e0c2`. Nothing else rides along: the only
 commit between them is PR 24 itself.
 
 Built against the new pin before opening: Emscripten, 130 engines, links clean.
-
-## PR 26 — `TEENAGENT: Refuse a load before the main loop starts` — NOT DRAFTED
-
-`engines/teenagent/teenagent.{cpp,h}` · destination `scummvm/scummvm`
-
-`canLoadGameStateCurrently()` returns `true` unconditionally
-(`teenagent.h:103`), while `canSaveGameStateCurrently()` checks `!_sceneBusy`.
-The logo screens -- `showCDLogo()`, `showLogo()`, `showMetropolis()` -- run
-before the main loop and poll events via `skipEvents()` and `delayMillis()`, so
-a queued load is applied with no scene loaded. That is the title-screen
-corruption in our issue #14.
-
-`_sceneBusy` alone is not enough: it is still `false` during those logo screens.
-Our fix adds a `_gameRunning` flag set when the main loop actually starts, and
-gates both entry points on it.
-
-**Blocked on splitting.** Currently bundled in `7d10f467e22` with the AGI change
-below and a `libretro-core.cpp` change, i.e. one commit spanning two
-destinations. Needs splitting three ways before any of it can be submitted.
-
-## PR 27 — `AGI: Report why a save or load was refused` — NOT DRAFTED
-
-`engines/agi/metaengine.cpp` · destination `scummvm/scummvm`
-
-Both gates returned `false` without setting the `msg` out-param every other
-engine fills in, so a frontend could only say "the game is busy". That is wrong
-for AGI, which refuses whenever flag 14 is unset or its command prompt is
-disabled -- neither is a scene ending. Names the blocking condition instead;
-the nested conditions become early returns and the result is unchanged.
-
-This is what identified our issue #25: KQ1 reported *"Saving is not allowed at
-this point in the game"*, i.e. `VM_FLAG_MENUS_ACCESSIBLE` unset, which is
-script-set and never set at all by the KQ1 Amiga release.
-
-**Blocked on the same split as PR 26.**
 
 ## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
 `5323840b21` on local branch `ejs-build-scummvm-arrays` (worktree in the session
