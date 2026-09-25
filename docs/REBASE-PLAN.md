@@ -1,5 +1,7 @@
 # Rebase and next-build plan
 
+> **Superseded 2026-09-24** by `docs/superpowers/plans/2026-09-24-upstream-rebase-and-cleanup.md`. Kept as the record of the September 19 rebases.
+
 Written 2026-09-19, after round 4 passed. Splits the queued work into builds
 that can each be tested on their own. Measured, not estimated: every number
 below came from a dry run against the current upstream head.

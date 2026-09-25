@@ -1,5 +1,7 @@
 # What the RomM rebase brought, and what to do about it
 
+> **Superseded 2026-09-24** by `docs/superpowers/plans/2026-09-24-upstream-rebase-and-cleanup.md`. Kept as the record of the September 19 rebases.
+
 Written 2026-09-19, after the rebase landed. The rebase itself is done:
 `unraid-stage-20260916` is **0 behind `rommapp/romm`** with 20 of our commits on
 top. This is about what arrived with it, not how to do it.
