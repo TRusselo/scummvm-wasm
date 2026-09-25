@@ -509,8 +509,14 @@ Different repo from the other three. Documentation only.
 
 ## PR 19 — `scummvm in requiresThreads` — DRAFTED, NOT OPENED, same gate as PR 12
 
-`build/emulatorjs/patches/07-scummvm-requires-threads.patch` · +1 ·
-`EmulatorJS/EmulatorJS` `data/src/consts.js`
++1 · `EmulatorJS/EmulatorJS` `data/src/consts.js`. The whole diff (it lived in
+`build/emulatorjs/patches/07-scummvm-requires-threads.patch` until that
+orphaned file was removed on 2026-09-24):
+
+```diff
+-export const requiresThreads = ["ppsspp", "dosbox_pure", "azahar"];
++export const requiresThreads = ["ppsspp", "dosbox_pure", "azahar", "scummvm"];
+```
 
 `core.json`'s `requireThreads` is declarative only -- their own `cores.json`
 sets it for `ppsspp`, `dosbox_pure` and `azahar`, but the string appears nowhere
