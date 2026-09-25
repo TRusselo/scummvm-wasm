@@ -277,13 +277,16 @@ Expected: the rebased tip. No `--prune`, and never `git clean`: the staged
 
 - [ ] **Step 3: headroom.** Check the Docker vdisk with the unraid skill. Stop if it is tight.
 
-- [ ] **Step 4: database dump** (the decision above). A read-only backup,
-      so Claude runs it, before handing over for the force-update:
+- [x] **Step 4: database dump** (the decision above). A read-only backup,
+      so Claude runs it, before handing over for the force-update. Done
+      2026-09-24: 260 MB at revision 0128, md5 `a8b3fc47`. The app user is
+      used because the root password may be random
+      (`MARIADB_RANDOM_ROOT_PASSWORD` is set):
 
 ```bash
-ssh root@big-z 'mkdir -p /mnt/user/Code/scummvm-wasm/db-backups && docker exec romm-db sh -c \
-  '\''exec mariadb-dump --single-transaction -uroot -p"${MARIADB_ROOT_PASSWORD:-$MYSQL_ROOT_PASSWORD}" --all-databases'\'' \
-  > /mnt/user/Code/scummvm-wasm/db-backups/romm-db-pre-rebase-20260924.sql && ls -la /mnt/user/Code/scummvm-wasm/db-backups/'
+ssh root@big-z 'D=/mnt/user/Backups/Unraid/Docker/romm-db && mkdir -p $D && docker exec romm-db sh -c \
+  '\''exec mariadb-dump --single-transaction --no-tablespaces -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"'\'' \
+  > $D/romm-db-pre-rebase-20260924.sql && chown -R tristyn:users $D && ls -la $D'
 ```
 
 - [ ] **Step 5: retag, then build**
