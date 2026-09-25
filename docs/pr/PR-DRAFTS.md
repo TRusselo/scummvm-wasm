@@ -835,6 +835,171 @@ A `cores.json` entry in EmulatorJS/build, to follow once the core repository
 is forked.
 ```
 
+## PR 28 — `EMULATORJS: allocate the strings the JS library frees` — DRAFTED, NOT OPENED
+
+`EmulatorJS/RetroArch`, base `v1.22.2`, one commit · `tasks/task_save.c`,
+`retroarch.c`, `emscripten/emulatorjs.js` · roughly +10/−8.
+
+**Supersedes our own commit, not just upstream's code.** Our working branch
+carries `7587e3e1c4` ("fix save_state_info() returning a dangling stack
+pointer"), which made the buffer `static`. Its message says JS never frees the
+buffer. That was true of the 4.2.3-era `GameManager.js` cwrap, and it is false for
+the glue on `v1.22.2`, where `EmulatorJSGetState` calls `_free(info)`. So
+`free()` now runs on a static address on every successful save. In release
+builds emscripten's dlmalloc defines `ABORT` as `__builtin_unreachable()`
+(`system/lib/dlmalloc.c:16`), so the invalid-free check does not abort. It is
+undefined behaviour, which is why saves appear to work. **Do not open
+`7587e3e1c4` as-is.** Replacing it in our own build is a separate change
+(RetroArch commit, link, image, test). Not done.
+
+The contract on `v1.22.2`, read 2026-09-23, not yet observed in a browser:
+
+| Where | Today | Problem |
+|---|---|---|
+| `save_state_info()` | returns a stack `char[300]` | JS reads it after return, then `_free()`s it |
+| `get_memory_data()` (`retroarch.c`) | returns a stack `char[300]` | same; `EmulatorJSGetMemoryData` `_free()`s it |
+| `EmulatorJSGetState` | `_free(data)` where `data` is a `Uint8Array` view | coerces to `0`, so `free(NULL)`: the serialized state is **never freed** |
+| `EmulatorJSGetState` | `new Uint8Array(data)` after the frees | copy happens after the free it depends on |
+
+Both C functions already end with `// This must be freed by the JavaScript
+side!`, so the intended ownership is stated in the code: heap string, JS frees.
+The change makes the code match its own comment. `EmulatorJSGetMemoryData`'s JS
+is already right (reads, then frees `info`, and returns a view of core memory
+it correctly does not free).
+
+Proposed change:
+
+```diff
+ // tasks/task_save.c, save_state_info()
+-   char state_data[300]; // This should NEVER overflow. ...
+-   memset(state_data, '\0', sizeof(state_data));
++   char *state_data = (char*)calloc(300, 1); // This should NEVER overflow. ...
++   if (!state_data)
++      return NULL;
+
+ // retroarch.c, get_memory_data()
+-   char state_data[300];
+-   memset(state_data, '\0', sizeof(state_data));
++   char *state_data = (char*)calloc(300, 1);
++   if (!state_data)
++      return NULL;
+
+ // emscripten/emulatorjs.js, $EmulatorJSGetState
+         let state = UTF8ToString(info).split("|");
++        _free(info);
+         if (state[2] !== "1") {
+ ...
+-        const data = HEAPU8.subarray(dataStart, dataStart + size);
+-        _free(info);
+-        _free(data);
+-        return new Uint8Array(data);
++        const data = HEAPU8.slice(dataStart, dataStart + size);
++        _free(dataStart);
++        return data;
+```
+
+`calloc` is already used in both C files; `_free` is in `EXPORTED_FUNCTIONS`
+(`Makefile.emulatorjs:124`). A `NULL` return reads as `""` in JS, which fails the
+`state[2] !== "1"` check and throws, the same path as any other failure.
+
+**Leak size, reasoned not measured.** Each save leaks one serialized state: the
+core's `retro_serialize_size()`. That is 16,793,412 bytes per save for
+mupen64plus-next, and for our core between the 1 MB floor and 8 MB.
+`ALLOW_MEMORY_GROWTH` hides it as heap growth rather than a failure.
+
+**Verified:** by reading only. **Not verified:** not built, not tested. Before
+opening:
+- link our core against `v1.22.2` plus this commit only
+- in a browser, record the heap size across ten saves before and after; expect
+  growth per save before, none after
+- save/load round trip still works, and `EmulatorJSGetMemoryData` still reads SRAM
+  on a core that has it
+
+Body (their template, filled):
+
+```
+## Description
+
+`save_state_info()` and `get_memory_data()` return a stack array, which
+`EmulatorJSGetState` / `EmulatorJSGetMemoryData` read after the function has
+returned and then pass to `_free()`. Allocate them on the heap, as the
+"must be freed by the JavaScript side" comments on both already say.
+
+`EmulatorJSGetState` also freed the state buffer as `_free(data)`, where `data`
+is a `Uint8Array` view, so `free(0)` ran and the serialized state was never
+freed; and it copied the view only after freeing. It now copies first, frees the
+pointer, and frees `info` on the error path too.
+
+## Related Issues
+
+None filed.
+
+## Related Pull Requests
+
+None.
+```
+
+## PR 29 — `EMSCRIPTEN: don't return a zero canvas height while the size is published` — DRAFTED, NOT OPENED
+
+`EmulatorJS/RetroArch`, base `v1.22.2`, one commit (our `1b5bd3d11c` and
+`89ca054600` squashed) · `frontend/drivers/platform_emscripten.c`,
+`frontend/drivers/platform_emulatorjs.c` · +4/−4.
+
+`platform_emscripten_update_canvas_dimensions_cb()` stores width then height as
+two atomic stores. Under `HAVE_THREADS` the reader,
+`platform_emscripten_get_canvas_size()`, runs on the emulator thread and can see
+the new width with a still-zero height. Its guard is `width != 0 || height !=
+0`, so it returns early and hands the caller a zero height instead of falling
+back.
+
+Change, same in both drivers: store height first and width last, and make the
+guard `&&`. `PLATFORM_SETVAL`/`GETVAL` are `emscripten_atomic_store/load` (wasm
+atomics, sequentially consistent) and the reader loads width first. So a reader
+that sees a non-zero width also sees its height, and the `&&` guard keeps a
+zero from ever being returned even if the order changes later.
+
+**Claim kept narrow.** This closes the zero-height case only. During a live
+resize a reader can still pair the old width with the new height for one read:
+transient and non-zero, not addressed here. The old commit message's "the
+dimension pair is consistent" overstates it; the body below does not.
+
+**Never observed.** Found by reading the code; our own commit says "has not been
+observed to bite". The body says so.
+
+**Code comment dropped.** Our commit carries a six-line comment on the store
+order; the PR carries none (standing rule). The reasoning is in the body and the
+commit message.
+
+**Verified:** by reading only, and that the proposed change is our two commits'
+code minus the comment. **Not verified:** not built as a standalone branch. Our
+core has run with the equivalent change since 2026-09-15.
+
+Body (their template, filled):
+
+```
+## Description
+
+`platform_emscripten_update_canvas_dimensions_cb()` publishes width and then
+height as two atomic stores. With threads, `platform_emscripten_get_canvas_size()`
+runs on the emulator thread and can observe the new width with a height still
+at zero; its guard (`width != 0 || height != 0`) then returns that zero height
+instead of falling back.
+
+Store height first and width last, so a reader that sees a non-zero width also
+sees its height (the reader already loads width first), and require both
+dimensions before skipping the fallback. Same change in both platform drivers.
+
+Found by reading the code; I have not seen it happen.
+
+## Related Issues
+
+None filed.
+
+## Related Pull Requests
+
+None.
+```
+
 ---
 
 # Internal — not for the PRs
