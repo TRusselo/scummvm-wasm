@@ -80,18 +80,15 @@ RC-A on its own. Each merge is one less commit for `EmulatorJS/scummvm` to
 carry, and a fork that depends on a personal fork (2.1) is a fair objection
 for them to raise. Track in `docs/pr/PR-DRAFTS.md`.
 
-### 2.1 `libretro/libretro-deps#15` — FreeType autofit signature fix (OPEN)
+### 2.1 `libretro/libretro-deps#15` — FreeType autofit signature fix (DONE)
 
-Without this fix the core traps on the first glyph with a real outline. Our
-`dependencies.mk` pins `TRusselo/libretro-deps@7e18f86`, and the libretro
-build clones exactly that URL and commit, so a build of our branch works
-today. What the merge buys is removing the personal-fork dependency; the pin
-then reverts to two upstream lines.
-
-**Action:** nothing to write; it needs review attention. Periodic, polite
-follow-up only. Open since 2026-09-06, no comment.
-
-**Exit criterion:** merged, pin reverted, core rebuilt and re-validated.
+Merged 2026-09-19 as `e639e0c`. libretro/scummvm#117 moved `staging_master`'s
+pin to it on 2026-09-22, and our `dependencies.mk` is now byte-identical to
+theirs: `libretro/libretro-deps@e639e0c`. There is no personal-fork
+dependency left; `TRusselo/libretro-deps` is referenced by nothing. Our three
+pin commits were dropped in the 2026-09-24 rebase, and that core was rebuilt.
+`scummvm/scummvm` master still pins the old `bab7d258` until someone bumps it
+there.
 
 ### 2.2 Engine fixes → `scummvm/scummvm`
 
