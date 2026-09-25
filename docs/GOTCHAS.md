@@ -3412,6 +3412,11 @@ bare `true`, so the engine claims a load is always safe. (Saving is gated
 properly, on `!_sceneBusy`, which is why the same session logs
 `Save refused for 10 frames` throughout the intro.)
 
+**That was upstream's code. Ours differs since 2026-09-17:** `fbfc5e09aa4`
+gates the load on `_gameRunning && !_sceneBusy`. That ends the corruption, but
+it refuses a launch-time load through the whole intro instead, which is issue
+#14. Read our branch, not upstream's, before quoting this gate.
+
 **Workaround, and the thing to tell a player:** if a game does not launch
 straight into its state, get past the menu or opening cutscene first, then load
 from the EmulatorJS menubar. A restore after the intro works correctly.
@@ -3422,3 +3427,17 @@ branch and never plays the intro. 149 files under `engines/` read `save_slot`,
 and it is how the desktop launcher enters a save. Prototyped and reverted
 2026-09-14 -- the problem turned out to be upstream's rather than ours, so it
 is an improvement, not a fix.
+
+## Rebase RomM on the workstation, and typecheck it yourself (2026-09-19)
+
+Two corrections from the September rebases, stranded on a local branch until
+2026-09-24:
+
+- **Never rebase through the `/mnt/unraid` mount.** Git there reports "local
+  changes would be overwritten" for files `git status` calls clean. Rebase in
+  `/home/user/git/romm`, push, then move the box's checkout over ssh on the
+  box's own filesystem.
+- **`vite build` does not typecheck.** It strips types without checking them,
+  and the Dockerfile never runs `vue-tsc`. A green image build says nothing
+  about TypeScript. Run `npm run typecheck` and `npm test` in `frontend/`
+  before building the image.
