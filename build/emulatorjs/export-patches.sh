@@ -14,7 +14,7 @@ cd "$(dirname "$0")/../.."
 # slug of its subject, so rewording a commit message cannot silently rename a
 # patch that assemble.sh references by name.
 
-BRANCH="${1:-scummvm-wasm}"
+BRANCH="${1:-scummvm-wasm-split}"
 BASE="${2:-}"
 WORKTREE="${EJS_WORKTREE:-/tmp/ejs-branch}"
 OUT="build/emulatorjs/patches"

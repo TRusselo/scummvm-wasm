@@ -394,3 +394,43 @@ When it does:
 - **#1273 merges**: drop patch 12.
 - **v4.3.0 is tagged**: nothing changes by itself. We pin commits, not
   releases.
+
+---
+
+## Status, 2026-10-01
+
+- **Tasks 1-6 done 2026-09-24.** Tristyn force-updated `/romm` to
+  `1492a2bbe193` on 2026-09-27. `romm-db` is at `0134`, so every migration ran.
+  Round 11 (Task 7) is still to run.
+- **Task 8 done 2026-10-01**, on Tristyn's go ahead of round 11. Deleted: 29
+  branches on GitHub, 41 on the workstation, and 3 in the Unraid checkout. The
+  workstation also lost 2 stashes and 4 dead worktrees. Every deleted tip SHA is
+  in `~/scummvm-wasm-scratch/20261001/deleted-branches.txt`. Before deleting,
+  every branch was checked for commits that exist nowhere else, by subject.
+  Every such commit had landed upstream in another form, been superseded, or
+  was diagnostic, with one exception below.
+  - **Kept until round 11 passes:** `backup-pre-rebase-20260924`
+    (scummvm-scummvm) and `backup-unraid-stage-pre-531-rebase` (romm).
+  - **Kept, still live:** romm `fix-quickload-undefined-state`. RomM's #4877
+    closed issue #4476, but it fixed a different symptom. Upstream master's
+    quick load still hands `applyState()` whatever `storage.states.get()`
+    resolves to, with no guard for `undefined`. The draft is still the fix for
+    that path.
+  - **Dropped content:** one 3-line note from romm's old `emulatorjs-wasm-fixes`
+    (`319bad1a4`). In `docker/scummvm-core/README.md`, `lockMouse: enabled` is
+    redundant since 2026-09-12, because the core's `core.json` declares
+    `supportsMouse`; it is harmless to keep. The deployed branch never carried
+    that note.
+  - **`TRusselo/libretro-deps`:** its last extra branch is deleted. Deleting the
+    repo needs the `delete_repo` scope, which the gh token lacks; that one is
+    Tristyn's.
+  - `export-patches.sh` now defaults to `scummvm-wasm-split`. Its old default,
+    `scummvm-wasm`, is deleted.
+- **Not ours, seen in the RomM log:** ROMarr polled RomM with an expired OAuth
+  JWT (`base_handler.py:509`). RomM answers that with a 500 and a ~775-line
+  traceback, which rotated the 50 MB log every ~10 minutes. ROMarr is now shut
+  down.
+- **Upstream on 2026-10-01:** EmulatorJS, RetroArch and libretro
+  `staging_master` have not moved since the rebase. RomM master is 604 ahead
+  of our base. #4877 touches `Player.vue` and `utils.ts`, the two RomM files we
+  change most. Rebase again only after round 11 passes.
