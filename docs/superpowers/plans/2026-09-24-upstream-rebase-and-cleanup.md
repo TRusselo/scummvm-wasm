@@ -434,3 +434,16 @@ When it does:
   `staging_master` have not moved since the rebase. RomM master is 604 ahead
   of our base. #4877 touches `Player.vue` and `utils.ts`, the two RomM files we
   change most. Rebase again only after round 11 passes.
+
+## Round 11, 2026-10-01: ALL PASS
+
+The RomM upgrade (migrations, scan, edit), Zak save, load and launch-with-state
+(all on attempt 1), Beavis boot (the AVI path is fine on upstream's #7935) and
+Clear cache all passed. The regression list holds. Both kept backups are now
+deleted, and their SHAs are in the recovery log. The `:rollback` image
+`ab904bf82537` stays until the next build replaces `:local`.
+
+New tail member for #14: Beavis's launch-time load is refused through the
+intro and menus. `bbvs.h:449` gates it on `_isSaveAllowed`, which is set only
+in the scene, inventory and dialog states. This is engine policy, the same
+class as TeenAgent and Orion.
