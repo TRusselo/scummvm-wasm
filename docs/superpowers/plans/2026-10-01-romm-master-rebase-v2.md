@@ -176,3 +176,25 @@ comment at the new branch name.
   keeps every rebase this size or smaller.
 - Our quick-load fix for upstream (`fix-quickload-undefined-state`) is still
   live and still unsubmitted.
+
+---
+
+## Status, 2026-10-01 evening
+
+- **The libretro-deps fork was deleted** after Tristyn granted the `delete_repo` scope.
+- **Task 1 done.** `unraid-stage-20261001` is `c31c1f6ea`: 16 commits on
+  `e23b04969`. The Dockerfile conflict resolved to our emulator stage plus
+  master's `apk add 7zip`. The cache-dialog conflict was a comment line.
+  `range-diff`: 12 identical, and 2 changed only in context or in the comment
+  line (`7186ba6ef` sits next to #4877's save-restart code). Our net change is
+  byte-identical for `Player.vue`, `utils.ts`, `index.ts`, `emulatorjsCache.ts`,
+  the v1 cache dialog, nginx, the README and `.gitignore`. `Base.vue` differs
+  by design (`8f2f9d94f` was dropped).
+- **Task 2 done.** Typecheck clean; vitest 3114/3114 across 263 files.
+- **Task 3 done.** `:local` = `61db580d7a6c`, `:rollback` = `1492a2bbe193`.
+  Verified inside the image: core md5 `ce5a3b72`, 42 engine-data files, the
+  report JSON, the patched EmulatorJS bundle, migrations to `0147`, and our
+  player strings in the frontend bundle. DB dump at `0134`:
+  `/mnt/user/Backups/Unraid/Docker/romm-db/romm-db-pre-rebase-20261001.sql`.
+  Orphan: `ab904bf82537` (round 10), for Tristyn to decide.
+- **Round 12** is in `tests.list`, run in the v2 UI.
