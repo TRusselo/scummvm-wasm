@@ -5,6 +5,40 @@ closed within the hour and resubmitted clean the same evening. The table below
 is as of 2026-09-12 evening; per-PR headings carry the current status. Bodies
 further down are the PR text itself — nothing else.
 
+## Status, 2026-10-19
+
+Checked from git refs (the GitHub API is not reachable for these repos from
+the cloud session), so merge dates are commit dates on the base branch.
+
+**Merged since 09-20:**
+
+- EmulatorJS/RetroArch#48 (`scummvm` in `needsAsync`), merge `97f2cfa` on
+  `v1.22.2` by Ethan O'Brien, 2026-10-16. Not tracked here before. It is the
+  `needsAsync` third of PR 12; `largeStack` and `largeHeap` still lack
+  `scummvm`.
+- EmulatorJS#1270 (PR 20) `08d36c7`, #1272 (missing newlines) `d0c9634`,
+  #1273 (version the core URL with `buildStart`) `0235603`, all on `main`
+  2026-10-14. This lifts the #1270 gate on patches 04/09 and 10.
+- libretro/scummvm#117 (PR 25), squashed into `staging_master` as `92366fad`
+  ("LIBRETRO: bump libretro-deps", identical diff) 2026-09-22.
+- scummvm/scummvm#7946 (PR 3), `6292373` on `master`, committed by
+  Filippos Karapetis 2026-09-22.
+
+**Open:** EmulatorJS/emulatorjs.org#78 (PR 18). `main` there has not moved
+since 2026-06-27.
+
+**Upstream changes that touch our drafts:**
+
+- EmulatorJS/RetroArch#49 (Joe Thundercheeks, merged 2026-10-14, `e263662`)
+  makes `save_state_info()`'s buffer `static`, stops JS freeing it, copies the
+  state before freeing, and frees it by address. That is the
+  `save_state_info` half of PR 28, and it makes our `7587e3e1c4` match
+  upstream. `get_memory_data()` still returns a stack buffer that JS
+  `_free()`s, so PR 28 shrinks to that half.
+- EmulatorJS added an AI policy to `CONTRIBUTING.md` on 2026-10-14: any AI use
+  must be disclosed as `Assisted-by: <model-tag>` in **each commit and at the
+  bottom of the PR description**. Applies to every future EmulatorJS PR.
+
 ## Status, 2026-09-20
 
 **Merged since:** libretro/scummvm#116 (PR 21), and four on EmulatorJS in nine
@@ -107,7 +141,7 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 |---|---|---|---|---|
 | 1 | scummvm/scummvm#7925 → #7944 | `video/avi_decoder.cpp` | all platforms, any AVI | #7925 **closed** — AI co-authorship, then `bluegr`: unnecessary, and `lephilousophe`: **superseded by #7935** (his general fix, all decoders). #7944 was resubmitted before those two comments were read and **withdrawn** 2026-09-12 citing #7935 |
 | 2 | scummvm/scummvm#7926 | `engines/tinsel/detection_tables.h` | detection only | **withdrawn** — booted, not played through |
-| 3 | scummvm/scummvm#7928 → #7946 | `engines/chamber/cga.cpp` | all platforms, chamber only | #7928 closed — AI co-authorship; **#7946 open**, quiet since 2026-09-13 |
+| 3 | scummvm/scummvm#7928 → #7946 | `engines/chamber/cga.cpp` | all platforms, chamber only | #7928 closed — AI co-authorship; **#7946 MERGED** 2026-09-22 (`6292373`) |
 | 5 | scummvm/scummvm#7927 → #7945 | `engines/scumm/scumm.h` | all platforms, SCUMM only | #7927 closed — no AI disclosure, and comment far too long; **#7945 MERGED** 2026-09-14 into `master` |
 | 6 | — | `engines/engine.h`, `engines/scumm/scumm.h` | new base-class virtual | **on hold with 9** — see "Save states: asked before submitting" below |
 | 7 | libretro/scummvm#110 | `backends/platform/libretro/Makefile.common` | libretro core, all targets | **merged** 2026-09-12 into `staging_master` (not `master` yet); `spleen1981` asked for the code comment to go, and it did. Reached `master`; **dropped from the fork 2026-09-15** |
@@ -116,10 +150,10 @@ our own repo's commit convention. `libretro/libretro-deps` has no such policy.
 | 11 | libretro/scummvm#112 | `backends/platform/libretro/src/libretro-core.cpp` | EMSCRIPTEN-guarded | **CLOSED** 2026-09-14 by `spleen1981`: "let's avoid platform specific workarounds to support an unsupported use case". Stays in our fork as permanent divergence |
 | 13 | libretro/scummvm#113 | `libretro-os-utils.cpp` | libretro core, all targets | **MERGED** into `staging_master`; patch-present in `libretro/master`; **dropped from the fork 2026-09-15** |
 | 14 | libretro/scummvm#114 | `libretro-os.h`, `libretro-os-utils.cpp` | EMSCRIPTEN-guarded | **MERGED** 2026-09-15 by `spleen1981`. He asked about `LIBCO=0` and withdrew the question himself; a review comment asked `hasFeature()` to move to `libretro-os-base.cpp`, done — `openUrl()` stayed, that file defines `FORBIDDEN_SYMBOL_ALLOW_ALL` and without it `forbidden.h`'s `FILE` macro breaks `<emscripten.h>`. **Both commits dropped from the fork 2026-09-15** |
-| 20 | EmulatorJS/EmulatorJS#1270 | `data/emulator.css`, `data/src/{emulator,GameManager,netplay}.js` | every core, every embedder | **OPEN**, submitted 2026-09-16 |
-| 21 | libretro/scummvm#116 | `libretro-core.cpp`, `libretro-os-utils.cpp`, `include/libretro-core.h` | libretro core, all targets | **OPEN**, submitted 2026-09-16. Rebuilt against `origin/master` by hand rather than cherry-picked — our version sits on the save-state bridge, which is not upstream, so two of our eleven call sites do not exist there |
+| 20 | EmulatorJS/EmulatorJS#1270 | `data/emulator.css`, `data/src/{emulator,GameManager,netplay}.js` | every core, every embedder | **MERGED** 2026-10-14 (`08d36c7`) |
+| 21 | libretro/scummvm#116 | `libretro-core.cpp`, `libretro-os-utils.cpp`, `include/libretro-core.h` | libretro core, all targets | **MERGED**, submitted 2026-09-16. Rebuilt against `origin/master` by hand rather than cherry-picked — our version sits on the save-state bridge, which is not upstream, so two of our eleven call sites do not exist there |
 | 22 | rommapp/romm#4539 | `docker/Dockerfile` | RomM image only | **CLOSED** 2026-09-16 by `zurdi15`: *"I'm not gonna merge a messy patch for something that emujs will release at some point. Lets wait for them to release 4.3.0"*. Correct call — the fix is in `v4.3.0-pre` — and it costs us nothing, our fork had already dropped this backport in `6bb3cdf6e`. See "RomM's EmulatorJS version" below |
-| 23 | EmulatorJS/EmulatorJS#1271 | `data/src/emulator.js` | every core, every embedder | **OPEN**, submitted 2026-09-16. Split out of patch 02; the only piece of it that stands alone upstream |
+| 23 | EmulatorJS/EmulatorJS#1271 | `data/src/emulator.js` | every core, every embedder | **MERGED**, submitted 2026-09-16. Split out of patch 02; the only piece of it that stands alone upstream |
 | — | libretro/libretro-deps#15 | FreeType `autofit` | pinned by `dependencies.mk` | **open, the release gate.** Reframed 2026-09-15: upstream FreeType already made this exact change, and the vendored copy here is 2.7.0 against upstream's 2.14.3. Our explanatory comment was removed so the files match upstream character for character |
 
 Two of the three closures disputed only the trailers; PR 1's also disputed the
@@ -207,7 +241,7 @@ dw.scn        70955425870c7720d6eebed903b2ef41   776188
 english.txt   7526cfc3a64e00f223795de476b4e2c9   228878
 ```
 
-## PR 3 — `CHAMBER: take the Hercules blit path only when Hercules was requested`
+## PR 3 — `CHAMBER: take the Hercules blit path only when Hercules was requested` — **MERGED** as scummvm/scummvm#7946
 `a607b761ebe`
 
 ```
@@ -342,7 +376,7 @@ Scan from "/" instead, which always contains the full tree. Guarded to
 EMSCRIPTEN -- on a native build "/" is the real OS root.
 ```
 
-## PR 13 — `LIBRETRO: Log the unknown-game report when autodetection finds nothing` — OPEN as libretro/scummvm#113
+## PR 13 — `LIBRETRO: Log the unknown-game report when autodetection finds nothing` — **MERGED** as libretro/scummvm#113
 `9ebc6940b1c` (PR head `31ebc43` on `staging_master`) · +2 · `backends/platform/libretro/src/libretro-os-utils.cpp` · issue #6 item 1
 
 Platform-agnostic. Uses the backend's existing `logMessage()` and ScummVM's own
@@ -358,7 +392,7 @@ empty launcher and no clue which files did not match. Log the report the
 Add Game dialog would have shown.
 ```
 
-## PR 14 — `LIBRETRO: Implement kFeatureOpenUrl on Emscripten` — OPEN as libretro/scummvm#114
+## PR 14 — `LIBRETRO: Implement kFeatureOpenUrl on Emscripten` — **MERGED** as libretro/scummvm#114
 `cdeaa23430d` (PR head `65d7f53` on `staging_master`) · +26 · `libretro-os.h`, `libretro-os-utils.cpp` · issue #6 item 2 · EMSCRIPTEN-guarded
 
 Verified live: EMI's md5-check dialog ("Could not open the file voice.lab")
@@ -538,7 +572,7 @@ and a normal load still fetches the core and its engine-data and runs.
 since it is an entry for a core they do not have. Keep `requireThreads: true`
 in our `core.json` regardless -- it matches what every threaded core declares.
 
-## PR 20 — `Show errors in red and stop styling every message as one` — OPEN as EmulatorJS/EmulatorJS#1270
+## PR 20 — `Show errors in red and stop styling every message as one` — **MERGED** as EmulatorJS/EmulatorJS#1270
 
 `EmulatorJS/EmulatorJS` branch `msg-severity` · `data/emulator.css`,
 `data/src/emulator.js`, `data/src/GameManager.js`, `data/src/netplay.js`
@@ -658,7 +692,7 @@ stopgap. EmulatorJS builds cores from source, so a core whose dependencies come
 from a personal fork is not shippable. The chain is now
 our fork -> upstream libretro -> EmulatorJS, with no personal forks in it.
 
-## PR 25 — `LIBRETRO: Bump libretro-deps for the FreeType autofit signature fix` — OPEN as libretro/scummvm#117
+## PR 25 — `LIBRETRO: Bump libretro-deps for the FreeType autofit signature fix` — **MERGED** as libretro/scummvm#117
 
 `backends/platform/libretro/dependencies.mk` · +1/-1 · on `staging_master`
 
@@ -794,7 +828,7 @@ here is RomM code.
 never be in it. Completing the template is a separate, larger change and would
 not fix the dynamic cases, so it is not bundled here.
 
-## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED
+## PR 12 — `EMULATORJS: add scummvm to the large-stack, large-heap and async core lists` — DRAFTED, NOT OPENED; `needsAsync` part MERGED as EmulatorJS/RetroArch#48
 `5323840b21` on local branch `ejs-build-scummvm-arrays` (worktree in the session
 scratchpad), based on `origin/v1.22.2` · +3/−3 · `emulatorjs/build-emulatorjs.sh`
 
@@ -841,7 +875,7 @@ A `cores.json` entry in EmulatorJS/build, to follow once the core repository
 is forked.
 ```
 
-## PR 28 — `EMULATORJS: allocate the strings the JS library frees` — DRAFTED, NOT OPENED
+## PR 28 — `EMULATORJS: allocate the strings the JS library frees` — DRAFTED, NOT OPENED; `save_state_info` half fixed upstream by EmulatorJS/RetroArch#49
 
 `EmulatorJS/RetroArch`, base `v1.22.2`, one commit · `tasks/task_save.c`,
 `retroarch.c`, `emscripten/emulatorjs.js` · roughly +10/−8.
