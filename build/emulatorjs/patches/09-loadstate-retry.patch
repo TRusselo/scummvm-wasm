@@ -1,5 +1,5 @@
 diff --git a/data/src/GameManager.js b/data/src/GameManager.js
-index 4053138..233570d 100644
+index 6679d71..e5697d7 100644
 --- a/data/src/GameManager.js
 +++ b/data/src/GameManager.js
 @@ -210,18 +210,210 @@ IF EXIST AUTORUN.BAT CALL AUTORUN.BAT
@@ -58,7 +58,7 @@ index 4053138..233570d 100644
 +            try {
 +                return this.getState();
 +            } catch(e) {
-+                this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", 6000, "error");
++                this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", 6000, undefined, "error");
 +                return null;
 +            }
 +        }
@@ -86,18 +86,18 @@ index 4053138..233570d 100644
 +            // otherwise lost.
 +            if (!reason) {
 +                if (this.EJS.debug) console.log(`[save] giving up on attempt ${attempts}, no reason reported:`, failure);
-+                this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", 6000, "error");
++                this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", 6000, undefined, "error");
 +                return null;
 +            }
 +            // A refusal the engine will never lift -- an SCI game with save
 +            // states switched off -- must not be retried to arrive at the same
 +            // answer.
 +            if (reason.permanent) {
-+                this.EJS.frontend.displayMessage(reason.message, 6000, "error");
++                this.EJS.frontend.displayMessage(reason.message, 6000, undefined, "error");
 +                return null;
 +            }
 +            if (Date.now() >= retryUntil) {
-+                this.EJS.frontend.displayMessage(reason.message, 6000, "error");
++                this.EJS.frontend.displayMessage(reason.message, 6000, undefined, "error");
 +                return null;
 +            }
 +            if (this.EJS.debug) console.log(`[save] attempt ${attempts} refused (temporary), ${Math.max(0, retryUntil - Date.now())}ms of ${waitMs} left`);
@@ -152,7 +152,7 @@ index 4053138..233570d 100644
 +                stateSize = this.FS.stat("/" + name).size;
 +            } catch(e) {}
 +            if (!stateSize) {
-+                this.EJS.frontend.displayMessage("FAILED TO LOAD STATE", 6000, "error");
++                this.EJS.frontend.displayMessage("FAILED TO LOAD STATE", 6000, undefined, "error");
 +                return false;
 +            }
 +            this.functions.loadState(name, 0);
@@ -170,7 +170,7 @@ index 4053138..233570d 100644
 +            if (reason.permanent || spent) {
 +                const message = (spent && !reason.permanent && opts.giveUpMessage)
 +                    ? opts.giveUpMessage : reason.message;
-+                this.EJS.frontend.displayMessage(message, 8000, "error");
++                this.EJS.frontend.displayMessage(message, 8000, undefined, "error");
 +                return false;
 +            }
 +            // The engine's wording when it gave one: "waiting for the scene to
@@ -283,34 +283,34 @@ index 4053138..233570d 100644
              if (index === 24 && value === 1) {
                  const slot = this.EJS.frontend.settings["save-state-slot"] ? this.EJS.frontend.settings["save-state-slot"] : "1";
 -                if (this.quickSave(slot)) {
--                    this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
+-                    this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot, "success");
 -                } else {
--                    this.EJS.frontend.displayMessage("FAILED TO SAVE STATE");
+-                    this.EJS.frontend.displayMessage("FAILED TO SAVE STATE", undefined, undefined, "error");
 -                }
 +                this.quickSave(slot).then((ok) => {
-+                    if (ok === true) this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
++                    if (ok === true) this.EJS.frontend.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot, "success");
 +                });
              }
              if (index === 25 && value === 1) {
                  const slot = this.EJS.frontend.settings["save-state-slot"] ? this.EJS.frontend.settings["save-state-slot"] : "1";
 -                this.quickLoad(slot);
--                this.EJS.frontend.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot);
+-                this.EJS.frontend.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot, "success");
 +                this.quickLoad(slot).then((local) => {
-+                    if (local) this.EJS.frontend.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot);
++                    if (local) this.EJS.frontend.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot, "success");
 +                });
              }
              if (index === 26 && value === 1) {
                  let newSlot;
 diff --git a/data/src/frontend.js b/data/src/frontend.js
-index e0ae0ea..5256157 100644
+index bfc41c6..0a1de56 100644
 --- a/data/src/frontend.js
 +++ b/data/src/frontend.js
-@@ -552,7 +552,7 @@ class EJS_Frontend {
+@@ -560,7 +560,7 @@ class EJS_Frontend {
              hideMenu();
              // No failure branch: retryGetState() has already said why, with the
              // engine's own reason rather than a generic one.
 -            if (await this.ejs.gameManager.quickSave(slot)) {
 +            if (await this.ejs.gameManager.quickSave(slot) === true) {
-                 this.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
+                 this.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot, "success");
              }
          });

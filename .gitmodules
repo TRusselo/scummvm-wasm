@@ -11,8 +11,7 @@
 [submodule "retroarch"]
 	path = retroarch
 	# Fork of EmulatorJS/RetroArch carrying our local commits (the
-	# save_state_info() dangling-pointer fix, the canvas-size ordering fix,
-	# see docs/GOTCHAS.md) on top of the v1.22.2 merge. As with scummvm-core
+	# canvas-size ordering fix, see docs/GOTCHAS.md) on top of v1.22.2. As with scummvm-core
 	# above, this URL just needs to be somewhere that commit is fetchable
 	# from.
 	url = https://github.com/TRusselo/RetroArch.git

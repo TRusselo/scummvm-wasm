@@ -1,8 +1,8 @@
 diff --git a/data/src/frontend.js b/data/src/frontend.js
-index 18f553a..e0ae0ea 100644
+index 0f2ca80..bfc41c6 100644
 --- a/data/src/frontend.js
 +++ b/data/src/frontend.js
-@@ -547,20 +547,21 @@ class EJS_Frontend {
+@@ -555,20 +555,21 @@ class EJS_Frontend {
              hideMenu();
          });
  
@@ -14,9 +14,9 @@ index 18f553a..e0ae0ea 100644
 +            // No failure branch: retryGetState() has already said why, with the
 +            // engine's own reason rather than a generic one.
 +            if (await this.ejs.gameManager.quickSave(slot)) {
-                 this.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot);
+                 this.displayMessage("SAVED STATE TO SLOT", undefined, " " + slot, "success");
 -            } else {
--                this.displayMessage("FAILED TO SAVE STATE");
+-                this.displayMessage("FAILED TO SAVE STATE", undefined, undefined, "error");
              }
 -            hideMenu();
          });
@@ -24,15 +24,15 @@ index 18f553a..e0ae0ea 100644
 +        const qLoad = addButton("Quick Load", false, async () => {
              const slot = this.ejs.getSettingValue("save-state-slot") ? this.ejs.getSettingValue("save-state-slot") : "1";
 -            this.ejs.gameManager.quickLoad(slot);
--            this.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot);
+-            this.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot, "success");
              hideMenu();
 +            if (await this.ejs.gameManager.quickLoad(slot)) {
-+                this.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot);
++                this.displayMessage("LOADED STATE FROM SLOT", undefined, " " + slot, "success");
 +            }
          });
          this.elements.contextMenu = {
              screenshot: screenshot,
-@@ -974,13 +975,11 @@ class EJS_Frontend {
+@@ -982,13 +983,11 @@ class EJS_Frontend {
  
          let stateUrl;
          const saveState = addButton(this.ejs.config.buttonOpts.saveState, async () => {
@@ -40,7 +40,7 @@ index 18f553a..e0ae0ea 100644
 -            try {
 -                state = this.ejs.gameManager.getState();
 -            } catch(e) {
--                this.displayMessage("FAILED TO SAVE STATE");
+-                this.displayMessage("FAILED TO SAVE STATE", undefined, undefined, "error");
 -                return;
 -            }
 +            // Captured when the engine will accept it rather than when the

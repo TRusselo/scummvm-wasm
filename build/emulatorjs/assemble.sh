@@ -30,7 +30,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-EJS_COMMIT="f4f0f1c"          # must match ARG EMULATORJS_COMMIT in romm's Dockerfile
+EJS_COMMIT="0235603"          # must match ARG EMULATORJS_COMMIT in romm's Dockerfile
 
 usage() { echo "usage: assemble.sh <output-dir> [--force] [--vanilla] [--patch=<file>]..." >&2; }
 
@@ -129,13 +129,10 @@ echo "==> applying patches"
 # of truth: patch(1) cannot follow code that moves, so an upstream restructure
 # is handled by rebasing the branch and re-exporting, not by re-cutting hunks.
 #
-# Order matters. 09 before 08: both rewrite the quick save/load block, and 08
-# adds the severity argument to the messages 09 leaves behind. Swapping them
-# rejects that hunk.
+# Order matters: 09 builds on the retry 04 adds.
 for pf in 01-cache-streaming 02-emulator-onfile 04-savestate-retry \
-          09-loadstate-retry 08-message-severity \
-          10-quickload-host-event 11-english-variant-no-langjson \
-          12-core-url-versioning; do
+          09-loadstate-retry 10-quickload-host-event \
+          11-english-variant-no-langjson; do
   patch -p1 -d "$WORK/ejs" < "build/emulatorjs/patches/${pf}.patch"
 done
 fi
@@ -166,7 +163,8 @@ grep -q "romData.fileNames" "$WORK/ejs/data/src/emulator.js" \
 grep -q "fileNames" "$WORK/ejs/data/emulator.min.js" \
   || { echo "ERROR: emulator.js patch missing from the minified bundle" >&2; exit 1; }
 
-# Four of our patches are upstream as of this pin (#1267, #1268, #1269, #1271)
+# Six of our patches are upstream as of this pin (#1267, #1268, #1269, #1270,
+# #1271, #1273)
 # and are no longer carried here. These checks are not "did our patch apply" --
 # there is no patch. They verify the PIN still carries the merged work, which
 # is the thing that can silently regress when EJS_COMMIT moves.
@@ -195,13 +193,12 @@ done
 grep -q "retryGetState" "$WORK/ejs/data/src/frontend.js" \
   || { echo "ERROR: save button not wired to the shared retry" >&2; exit 1; }
 
-# Message severity. Upstream styles every .ejs_message red, so a successful
-# save reads as a failure; the class is what carries the distinction. It is a
-# string literal in the source and in the bundle, and the stylesheet is copied
-# verbatim, so all three are checked.
+# Message severity (#1270, merged). The class is a string literal in the source
+# and in the bundle, and the stylesheet is copied verbatim, so all three are
+# checked.
 for f in "$WORK/ejs/data/src/frontend.js" "$WORK/ejs/data/emulator.min.js" "$WORK/ejs/data/emulator.css"; do
   grep -q "ejs_message_error" "$f" \
-    || { echo "ERROR: message-severity patch missing from $f" >&2; exit 1; }
+    || { echo "ERROR: pin is missing the merged message severity (#1270) in $f" >&2; exit 1; }
 done
 
 # Load-state retry. A load is refused for as long as the engine says no, and
@@ -226,10 +223,10 @@ grep -q "quickLoadState" "$WORK/ejs/data/emulator.min.js" \
 grep -qF "defaultLangs.includes(config.language.split" "$WORK/ejs/data/loader.js" \
   || { echo "ERROR: english-variant langJson patch missing from loader.js" >&2; exit 1; }
 
-# Core URL versioning. The cache looks up by URL, so a stale core survives a
-# rebuild without this.
+# Core URL versioning (#1273, merged). The cache looks up by URL, so a stale
+# core survives a rebuild without this.
 grep -qF 'encodeURIComponent(rep.buildStart)' "$WORK/ejs/data/src/emulator.js" \
-  || { echo "ERROR: core-url-versioning patch missing from the source" >&2; exit 1; }
+  || { echo "ERROR: pin is missing the merged core URL versioning (#1273)" >&2; exit 1; }
 
 echo "==> verified: both the source and the minified bundle carry all patches"
 fi
